@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}بيع البقرة {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-cash-coin"></i> بيع البقرة {{ cow.ear_tag }}</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <div class="alert alert-info small">
+        <i class="bi bi-info-circle"></i> عملية البيع هتخرج البقرة من القطيع وتتسجّل كإيراد.
+      </div>
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+          {{ form.sale_date.label(class="form-label fw-bold") }}
+          {{ form.sale_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ form.buyer_name.label(class="form-label fw-bold") }}
+          {{ form.buyer_name(class="form-control") }}
+          {% for e in form.buyer_name.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
+          {{ form.price.label(class="form-label fw-bold") }}
+          <div class="input-group">
+            {{ form.price(class="form-control", dir="ltr", step="0.01") }}
+            <span class="input-group-text">جنيه</span>
+          </div>
+          {% for e in form.price.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-4">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=3) }}
+        </div>
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-warning") }}
+          <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

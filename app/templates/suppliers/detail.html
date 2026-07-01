@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}المورد {{ supplier.name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-truck"></i> {{ supplier.name }}</h1>
+    {% if supplier.phone %}<p class="text-muted mb-0" dir="ltr">{{ supplier.phone }}</p>{% endif %}
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('suppliers.edit_supplier', supplier_id=supplier.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+    <a href="{{ url_for('purchases.create_invoice', supplier_id=supplier.id) }}" class="btn btn-primary"><i class="bi bi-receipt"></i> فاتورة شراء جديدة</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي الفواتير</div>
+      <div class="stat-value" dir="ltr">{{ supplier.total_invoiced }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي المدفوع</div>
+      <div class="stat-value text-success" dir="ltr">{{ supplier.total_paid }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الرصيد المستحق</div>
+      <div class="stat-value {% if supplier.balance_due > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ supplier.balance_due }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-receipt"></i> الفواتير</h5>
+        <a href="{{ url_for('purchases.create_invoice', supplier_id=supplier.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> فاتورة جديدة</a>
+      </div>
+      {% if invoices %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>رقم الأصلي</th><th>النوع</th><th>الإجمالي</th><th>المتبقي</th><th></th></tr></thead>
+        <tbody>
+          {% for inv in invoices %}
+          <tr>
+            <td dir="ltr">{{ inv.invoice_date }}</td>
+            <td dir="ltr">{{ inv.original_invoice_no or "—" }}</td>
+            <td><span class="badge bg-{{ 'success' if inv.payment_type == 'cash' else 'warning' }}">{{ inv.payment_label }}</span></td>
+            <td dir="ltr">{{ inv.total }}</td>
+            <td dir="ltr" class="{% if inv.outstanding > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">{{ inv.outstanding }}</td>
+            <td><a href="{{ url_for('purchases.view_invoice', invoice_id=inv.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش فواتير بعد.</p>{% endif %}
+    </div>
+
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-cash-stack"></i> الدفعات</h5>
+      {% if payments %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظات</th></tr></thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td dir="ltr">{{ p.payment_date }}</td>
+            <td dir="ltr" class="fw-bold text-success">{{ p.amount }}</td>
+            <td>{{ p.method_label }}</td>
+            <td>{{ p.notes or "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش دفعات بعد.</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-cash-coin"></i> تسجيل دفعة جديدة</h5>
+      <form method="post" action="{{ url_for('suppliers.record_payment', supplier_id=supplier.id) }}" novalidate id="paymentForm">
+        {{ payment_form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ payment_form.amount.label(class="form-label fw-bold") }}
+          <div class="input-group">
+            {{ payment_form.amount(class="form-control", dir="ltr", step="0.01", id="paymentAmount") }}
+            <span class="input-group-text">جنيه</span>
+          </div>
+          <small class="text-muted">الرصيد المستحق حالياً: <span dir="ltr">{{ supplier.balance_due }}</span></small>
+        </div>
+
+        <div class="mb-3">
+          {{ payment_form.payment_date.label(class="form-label fw-bold") }}
+          {{ payment_form.payment_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+
+        <div class="mb-3">
+          {{ payment_form.method.label(class="form-label fw-bold") }}
+          {{ payment_form.method(class="form-select") }}
+        </div>
+
+        <div class="mb-3">
+          {{ payment_form.notes.label(class="form-label fw-bold") }}
+          {{ payment_form.notes(class="form-control", rows=2) }}
+        </div>
+
+        <div class="alert alert-warning d-none" id="overpayWarn">
+          <i class="bi bi-exclamation-triangle"></i>
+          المبلغ ده أكبر من الرصيد المستحق. لو أكيد اضغط تأكيد وأرسل.
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="overpayCheck">
+            <label class="form-check-label" for="overpayCheck">أكيد أدفع أكتر من الرصيد</label>
+          </div>
+        </div>
+
+        <input type="hidden" name="confirm_overpay" value="0" id="confirmOverpay">
+        {{ payment_form.submit(class="btn btn-primary w-100") }}
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const amountInput = document.getElementById('paymentAmount');
+  const balance = parseFloat("{{ supplier.balance_due }}");
+  const warn = document.getElementById('overpayWarn');
+  const overpayCheck = document.getElementById('overpayCheck');
+  const confirmField = document.getElementById('confirmOverpay');
+
+  function toggleWarn() {
+    const val = parseFloat(amountInput.value || "0");
+    if (val > balance) {
+      warn.classList.remove('d-none');
+    } else {
+      warn.classList.add('d-none');
+      confirmField.value = "0";
+      overpayCheck.checked = false;
+    }
+  }
+  amountInput.addEventListener('input', toggleWarn);
+  overpayCheck.addEventListener('change', function() {
+    confirmField.value = this.checked ? "1" : "0";
+  });
+</script>
+{% endblock %}

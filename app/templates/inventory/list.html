@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}المخزون{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-boxes"></i> المخزون ({{ ingredients|length }})</h1>
+    <p class="text-muted mb-0">
+      قيمة المخزون: <span class="fw-bold" dir="ltr">{{ total_stock_value }} جنيه</span> ·
+      مواد تحت الحد الأدنى: <span class="fw-bold text-danger">{{ low_stock_count }}</span>
+    </p>
+  </div>
+  <a href="{{ url_for('inventory.create_ingredient') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة مادة</a>
+</div>
+
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item"><a class="nav-link {% if category == 'all' %}active{% endif %}" href="?category=all">الكل</a></li>
+  <li class="nav-item"><a class="nav-link {% if category == 'feed' %}active{% endif %}" href="?category=feed">علف / مواد خام</a></li>
+  <li class="nav-item"><a class="nav-link {% if category == 'medicine' %}active{% endif %}" href="?category=medicine">أدوية بيطرية</a></li>
+  <li class="nav-item ms-auto"><a class="nav-link" href="{{ url_for('inventory.all_movements') }}"><i class="bi bi-clock-history"></i> كل الحركات</a></li>
+</ul>
+
+<div class="card">
+  {% if ingredients %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>المادة</th>
+          <th>النوع</th>
+          <th>الوحدة</th>
+          <th>الرصيد الحالي</th>
+          <th>الحد الأدنى</th>
+          <th>آخر سعر</th>
+          <th>قيمة المخزون</th>
+          <th class="text-end">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in ingredients %}
+        <tr class="{% if i.is_low_stock %}table-danger{% endif %}">
+          <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}"><strong>{{ i.name }}</strong></a>
+            {% if i.is_low_stock %}<i class="bi bi-exclamation-triangle-fill text-danger" title="تحت الحد الأدنى"></i>{% endif %}
+          </td>
+          <td><span class="badge bg-secondary">{{ i.category_label }}</span></td>
+          <td>{{ i.unit_label }}</td>
+          <td dir="ltr" class="fw-bold">{{ i.current_qty }}</td>
+          <td dir="ltr">{{ i.min_qty }}</td>
+          <td dir="ltr">{{ i.last_price }}</td>
+          <td dir="ltr">{{ i.stock_value }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            <a href="{{ url_for('inventory.edit_ingredient', ingredient_id=i.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش مواد في المخزون لسه.</p>
+    <a href="{{ url_for('inventory.create_ingredient') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة مادة</a>
+    <p class="text-muted small mt-3">أو ابدأ بفاتورة شراء وحدد المواد فيها.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

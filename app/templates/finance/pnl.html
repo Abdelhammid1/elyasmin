@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}تقرير الأرباح والخسائر{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-graph-up"></i> تقرير الإيرادات والمصروفات (P&amp;L)</h1>
+    <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span></p>
+  </div>
+  <div class="d-flex gap-2 no-print">
+    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / PDF</button>
+    <a href="{{ url_for('finance.pnl_excel', **{'from': date_from.isoformat(), 'to': date_to.isoformat()}) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+  </div>
+</div>
+
+<div class="card p-3 mb-3 no-print">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">من تاريخ</label>
+      <input type="date" name="from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">إلى تاريخ</label>
+      <input type="date" name="to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-6 d-flex gap-2">
+      <button class="btn btn-primary flex-grow-1">تحديث</button>
+      {% set today = now().date() %}
+      <a class="btn btn-outline-secondary" href="?from={{ today.replace(day=1) }}&to={{ today }}">هذا الشهر</a>
+    </div>
+  </form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي الإيرادات</div>
+      <div class="stat-value text-success" dir="ltr">{{ r.total_revenue }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي المصروفات</div>
+      <div class="stat-value text-danger" dir="ltr">{{ r.total_expenses }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">صافي الربح / (الخسارة)</div>
+      <div class="stat-value {% if r.net >= 0 %}text-success{% else %}text-danger{% endif %}" dir="ltr">{{ r.net }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5 class="text-success">الإيرادات</h5>
+      <table class="table mb-0">
+        <tbody>
+          <tr><td>إيرادات اللبن</td><td dir="ltr" class="text-end">{{ r.milk_rev }}</td></tr>
+          <tr><td>بيع الحيوانات</td><td dir="ltr" class="text-end">{{ r.animal_rev }}</td></tr>
+        </tbody>
+        <tfoot class="table-light">
+          <tr><th>الإجمالي</th><th dir="ltr" class="text-end">{{ r.total_revenue }}</th></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5 class="text-danger">المصروفات حسب النوع</h5>
+      <table class="table mb-0">
+        <tbody>
+          {% for label, amt in r.by_cat %}
+          <tr><td>{{ label }}</td><td dir="ltr" class="text-end">{{ amt }}</td></tr>
+          {% endfor %}
+          {% if not r.by_cat %}<tr><td colspan="2" class="text-center text-muted">لا مصروفات في الفترة</td></tr>{% endif %}
+        </tbody>
+        <tfoot class="table-light">
+          <tr><th>الإجمالي</th><th dir="ltr" class="text-end">{{ r.total_expenses }}</th></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

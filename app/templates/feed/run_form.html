@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}تشغيل علف يومي{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-play-circle"></i> تشغيل العلف اليومي</h1>
+  <p class="text-muted mb-0">اختر المجموعة وعدد الخلطات، والنظام يخصم من المخزون ويحسب التكلفة أوتوماتيك.</p>
+</div>
+
+{% if insufficient %}
+<div class="alert alert-danger">
+  <h5 class="alert-heading"><i class="bi bi-exclamation-octagon-fill"></i> مخزون غير كافي</h5>
+  <p class="mb-2">الكميات المطلوبة لتشغيل {{ batches }} خلطة لمجموعة {{ group.name }} أكبر من المتاح:</p>
+  <ul class="mb-0">
+    {% for row in insufficient %}
+      <li>
+        <strong>{{ row.name }}</strong>:
+        محتاج <span dir="ltr" class="fw-bold">{{ row.need }} {{ row.unit }}</span> ·
+        متاح <span dir="ltr" class="text-danger fw-bold">{{ row.have }} {{ row.unit }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+  <hr>
+  <p class="mb-0 small">قلّل عدد الخلطات، أو <a href="{{ url_for('purchases.create_invoice') }}" class="alert-link">أضف فاتورة شراء</a> علشان تعبّي المخزون.</p>
+</div>
+{% endif %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate id="runForm">
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.group_id.label(class="form-label fw-bold fs-5") }}
+          {{ form.group_id(class="form-select form-select-lg", id="groupSel") }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.run_date.label(class="form-label fw-bold") }}
+          {{ form.run_date(class="form-control form-control-lg", dir="ltr", type="date") }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.batches_count.label(class="form-label fw-bold fs-5") }}
+          <div class="input-group input-group-lg">
+            <button type="button" class="btn btn-outline-secondary" onclick="stepBatches(-1)"><i class="bi bi-dash-lg"></i></button>
+            {{ form.batches_count(class="form-control text-center", dir="ltr", id="batchesInput", min="1", max="200") }}
+            <button type="button" class="btn btn-outline-secondary" onclick="stepBatches(1)"><i class="bi bi-plus-lg"></i></button>
+          </div>
+          {% for e in form.batches_count.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=2) }}
+        </div>
+
+        <div class="alert alert-info small">
+          <i class="bi bi-info-circle"></i>
+          هيتم خصم كميات المواد من المخزون بناءً على الوصفة المفعّلة للمجموعة، وحساب التكلفة بأسعار المخزون الحالية.
+        </div>
+
+        {{ form.submit(class="btn btn-primary btn-lg w-100") }}
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function stepBatches(delta) {
+    const inp = document.getElementById('batchesInput');
+    const v = Math.max(1, Math.min(200, parseInt(inp.value || "1", 10) + delta));
+    inp.value = v;
+  }
+</script>
+{% endblock %}

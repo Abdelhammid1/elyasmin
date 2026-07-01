@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}فاتورة شراء جديدة{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-receipt"></i> فاتورة شراء جديدة</h1>
+</div>
+
+{% if not suppliers %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  مفيش موردين مسجّلين. <a href="{{ url_for('suppliers.create_supplier') }}" class="alert-link">أضف مورد الأول</a>.
+</div>
+{% elif not ingredients %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  مفيش مواد مسجّلة. <a href="{{ url_for('inventory.create_ingredient') }}" class="alert-link">أضف مادة الأول</a>.
+</div>
+{% else %}
+
+<form method="post" novalidate id="invoiceForm">
+  {{ form.hidden_tag() }}
+
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3">بيانات الفاتورة</h5>
+    <div class="row g-3">
+      <div class="col-md-4">
+        {{ form.supplier_id.label(class="form-label fw-bold") }}
+        {{ form.supplier_id(class="form-select") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.invoice_date.label(class="form-label fw-bold") }}
+        {{ form.invoice_date(class="form-control", dir="ltr", type="date") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.payment_type.label(class="form-label fw-bold") }}
+        {{ form.payment_type(class="form-select") }}
+      </div>
+      <div class="col-md-6">
+        {{ form.original_invoice_no.label(class="form-label fw-bold") }}
+        {{ form.original_invoice_no(class="form-control", dir="ltr") }}
+      </div>
+      <div class="col-md-6">
+        {{ form.notes.label(class="form-label fw-bold") }}
+        {{ form.notes(class="form-control") }}
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-4 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">بنود الفاتورة</h5>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="addLine"><i class="bi bi-plus"></i> إضافة بند</button>
+    </div>
+
+    <div id="linesContainer"></div>
+
+    <div class="text-end mt-3">
+      <h4>الإجمالي: <span id="invoiceTotal" dir="ltr">0.00</span> جنيه</h4>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    {{ form.submit(class="btn btn-primary btn-lg") }}
+    <a href="{{ url_for('purchases.list_invoices') }}" class="btn btn-outline-secondary btn-lg">إلغاء</a>
+  </div>
+</form>
+
+<script>
+  const container = document.getElementById('linesContainer');
+  const totalEl = document.getElementById('invoiceTotal');
+  const ingredients = [
+    {% for i in ingredients %}
+      { id: {{ i.id }}, name: "{{ i.name }} — {{ i.unit_label }}", unit: "{{ i.unit_label }}", last: "{{ i.last_price }}" },
+    {% endfor %}
+  ];
+  let lineIndex = 0;
+
+  function makeOptions() {
+    return ingredients.map(i => `<option value="${i.id}" data-last="${i.last}">${i.name}</option>`).join("");
+  }
+
+  function addLine() {
+    const idx = lineIndex++;
+    const html = `
+      <div class="row g-2 align-items-end line-row mb-2" data-idx="${idx}">
+        <div class="col-md-5">
+          <label class="form-label small">المادة</label>
+          <select name="line_ingredient_${idx}" class="form-select ing-select">
+            <option value="">— اختر —</option>
+            ${makeOptions()}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">الكمية</label>
+          <input type="number" name="line_qty_${idx}" class="form-control qty-input" dir="ltr" step="0.001" min="0.001">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">السعر / وحدة</label>
+          <input type="number" name="line_price_${idx}" class="form-control price-input" dir="ltr" step="0.01" min="0">
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small">الإجمالي</label>
+          <div class="form-control-plaintext line-total" dir="ltr">0.00</div>
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-outline-danger btn-sm remove-line"><i class="bi bi-x-lg"></i></button>
+        </div>
+      </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    bindRow(container.querySelector(`[data-idx="${idx}"]`));
+  }
+
+  function bindRow(row) {
+    const ingSel = row.querySelector('.ing-select');
+    const qty = row.querySelector('.qty-input');
+    const price = row.querySelector('.price-input');
+    const totalCell = row.querySelector('.line-total');
+
+    ingSel.addEventListener('change', () => {
+      const opt = ingSel.options[ingSel.selectedIndex];
+      const last = opt ? opt.getAttribute('data-last') : "";
+      if (last && !price.value) price.value = last;
+      recalc();
+    });
+    qty.addEventListener('input', recalc);
+    price.addEventListener('input', recalc);
+    row.querySelector('.remove-line').addEventListener('click', () => {
+      row.remove();
+      recalc();
+    });
+
+    function recalc() {
+      const q = parseFloat(qty.value || "0");
+      const p = parseFloat(price.value || "0");
+      const t = (q * p);
+      totalCell.textContent = t.toFixed(2);
+      updateTotal();
+    }
+  }
+
+  function updateTotal() {
+    let sum = 0;
+    document.querySelectorAll('.line-total').forEach(el => {
+      sum += parseFloat(el.textContent || "0");
+    });
+    totalEl.textContent = sum.toFixed(2);
+  }
+
+  document.getElementById('addLine').addEventListener('click', addLine);
+  addLine();  // start with one line
+</script>
+
+{% endif %}
+{% endblock %}

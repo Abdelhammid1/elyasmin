@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}تشغيل #{{ run.id }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-play-circle"></i> تشغيل علف #{{ run.id }}</h1>
+    <p class="text-muted mb-0">
+      مجموعة: <strong>{{ run.group.name }}</strong> ·
+      تاريخ: <span dir="ltr">{{ run.run_date }}</span> ·
+      عدد الخلطات: <span dir="ltr" class="fw-bold">{{ run.batches_count }}</span>
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('feed.edit_run', run_id=run.id) }}" class="btn btn-outline-warning"><i class="bi bi-pencil"></i> تعديل</a>
+    <a href="{{ url_for('feed.list_runs') }}" class="btn btn-outline-secondary"><i class="bi bi-list-ul"></i> كل التشغيلات</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الوزن الإجمالي</div>
+      <div class="stat-value" dir="ltr">{{ run.total_weight_kg }}</div>
+      <small class="text-muted">kg</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">التكلفة الإجمالية</div>
+      <div class="stat-value" dir="ltr">{{ run.total_cost }}</div>
+      <small class="text-muted">جنيه</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">تكلفة الكيلو</div>
+      <div class="stat-value text-primary" dir="ltr">{{ run.cost_per_kg }}</div>
+      <small class="text-muted">جنيه/kg</small>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3">
+  <h5 class="mb-3">تفاصيل الاستهلاك</h5>
+  <table class="table mb-0">
+    <thead>
+      <tr>
+        <th>المادة</th>
+        <th>الكمية المستخدمة</th>
+        <th>سعر الوحدة (وقت التشغيل)</th>
+        <th class="text-end">تكلفة البند</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in run.lines %}
+      <tr>
+        <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=line.ingredient.id) }}">{{ line.ingredient.name }}</a></td>
+        <td dir="ltr">{{ line.qty_used }} {{ line.ingredient.unit_label }}</td>
+        <td dir="ltr">{{ line.unit_price }}</td>
+        <td dir="ltr" class="fw-bold text-end">{{ line.line_cost }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot class="table-light">
+      <tr>
+        <th colspan="3" class="text-end">الإجمالي:</th>
+        <th dir="ltr" class="text-end fs-5">{{ run.total_cost }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{% if run.notes %}
+<div class="card p-3 mt-3">
+  <h6>ملاحظات</h6>
+  <p class="mb-0">{{ run.notes }}</p>
+</div>
+{% endif %}
+{% endblock %}

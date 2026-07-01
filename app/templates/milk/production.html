@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}الإنتاج اليومي والفاقد{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-clipboard-data"></i> الإنتاج اليومي والفاقد</h1>
+  <p class="text-muted mb-0">أدخل إجمالي إنتاج المزرعة اليومي — الفاقد بيتحسب: الإنتاج ناقص كل التوريدات لنفس اليوم.</p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي إنتاج الشهر</div>
+      <div class="stat-value" dir="ltr">{{ total_prod }}</div>
+      <small class="text-muted">kg</small>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي المباع</div>
+      <div class="stat-value text-success" dir="ltr">{{ total_delivered_month }}</div>
+      <small class="text-muted">kg</small>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي الفاقد</div>
+      <div class="stat-value text-danger" dir="ltr">{{ total_waste }}</div>
+      <small class="text-muted">kg</small>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">نسبة الفاقد</div>
+      <div class="stat-value {% if waste_pct > 5 %}text-danger{% else %}text-warning{% endif %}" dir="ltr">{{ waste_pct }}%</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card p-4">
+      <h5 class="mb-3">تسجيل / تعديل إنتاج يوم</h5>
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+          {{ form.production_date.label(class="form-label fw-bold") }}
+          {{ form.production_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ form.total_kg.label(class="form-label fw-bold") }}
+          <div class="input-group">
+            {{ form.total_kg(class="form-control", dir="ltr", step="0.001", min="0") }}
+            <span class="input-group-text">kg</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=2) }}
+        </div>
+        {{ form.submit(class="btn btn-primary w-100") }}
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card p-3">
+      <h5 class="mb-3">إنتاج هذا الشهر</h5>
+      {% if month_rows %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>الإنتاج</th><th>المباع</th><th>الفاقد</th></tr></thead>
+        <tbody>
+          {% for r in month_rows %}
+          <tr>
+            <td dir="ltr">{{ r.production_date }}</td>
+            <td dir="ltr">{{ r.total_kg }}</td>
+            <td dir="ltr">{{ r.total_delivered_kg }}</td>
+            <td dir="ltr" class="{% if r.waste_kg > 0 %}text-danger fw-bold{% endif %}">{{ r.waste_kg }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش سجلات إنتاج بعد.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

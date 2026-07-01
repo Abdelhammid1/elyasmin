@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}مجموعات القطيع{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-diagram-3"></i> مجموعات القطيع</h1>
+</div>
+
+<div class="row g-3">
+  {% for g in groups %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="stat-label">{{ g.description or g.name }}</div>
+          <div class="stat-value">{{ g.active_count }}</div>
+          <small class="text-muted">رأس نشط</small>
+        </div>
+        <span class="badge bg-primary">{{ g.name }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

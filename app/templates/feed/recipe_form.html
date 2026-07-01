@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}وصفة علف — {{ group.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-basket"></i> وصفة علف — {{ group.name }}</h1>
+  {% if current %}
+  <p class="text-muted mb-0">الوصفة الحالية سارية من <span dir="ltr">{{ current.effective_from }}</span>. الحفظ هيأرشف القديمة.</p>
+  {% else %}
+  <p class="text-muted mb-0">مفيش وصفة للمجموعة دي — دي أول وصفة.</p>
+  {% endif %}
+</div>
+
+{% if not feed_ingredients %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  مافيش مواد علف مسجّلة في المخزون. <a href="{{ url_for('inventory.create_ingredient') }}" class="alert-link">أضف مادة علف الأول</a>.
+</div>
+{% else %}
+
+<form method="post" novalidate id="recipeForm">
+  {{ form.hidden_tag() }}
+  {{ form.group_id(type="hidden") }}
+
+  <div class="card p-4 mb-3">
+    <div class="row g-3">
+      <div class="col-md-6">
+        {{ form.effective_from.label(class="form-label fw-bold") }}
+        {{ form.effective_from(class="form-control", dir="ltr", type="date") }}
+      </div>
+      <div class="col-md-6">
+        {{ form.notes.label(class="form-label fw-bold") }}
+        {{ form.notes(class="form-control") }}
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-4 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">بنود الوصفة (كجم لكل خلطة)</h5>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="addLine"><i class="bi bi-plus"></i> إضافة بند</button>
+    </div>
+    <div id="linesContainer"></div>
+    <div class="row mt-3 pt-3 border-top">
+      <div class="col-md-4">
+        وزن الخلطة الكلي: <strong dir="ltr" id="totalKg">0.000</strong> kg
+      </div>
+      <div class="col-md-4">
+        تكلفة الخلطة (بأسعار المخزون الحالية): <strong dir="ltr" id="totalCost">0.00</strong> جنيه
+      </div>
+      <div class="col-md-4">
+        تكلفة الكيلو: <strong dir="ltr" id="costPerKg" class="text-primary">0.000</strong> جنيه/kg
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    {{ form.submit(class="btn btn-primary btn-lg") }}
+    <a href="{{ url_for('feed.list_recipes') }}" class="btn btn-outline-secondary btn-lg">إلغاء</a>
+  </div>
+</form>
+
+<script>
+  const container = document.getElementById('linesContainer');
+  const totalKgEl = document.getElementById('totalKg');
+  const totalCostEl = document.getElementById('totalCost');
+  const perKgEl = document.getElementById('costPerKg');
+  const feedIngs = [
+    {% for i in feed_ingredients %}
+      { id: {{ i.id }}, name: "{{ i.name }}", price: parseFloat("{{ i.last_price }}") },
+    {% endfor %}
+  ];
+  const prefill = [
+    {% if current %}
+      {% for line in current.lines %}
+      { ing_id: {{ line.ingredient_id }}, kg: parseFloat("{{ line.kg_per_batch }}") },
+      {% endfor %}
+    {% endif %}
+  ];
+  let lineIndex = 0;
+
+  function opts(selectedId) {
+    return feedIngs.map(i => `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''} data-price="${i.price}">${i.name}</option>`).join("");
+  }
+
+  function addLine(ing_id, kg) {
+    const idx = lineIndex++;
+    const html = `
+      <div class="row g-2 align-items-end line-row mb-2" data-idx="${idx}">
+        <div class="col-md-6">
+          <label class="form-label small">المادة</label>
+          <select name="line_ingredient_${idx}" class="form-select ing-select">
+            <option value="">— اختر —</option>${opts(ing_id)}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">كجم / خلطة</label>
+          <input type="number" name="line_kg_${idx}" class="form-control kg-input" dir="ltr" step="0.001" min="0.001" value="${kg || ''}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">تكلفة البند (تقديري)</label>
+          <div class="form-control-plaintext line-cost" dir="ltr">0.00</div>
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-outline-danger btn-sm remove-line"><i class="bi bi-x-lg"></i></button>
+        </div>
+      </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    const row = container.querySelector(`[data-idx="${idx}"]`);
+    row.querySelector('.ing-select').addEventListener('change', recalc);
+    row.querySelector('.kg-input').addEventListener('input', recalc);
+    row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalc(); });
+    recalc();
+  }
+
+  function recalc() {
+    let sumKg = 0, sumCost = 0;
+    container.querySelectorAll('.line-row').forEach(row => {
+      const sel = row.querySelector('.ing-select');
+      const kg = parseFloat(row.querySelector('.kg-input').value || "0");
+      const opt = sel.options[sel.selectedIndex];
+      const price = opt ? parseFloat(opt.getAttribute('data-price') || "0") : 0;
+      const lineCost = kg * price;
+      row.querySelector('.line-cost').textContent = lineCost.toFixed(2);
+      sumKg += kg;
+      sumCost += lineCost;
+    });
+    totalKgEl.textContent = sumKg.toFixed(3);
+    totalCostEl.textContent = sumCost.toFixed(2);
+    perKgEl.textContent = sumKg > 0 ? (sumCost / sumKg).toFixed(3) : "0.000";
+  }
+
+  document.getElementById('addLine').addEventListener('click', () => addLine());
+  if (prefill.length > 0) {
+    prefill.forEach(p => addLine(p.ing_id, p.kg));
+  } else {
+    addLine();
+  }
+</script>
+
+{% endif %}
+{% endblock %}

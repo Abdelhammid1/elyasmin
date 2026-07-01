@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}مصروف جديد{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-cash-stack"></i> تسجيل مصروف جديد</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ form.category.label(class="form-label fw-bold") }}
+            {{ form.category(class="form-select") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.amount.label(class="form-label fw-bold") }}
+            <div class="input-group">
+              {{ form.amount(class="form-control", dir="ltr", step="0.01") }}
+              <span class="input-group-text">جنيه</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            {{ form.expense_date.label(class="form-label fw-bold") }}
+            {{ form.expense_date(class="form-control", dir="ltr", type="date") }}
+          </div>
+          <div class="col-12">
+            {{ form.description.label(class="form-label fw-bold") }}
+            {{ form.description(class="form-control") }}
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('finance.list_expenses') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

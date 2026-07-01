@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}نقل البقرة {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-arrow-left-right"></i> نقل البقرة {{ cow.ear_tag }}</h1>
+  <p class="text-muted mb-0">المجموعة الحالية: <strong>{{ cow.group.name }}</strong></p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.to_group_id.label(class="form-label fw-bold") }}
+          {{ form.to_group_id(class="form-select") }}
+        </div>
+        <div class="mb-3">
+          {{ form.moved_on.label(class="form-label fw-bold") }}
+          {{ form.moved_on(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-4">
+          {{ form.reason.label(class="form-label fw-bold") }}
+          {{ form.reason(class="form-control", placeholder="مثال: بلغت سن الإنتاج") }}
+        </div>
+
+        <div class="alert alert-info small">
+          <i class="bi bi-info-circle"></i> ملاحظة: نقل البقرة هيغيّر وصفة العلف اللي بتاخدها أوتوماتيك من يوم النقل.
+        </div>
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

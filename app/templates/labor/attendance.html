@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}حضور — {{ day }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-calendar-check"></i> حضور العمال — <span dir="ltr">{{ day }}</span></h1>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-center">
+    <input type="date" name="day" value="{{ day.isoformat() }}" class="form-control form-control-sm" dir="ltr">
+    <button class="btn btn-sm btn-outline-secondary">عرض</button>
+  </form>
+</div>
+
+{% if grid %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr><th>العامل</th><th>نوع الأجر</th><th>عدد الحلبات</th><th>غياب</th></tr>
+        </thead>
+        <tbody>
+          {% for row in grid %}
+          <tr>
+            <td><strong>{{ row.worker.name }}</strong></td>
+            <td>{{ row.worker.wage_label }} — <span dir="ltr">{{ row.worker.rate }}</span></td>
+            <td>
+              <input type="number" name="batches_{{ row.worker.id }}" class="form-control form-control-sm"
+                     dir="ltr" min="0" max="100"
+                     value="{{ row.att.batches_worked if row.att and not row.att.is_absent else '' }}"
+                     {% if row.worker.wage_type == 'daily' %}disabled{% endif %}>
+            </td>
+            <td>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="absent_{{ row.worker.id }}" value="1"
+                       {% if row.att and row.att.is_absent %}checked{% endif %}>
+                <label class="form-check-label">غياب</label>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="p-3">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> حفظ حضور اليوم</button>
+    </div>
+  </div>
+</form>
+{% else %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  مفيش عمال مسجّلين. <a href="{{ url_for('labor.create_worker') }}" class="alert-link">أضف عامل أولاً</a>.
+</div>
+{% endif %}
+{% endblock %}

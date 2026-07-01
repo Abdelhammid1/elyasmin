@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == "create" %}إضافة عميل{% else %}تعديل عميل{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-person-lines-fill"></i> {% if mode == "create" %}إضافة عميل جديد{% else %}تعديل {{ customer.name }}{% endif %}</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.name.label(class="form-label fw-bold") }}
+          {{ form.name(class="form-control") }}
+          {% for e in form.name.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.phone.label(class="form-label fw-bold") }}
+          {{ form.phone(class="form-control", dir="ltr") }}
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ form.contract_type.label(class="form-label fw-bold") }}
+            {{ form.contract_type(class="form-select") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.pricing_type.label(class="form-label fw-bold") }}
+            {{ form.pricing_type(class="form-select") }}
+          </div>
+        </div>
+
+        <div class="mb-3 mt-3" id="fixedPriceBlock">
+          {{ form.fixed_price.label(class="form-label fw-bold") }}
+          {{ form.fixed_price(class="form-control", dir="ltr", step="0.001") }}
+          <small class="text-muted">للعملاء المسعّرين بالتحليل — اترك الحقل ده فارغ.</small>
+        </div>
+
+        <div class="mb-3">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=2) }}
+        </div>
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('customers.list_customers') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

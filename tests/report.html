@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تقرير اختبار مزرعة الياسمين — 2026-07-01 12:10</title>
+  <style>
+    :root {
+      --primary: #0f2c4a;
+      --ok: #10b981;
+      --fail: #ef4444;
+      --bg: #f4f6fa;
+      --border: #e5e9f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Tajawal", "Segoe UI", sans-serif;
+      background: var(--bg);
+      margin: 0;
+      color: #1f2937;
+    }
+    header.page-head {
+      background: var(--primary);
+      color: #fff;
+      padding: 2rem 1.5rem;
+    }
+    header.page-head h1 { margin: 0 0 .5rem; font-size: 1.75rem; }
+    header.page-head .meta { opacity: .85; font-size: .95rem; }
+    .stats {
+      display: flex;
+      gap: 1rem;
+      padding: 1.5rem;
+      flex-wrap: wrap;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .stat {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      border: 1px solid var(--border);
+      flex: 1;
+      min-width: 180px;
+    }
+    .stat .n { font-size: 2rem; font-weight: 700; }
+    .stat.ok .n { color: var(--ok); }
+    .stat.fail .n { color: var(--fail); }
+    .stat.primary .n { color: var(--primary); }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.5rem;
+      padding: 0 1.5rem 3rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
+      display: flex;
+      flex-direction: column;
+    }
+    .card header {
+      padding: 1rem 1.25rem .5rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .card h3 { margin: 0; font-size: 1.05rem; }
+    .card .desc {
+      padding: 0 1.25rem;
+      color: #6b7280;
+      font-size: .9rem;
+      min-height: 3rem;
+      margin: 0 0 .5rem;
+    }
+    .card .url {
+      padding: 0 1.25rem;
+      font-family: monospace;
+      font-size: .75rem;
+      color: #9ca3af;
+      margin-bottom: .5rem;
+      overflow-wrap: anywhere;
+    }
+    .thumb {
+      display: block;
+      background: #f9fafb;
+      border-top: 1px solid var(--border);
+    }
+    .thumb img {
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+    }
+    .pill {
+      padding: .25rem .75rem;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .card.ok .pill { background: var(--ok); }
+    .card.fail .pill { background: var(--fail); }
+    .card.fail { border-color: var(--fail); }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: #6b7280;
+      font-size: .85rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="page-head">
+    <h1>🐄 تقرير اختبار مزرعة الياسمين — Playwright E2E</h1>
+    <div class="meta">
+      وقت التنفيذ: 2026-07-01 12:10 · مدة الاختبار: 5.4 ثانية
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat primary"><div class="n">62</div><div>إجمالي اللقطات</div></div>
+    <div class="stat ok"><div class="n">62</div><div>ناجحة</div></div>
+    <div class="stat fail"><div class="n">0</div><div>فاشلة</div></div>
+    <div class="stat primary"><div class="n">55</div><div>لقطات سطح المكتب</div></div>
+    <div class="stat primary"><div class="n">7</div><div>لقطات الموبايل (375px)</div></div>
+  </section>
+
+  <main>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>صفحة تسجيل الدخول</h3>
+      </header>
+      <p class="desc">الصفحة الأولى قبل الدخول — واجهة RTL كاملة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/auth/login</div>
+      <a class="thumb" href="screenshots/00_login_empty.png" target="_blank">
+        <img loading="lazy" src="screenshots/00_login_empty.png" alt="صفحة تسجيل الدخول">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>دخول غير صالح</h3>
+      </header>
+      <p class="desc">رسالة خطأ بالعربية عند إدخال بيانات خطأ.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/auth/login</div>
+      <a class="thumb" href="screenshots/01_login_invalid.png" target="_blank">
+        <img loading="lazy" src="screenshots/01_login_invalid.png" alt="دخول غير صالح">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>لوحة التحكم</h3>
+      </header>
+      <p class="desc">KPIs، توزيع المجموعات، آخر الأنشطة، مواد تحت الحد الأدنى، موردون.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/</div>
+      <a class="thumb" href="screenshots/02_dashboard.png" target="_blank">
+        <img loading="lazy" src="screenshots/02_dashboard.png" alt="لوحة التحكم">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>استرجاع كلمة المرور</h3>
+      </header>
+      <p class="desc">صفحة طلب رابط إعادة تعيين كلمة المرور.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/auth/forgot-password</div>
+      <a class="thumb" href="screenshots/03_forgot_password.png" target="_blank">
+        <img loading="lazy" src="screenshots/03_forgot_password.png" alt="استرجاع كلمة المرور">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>قائمة القطيع</h3>
+      </header>
+      <p class="desc">قائمة الأبقار مع بحث وفلتر مجموعة/حالة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/</div>
+      <a class="thumb" href="screenshots/04_herd_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/04_herd_list.png" alt="قائمة القطيع">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إضافة بقرة</h3>
+      </header>
+      <p class="desc">نموذج إدخال بقرة جديدة برقم أذن فريد.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/new</div>
+      <a class="thumb" href="screenshots/05_herd_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/05_herd_new.png" alt="إضافة بقرة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>بعد إنشاء بقرة</h3>
+      </header>
+      <p class="desc">شاشة تفاصيل البقرة الجديدة مع سجل النقلات.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/3</div>
+      <a class="thumb" href="screenshots/06_herd_created.png" target="_blank">
+        <img loading="lazy" src="screenshots/06_herd_created.png" alt="بعد إنشاء بقرة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>نقل بقرة</h3>
+      </header>
+      <p class="desc">نموذج نقل البقرة إلى مجموعة مختلفة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/3/move</div>
+      <a class="thumb" href="screenshots/07_herd_move_form.png" target="_blank">
+        <img loading="lazy" src="screenshots/07_herd_move_form.png" alt="نقل بقرة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>بعد النقل</h3>
+      </header>
+      <p class="desc">المجموعة الجديدة وسجل النقلات محدث.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/3</div>
+      <a class="thumb" href="screenshots/08_herd_after_move.png" target="_blank">
+        <img loading="lazy" src="screenshots/08_herd_after_move.png" alt="بعد النقل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>مجموعات القطيع</h3>
+      </header>
+      <p class="desc">الخمس مجموعات مع عدد الرؤوس النشطة في كل مجموعة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/groups</div>
+      <a class="thumb" href="screenshots/09_herd_groups.png" target="_blank">
+        <img loading="lazy" src="screenshots/09_herd_groups.png" alt="مجموعات القطيع">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>المواليد</h3>
+      </header>
+      <p class="desc">سجل المواليد المسجّلة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/births</div>
+      <a class="thumb" href="screenshots/10_herd_births.png" target="_blank">
+        <img loading="lazy" src="screenshots/10_herd_births.png" alt="المواليد">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تسجيل ولادة</h3>
+      </header>
+      <p class="desc">نموذج تسجيل ولادة يدعم عدة مواليد وتحديد جنس كل مولود.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/births/new</div>
+      <a class="thumb" href="screenshots/11_herd_birth_form.png" target="_blank">
+        <img loading="lazy" src="screenshots/11_herd_birth_form.png" alt="تسجيل ولادة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>مبيعات الحيوانات</h3>
+      </header>
+      <p class="desc">سجل بيع الحيوانات (مصدر إيراد).</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/sales</div>
+      <a class="thumb" href="screenshots/12_herd_sales.png" target="_blank">
+        <img loading="lazy" src="screenshots/12_herd_sales.png" alt="مبيعات الحيوانات">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تفاصيل البقرة</h3>
+      </header>
+      <p class="desc">شاشة البقرة مع سجل النقلات وسجل الأدوية.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/1</div>
+      <a class="thumb" href="screenshots/13_cow_detail.png" target="_blank">
+        <img loading="lazy" src="screenshots/13_cow_detail.png" alt="تفاصيل البقرة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>نموذج بيع</h3>
+      </header>
+      <p class="desc">نموذج بيع بقرة يسجّل كإيراد ويخرج البقرة من القطيع.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/1/sell</div>
+      <a class="thumb" href="screenshots/14_herd_sell_form.png" target="_blank">
+        <img loading="lazy" src="screenshots/14_herd_sell_form.png" alt="نموذج بيع">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>نموذج نفوق</h3>
+      </header>
+      <p class="desc">نموذج تسجيل نفوق — بيانات لا تُحذف، تحفظ في السجل التاريخي.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/1/death</div>
+      <a class="thumb" href="screenshots/15_herd_death_form.png" target="_blank">
+        <img loading="lazy" src="screenshots/15_herd_death_form.png" alt="نموذج نفوق">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>المستخدمون</h3>
+      </header>
+      <p class="desc">قائمة المستخدمين — مدير النظام الأول محمي من الحذف.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/users/</div>
+      <a class="thumb" href="screenshots/16_users_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/16_users_list.png" alt="المستخدمون">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إضافة مستخدم</h3>
+      </header>
+      <p class="desc">نموذج إضافة مستخدم — بيانات + دور + كلمة مرور مؤقتة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/users/new</div>
+      <a class="thumb" href="screenshots/17_users_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/17_users_new.png" alt="إضافة مستخدم">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>قائمة المخزون</h3>
+      </header>
+      <p class="desc">المواد الخام والأدوية — المواد تحت الحد الأدنى بلون أحمر.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/inventory/</div>
+      <a class="thumb" href="screenshots/18_inventory_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/18_inventory_list.png" alt="قائمة المخزون">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إضافة مادة</h3>
+      </header>
+      <p class="desc">نموذج إضافة مادة جديدة — علف أو دواء.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/inventory/new</div>
+      <a class="thumb" href="screenshots/19_inventory_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/19_inventory_new.png" alt="إضافة مادة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تفاصيل مادة</h3>
+      </header>
+      <p class="desc">شاشة المادة مع سجل الحركة الكامل وتعديل جرد يدوي.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/inventory/1</div>
+      <a class="thumb" href="screenshots/20_inventory_detail.png" target="_blank">
+        <img loading="lazy" src="screenshots/20_inventory_detail.png" alt="تفاصيل مادة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>سجل حركات المخزون</h3>
+      </header>
+      <p class="desc">كل عمليات الدخول والخروج على كل المواد.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/inventory/movements</div>
+      <a class="thumb" href="screenshots/21_inventory_movements.png" target="_blank">
+        <img loading="lazy" src="screenshots/21_inventory_movements.png" alt="سجل حركات المخزون">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>قائمة الموردين</h3>
+      </header>
+      <p class="desc">الموردون مع إجمالي الرصيد المستحق للمزرعة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/suppliers/</div>
+      <a class="thumb" href="screenshots/22_suppliers_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/22_suppliers_list.png" alt="قائمة الموردين">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إضافة مورد</h3>
+      </header>
+      <p class="desc">نموذج مورد جديد — الاسم + التليفون + أنواع المواد.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/suppliers/new</div>
+      <a class="thumb" href="screenshots/23_suppliers_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/23_suppliers_new.png" alt="إضافة مورد">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تفاصيل مورد</h3>
+      </header>
+      <p class="desc">الفواتير والدفعات والرصيد + نموذج تسجيل دفعة على اليمين مع حماية من الدفع الزيادة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/suppliers/1</div>
+      <a class="thumb" href="screenshots/24_supplier_detail.png" target="_blank">
+        <img loading="lazy" src="screenshots/24_supplier_detail.png" alt="تفاصيل مورد">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>فواتير الشراء</h3>
+      </header>
+      <p class="desc">قائمة الفواتير — نقدي/آجل + المتبقي.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/purchases/</div>
+      <a class="thumb" href="screenshots/25_purchases_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/25_purchases_list.png" alt="فواتير الشراء">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>فاتورة شراء جديدة</h3>
+      </header>
+      <p class="desc">نموذج فاتورة بعدة بنود — يحسب الإجمالي أوتوماتيك.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/purchases/new</div>
+      <a class="thumb" href="screenshots/26_purchases_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/26_purchases_new.png" alt="فاتورة شراء جديدة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>عرض فاتورة</h3>
+      </header>
+      <p class="desc">تفاصيل الفاتورة والبنود والإجمالي والمتبقي.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/purchases/1</div>
+      <a class="thumb" href="screenshots/27_purchase_view.png" target="_blank">
+        <img loading="lazy" src="screenshots/27_purchase_view.png" alt="عرض فاتورة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>وصفات العلف</h3>
+      </header>
+      <p class="desc">وصفة كل مجموعة مع تكلفة الخلطة وتكلفة الكيلو المحسوبة أوتوماتيك.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/feed/recipes</div>
+      <a class="thumb" href="screenshots/28_feed_recipes.png" target="_blank">
+        <img loading="lazy" src="screenshots/28_feed_recipes.png" alt="وصفات العلف">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تعديل وصفة</h3>
+      </header>
+      <p class="desc">محرر الوصفة مع حساب التكلفة الحية أثناء الكتابة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/feed/recipes/1/edit</div>
+      <a class="thumb" href="screenshots/29_feed_recipe_edit.png" target="_blank">
+        <img loading="lazy" src="screenshots/29_feed_recipe_edit.png" alt="تعديل وصفة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>سجل تشغيلات العلف</h3>
+      </header>
+      <p class="desc">كل التشغيلات مع وزن الخلطات والتكلفة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/feed/runs</div>
+      <a class="thumb" href="screenshots/30_feed_runs_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/30_feed_runs_list.png" alt="سجل تشغيلات العلف">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تشغيل علف جديد</h3>
+      </header>
+      <p class="desc">شاشة التشغيل اليومي — الأكثر استخداماً — مع أزرار زيادة/نقصان عدد الخلطات.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/feed/runs/new</div>
+      <a class="thumb" href="screenshots/31_feed_run_form.png" target="_blank">
+        <img loading="lazy" src="screenshots/31_feed_run_form.png" alt="تشغيل علف جديد">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تفاصيل تشغيل</h3>
+      </header>
+      <p class="desc">الوزن الإجمالي، التكلفة الكلية، وتكلفة الكيلو، مع لقطة أسعار وقت التشغيل.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/feed/runs/1</div>
+      <a class="thumb" href="screenshots/32_feed_run_view.png" target="_blank">
+        <img loading="lazy" src="screenshots/32_feed_run_view.png" alt="تفاصيل تشغيل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>صرف الأدوية</h3>
+      </header>
+      <p class="desc">سجل صرف الأدوية للبقر أو للمجموعات.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/medicine/</div>
+      <a class="thumb" href="screenshots/33_medicine_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/33_medicine_list.png" alt="صرف الأدوية">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>صرف دواء جديد</h3>
+      </header>
+      <p class="desc">نموذج صرف دواء — بقرة معينة أو مجموعة كاملة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/medicine/new</div>
+      <a class="thumb" href="screenshots/34_medicine_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/34_medicine_new.png" alt="صرف دواء جديد">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>العملاء</h3>
+      </header>
+      <p class="desc">قائمة العملاء مع أرصدتهم وطريقة تسعير كل واحد.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/customers/</div>
+      <a class="thumb" href="screenshots/35_customers_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/35_customers_list.png" alt="العملاء">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إضافة عميل</h3>
+      </header>
+      <p class="desc">نموذج عميل — تسعير ثابت أو بالتحليل.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/customers/new</div>
+      <a class="thumb" href="screenshots/36_customers_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/36_customers_new.png" alt="إضافة عميل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تفاصيل عميل</h3>
+      </header>
+      <p class="desc">التوريدات + الدفعات + نموذج تسجيل دفعة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/customers/1</div>
+      <a class="thumb" href="screenshots/37_customer_detail.png" target="_blank">
+        <img loading="lazy" src="screenshots/37_customer_detail.png" alt="تفاصيل عميل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>التسوية الأسبوعية</h3>
+      </header>
+      <p class="desc">تقرير أسبوعي بالكيلوات والقيمة والرصيد لكل عميل.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/customers/settlement</div>
+      <a class="thumb" href="screenshots/38_settlement.png" target="_blank">
+        <img loading="lazy" src="screenshots/38_settlement.png" alt="التسوية الأسبوعية">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>توريدات اللبن</h3>
+      </header>
+      <p class="desc">توريدات اليوم مع الفاقد.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/milk/deliveries</div>
+      <a class="thumb" href="screenshots/39_milk_deliveries.png" target="_blank">
+        <img loading="lazy" src="screenshots/39_milk_deliveries.png" alt="توريدات اللبن">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تسجيل توريد</h3>
+      </header>
+      <p class="desc">النموذج يدعم تسعير ثابت وتسعير بالجودة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/milk/deliveries/new</div>
+      <a class="thumb" href="screenshots/40_milk_delivery_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/40_milk_delivery_new.png" alt="تسجيل توريد">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>الإنتاج والفاقد</h3>
+      </header>
+      <p class="desc">تسجيل الإنتاج اليومي وحساب الفاقد الشهري.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/milk/production</div>
+      <a class="thumb" href="screenshots/41_milk_production.png" target="_blank">
+        <img loading="lazy" src="screenshots/41_milk_production.png" alt="الإنتاج والفاقد">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تكلفة كيلو اللبن</h3>
+      </header>
+      <p class="desc">الحساب الرئيسي — تكلفة العلف + 80% غير مباشرة ÷ الكيلوات.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/finance/milk-cost</div>
+      <a class="thumb" href="screenshots/42_milk_cost.png" target="_blank">
+        <img loading="lazy" src="screenshots/42_milk_cost.png" alt="تكلفة كيلو اللبن">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>الأرباح والخسائر</h3>
+      </header>
+      <p class="desc">الإيرادات والمصروفات وصافي الربح — قابل للتصدير PDF و Excel.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/finance/pnl</div>
+      <a class="thumb" href="screenshots/43_pnl.png" target="_blank">
+        <img loading="lazy" src="screenshots/43_pnl.png" alt="الأرباح والخسائر">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>المصروفات</h3>
+      </header>
+      <p class="desc">قائمة المصروفات مع فلتر تاريخ وتصدير Excel.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/finance/expenses</div>
+      <a class="thumb" href="screenshots/44_expenses.png" target="_blank">
+        <img loading="lazy" src="screenshots/44_expenses.png" alt="المصروفات">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إضافة مصروف</h3>
+      </header>
+      <p class="desc">تسجيل مصروف عام يدوي.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/finance/expenses/new</div>
+      <a class="thumb" href="screenshots/45_expense_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/45_expense_new.png" alt="إضافة مصروف">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إعدادات النظام</h3>
+      </header>
+      <p class="desc">نسبة توزيع التكاليف 80/20 ومعادلة سعر التحليل — قابلة للتعديل.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/finance/settings</div>
+      <a class="thumb" href="screenshots/46_settings.png" target="_blank">
+        <img loading="lazy" src="screenshots/46_settings.png" alt="إعدادات النظام">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>العمالة</h3>
+      </header>
+      <p class="desc">قائمة العمال مع رصيد كل عامل ومستحقات الشهر.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/labor/</div>
+      <a class="thumb" href="screenshots/47_labor_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/47_labor_list.png" alt="العمالة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>إضافة عامل</h3>
+      </header>
+      <p class="desc">نموذج عامل — بالحلبة أو يومي.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/labor/new</div>
+      <a class="thumb" href="screenshots/48_labor_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/48_labor_new.png" alt="إضافة عامل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تفاصيل عامل</h3>
+      </header>
+      <p class="desc">الحضور الشهري + الدفعات + نموذج دفع.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/labor/1</div>
+      <a class="thumb" href="screenshots/49_worker_detail.png" target="_blank">
+        <img loading="lazy" src="screenshots/49_worker_detail.png" alt="تفاصيل عامل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>حضور اليوم</h3>
+      </header>
+      <p class="desc">شبكة تسجيل حضور كل العمال في يوم واحد.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/labor/attendance</div>
+      <a class="thumb" href="screenshots/50_attendance.png" target="_blank">
+        <img loading="lazy" src="screenshots/50_attendance.png" alt="حضور اليوم">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تقرير الموردين</h3>
+      </header>
+      <p class="desc">فواتير الفترة + كشف حساب — طباعة PDF + Excel.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/suppliers/report</div>
+      <a class="thumb" href="screenshots/51_suppliers_report.png" target="_blank">
+        <img loading="lazy" src="screenshots/51_suppliers_report.png" alt="تقرير الموردين">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>مركز المساعدة</h3>
+      </header>
+      <p class="desc">دليل مختصر بالعربي لكل مواضيع النظام.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/help/</div>
+      <a class="thumb" href="screenshots/52_help.png" target="_blank">
+        <img loading="lazy" src="screenshots/52_help.png" alt="مركز المساعدة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>مساعدة — التكلفة</h3>
+      </header>
+      <p class="desc">شرح خطوة بخطوة لتكلفة كيلو اللبن.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/help/cost</div>
+      <a class="thumb" href="screenshots/53_help_cost.png" target="_blank">
+        <img loading="lazy" src="screenshots/53_help_cost.png" alt="مساعدة — التكلفة">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>صفحة 404</h3>
+      </header>
+      <p class="desc">رسالة صفحة غير موجودة بالعربية.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/does-not-exist</div>
+      <a class="thumb" href="screenshots/54_error_404.png" target="_blank">
+        <img loading="lazy" src="screenshots/54_error_404.png" alt="صفحة 404">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>الداشبورد على الموبايل (375px)</h3>
+      </header>
+      <p class="desc">التصميم متجاوب.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/</div>
+      <a class="thumb" href="screenshots/55_mobile_dashboard.png" target="_blank">
+        <img loading="lazy" src="screenshots/55_mobile_dashboard.png" alt="الداشبورد على الموبايل (375px)">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تشغيل العلف على الموبايل</h3>
+      </header>
+      <p class="desc">الشاشة الأكثر استخداماً في الحقل.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/feed/runs/new</div>
+      <a class="thumb" href="screenshots/56_mobile_feed_run.png" target="_blank">
+        <img loading="lazy" src="screenshots/56_mobile_feed_run.png" alt="تشغيل العلف على الموبايل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>المخزون على الموبايل</h3>
+      </header>
+      <p class="desc">جدول متجاوب مع تنبيه المواد الناقصة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/inventory/</div>
+      <a class="thumb" href="screenshots/57_mobile_inventory.png" target="_blank">
+        <img loading="lazy" src="screenshots/57_mobile_inventory.png" alt="المخزون على الموبايل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>القطيع على الموبايل</h3>
+      </header>
+      <p class="desc">قائمة الأبقار على شاشة صغيرة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/herd/</div>
+      <a class="thumb" href="screenshots/58_mobile_herd.png" target="_blank">
+        <img loading="lazy" src="screenshots/58_mobile_herd.png" alt="القطيع على الموبايل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>توريد لبن على الموبايل</h3>
+      </header>
+      <p class="desc">شاشة يومية تُستخدم في المزرعة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/milk/deliveries/new</div>
+      <a class="thumb" href="screenshots/59_mobile_milk_delivery.png" target="_blank">
+        <img loading="lazy" src="screenshots/59_mobile_milk_delivery.png" alt="توريد لبن على الموبايل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>حضور العمال على الموبايل</h3>
+      </header>
+      <p class="desc">شبكة الحضور اليومي على شاشة صغيرة.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/labor/attendance</div>
+      <a class="thumb" href="screenshots/60_mobile_attendance.png" target="_blank">
+        <img loading="lazy" src="screenshots/60_mobile_attendance.png" alt="حضور العمال على الموبايل">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>تكلفة الكيلو على الموبايل</h3>
+      </header>
+      <p class="desc">التقرير المالي الأهم على الموبايل.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/finance/milk-cost</div>
+      <a class="thumb" href="screenshots/61_mobile_milk_cost.png" target="_blank">
+        <img loading="lazy" src="screenshots/61_mobile_milk_cost.png" alt="تكلفة الكيلو على الموبايل">
+      </a>
+    </article>
+
+  </main>
+
+  <footer>
+    كل اللقطات full-page — اضغط على أي صورة لفتحها كاملة.
+  </footer>
+</body>
+</html>

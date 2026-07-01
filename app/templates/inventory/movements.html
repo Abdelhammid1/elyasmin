@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}سجل حركات المخزون{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-clock-history"></i> سجل حركات المخزون (آخر 200)</h1>
+</div>
+
+<div class="card">
+  {% if movements %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>المادة</th>
+          <th>الحركة</th>
+          <th>الكمية</th>
+          <th>سبب</th>
+          <th>مرجع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movements %}
+        <tr>
+          <td dir="ltr">{{ m.moved_on }}</td>
+          <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=m.ingredient.id) }}">{{ m.ingredient.name }}</a></td>
+          <td>{{ m.reason_label }}</td>
+          <td dir="ltr" class="{% if m.delta > 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+            {{ '+' if m.delta > 0 else '' }}{{ m.delta }}
+          </td>
+          <td>{{ m.notes or "—" }}</td>
+          <td>{% if m.ref_id %}#{{ m.ref_id }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش حركات مسجّلة لسه.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

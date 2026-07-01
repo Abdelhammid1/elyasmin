@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}العمالة{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-people-fill"></i> العمالة ({{ workers|length }})</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('labor.daily_attendance') }}" class="btn btn-outline-primary"><i class="bi bi-calendar-check"></i> حضور اليوم</a>
+    <a href="{{ url_for('labor.create_worker') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة عامل</a>
+  </div>
+</div>
+
+<div class="card">
+  {% if workers %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>الاسم</th><th>التليفون</th><th>نوع الأجر</th><th>السعر</th><th>هذا الشهر</th><th>الرصيد</th><th class="text-end"></th></tr>
+      </thead>
+      <tbody>
+        {% for w in workers %}
+        <tr>
+          <td><a href="{{ url_for('labor.worker_detail', worker_id=w.id) }}"><strong>{{ w.name }}</strong></a></td>
+          <td dir="ltr" class="text-end">{{ w.phone or "—" }}</td>
+          <td>{{ w.wage_label }}</td>
+          <td dir="ltr">{{ w.rate }}</td>
+          <td>
+            <div class="small">مستحق: <span class="fw-bold" dir="ltr">{{ w.month_earned }}</span></div>
+            <div class="small">مدفوع: <span dir="ltr">{{ w.month_paid }}</span></div>
+          </td>
+          <td dir="ltr" class="fw-bold {% if w.month_balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ w.month_balance }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('labor.worker_detail', worker_id=w.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            <a href="{{ url_for('labor.edit_worker', worker_id=w.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش عمال لسه.</p>
+    <a href="{{ url_for('labor.create_worker') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة عامل</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}توريدات اللبن{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-droplet"></i> توريدات اللبن — <span dir="ltr">{{ day }}</span></h1>
+    <p class="text-muted mb-0">
+      إجمالي اليوم: <span dir="ltr" class="fw-bold">{{ day_qty }} كيلو</span> بقيمة <span dir="ltr" class="fw-bold">{{ day_value }} جنيه</span>
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="get" class="d-flex gap-1 align-items-center">
+      <input type="date" name="day" value="{{ day.isoformat() }}" class="form-control form-control-sm" dir="ltr">
+      <button class="btn btn-sm btn-outline-secondary">عرض</button>
+    </form>
+    <a href="{{ url_for('milk.daily_production', day=day.isoformat()) }}" class="btn btn-outline-primary"><i class="bi bi-clipboard-data"></i> الإنتاج والفاقد</a>
+    <a href="{{ url_for('milk.create_delivery') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> توريد جديد</a>
+  </div>
+</div>
+
+{% if production %}
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <strong>إنتاج المزرعة اليومي:</strong>
+    <span dir="ltr">{{ production.total_kg }}</span> كيلو ·
+    الفاقد: <span dir="ltr" class="fw-bold {% if waste and waste > 0 %}text-danger{% endif %}">{{ waste }}</span> كيلو
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  لسه ما سجلتش الإنتاج الكلي لليوم ده.
+  <a href="{{ url_for('milk.daily_production', day=day.isoformat()) }}" class="alert-link">سجّله دلوقتي</a>
+  علشان تعرف الفاقد.
+</div>
+{% endif %}
+
+<div class="card">
+  {% if deliveries %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>العميل</th>
+          <th>الكمية (kg)</th>
+          <th>بروتين %</th>
+          <th>بكتيريا</th>
+          <th>سعر / kg</th>
+          <th>الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in deliveries %}
+        <tr>
+          <td><a href="{{ url_for('customers.customer_detail', customer_id=d.customer.id) }}">{{ d.customer.name }}</a></td>
+          <td dir="ltr">{{ d.qty_kg }}</td>
+          <td dir="ltr">{{ d.protein_pct if d.protein_pct is not none else '—' }}</td>
+          <td dir="ltr">{{ d.bacteria_count if d.bacteria_count is not none else '—' }}</td>
+          <td dir="ltr">{{ d.unit_price }}</td>
+          <td dir="ltr" class="fw-bold">{{ d.total_value }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش توريدات لليوم ده.</p>
+    <a href="{{ url_for('milk.create_delivery') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة توريد</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

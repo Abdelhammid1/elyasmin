@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}المصروفات{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-cash-stack"></i> المصروفات</h1>
+    <p class="text-muted mb-0">إجمالي الفترة: <span class="fw-bold text-danger" dir="ltr">{{ total }}</span> جنيه</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('finance.expenses_excel', date_from=date_from.isoformat(), date_to=date_to.isoformat()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    <a href="{{ url_for('finance.create_expense') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> مصروف جديد</a>
+  </div>
+</div>
+
+<div class="card p-3 mb-3">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">من تاريخ</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">عرض</button>
+    </div>
+  </form>
+</div>
+
+{% if by_category %}
+<div class="card p-3 mb-3">
+  <h6>تجميع حسب النوع</h6>
+  <div class="row g-2">
+    {% for label, amt in by_category.items() %}
+    <div class="col-md-3 col-6">
+      <div class="border rounded p-2 text-center">
+        <div class="small text-muted">{{ label }}</div>
+        <div class="fw-bold" dir="ltr">{{ amt }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  {% if expenses %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الوصف</th><th>مصدر</th></tr></thead>
+      <tbody>
+        {% for e in expenses %}
+        <tr>
+          <td dir="ltr">{{ e.expense_date }}</td>
+          <td>{{ e.category_label }}</td>
+          <td dir="ltr" class="fw-bold text-danger">{{ e.amount }}</td>
+          <td>{{ e.description or "—" }}</td>
+          <td><small class="text-muted">{{ e.ref_type or "manual" }}{% if e.ref_id %} #{{ e.ref_id }}{% endif %}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش مصروفات في الفترة دي.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

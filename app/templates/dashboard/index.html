@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}لوحة التحكم{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-speedometer2"></i> لوحة التحكم</h1>
+    <p class="text-muted mb-0">نظرة سريعة على وضع المزرعة · <span class="small">تحديث تلقائي كل دقيقة</span></p>
+  </div>
+  <a href="{{ url_for('dashboard.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> تحديث</a>
+</div>
+
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label"><i class="bi bi-heart-pulse text-primary"></i> إجمالي القطيع</div>
+      <div class="stat-value">{{ total_active }}</div>
+      <small class="text-muted">رأس نشط</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label"><i class="bi bi-droplet text-info"></i> لبن أمس</div>
+      <div class="stat-value" dir="ltr">{{ yesterday_milk_kg }}</div>
+      <small class="text-muted" dir="ltr">kg · {{ yesterday_milk_value }} جنيه</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label"><i class="bi bi-egg text-success"></i> مواليد هذا الشهر</div>
+      <div class="stat-value">{{ births_this_month }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label"><i class="bi bi-exclamation-triangle text-danger"></i> نفوق هذا الشهر</div>
+      <div class="stat-value">{{ deaths_this_month }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label"><i class="bi bi-cash-coin text-warning"></i> مبيعات حيوانات (شهر)</div>
+      <div class="stat-value">{{ sales_this_month_count }}</div>
+      <small class="text-muted" dir="ltr">{{ sales_this_month_value }} جنيه</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label"><i class="bi bi-person-lines-fill text-success"></i> مستحق من العملاء</div>
+      <div class="stat-value" dir="ltr">{{ total_owed_from_customers }}</div>
+      <small class="text-muted">جنيه</small>
+    </div>
+  </div>
+</div>
+
+<!-- Groups breakdown -->
+<div class="card p-3 mb-4">
+  <h5 class="mb-3"><i class="bi bi-diagram-3"></i> توزيع القطيع على المجموعات</h5>
+  <div class="row g-3">
+    {% for gs in group_stats %}
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="text-center p-3 border rounded">
+        <div class="fw-bold text-primary">{{ gs.group.name }}</div>
+        <div class="fs-3 fw-bold">{{ gs.count }}</div>
+        <small class="text-muted">رأس</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-egg text-success"></i> آخر المواليد</h5>
+      {% if recent_births %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>الأم</th><th>العدد</th></tr></thead>
+        <tbody>
+          {% for b in recent_births %}
+          <tr>
+            <td dir="ltr">{{ b.birth_date }}</td>
+            <td>{{ b.mother.ear_tag }}</td>
+            <td>{{ b.calves_count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">لا مواليد حتى الآن.</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-cash-coin text-warning"></i> آخر المبيعات</h5>
+      {% if recent_sales %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>البقرة</th><th>المشتري</th><th>السعر</th></tr></thead>
+        <tbody>
+          {% for s in recent_sales %}
+          <tr>
+            <td dir="ltr">{{ s.sale_date }}</td>
+            <td>{{ s.cow.ear_tag }}</td>
+            <td>{{ s.buyer_name }}</td>
+            <td dir="ltr">{{ s.price }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">لا مبيعات حتى الآن.</p>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> مواد تحت الحد الأدنى</h5>
+        <a href="{{ url_for('inventory.list_ingredients') }}" class="btn btn-sm btn-outline-primary">عرض المخزون</a>
+      </div>
+      {% if low_stock_ings %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>المادة</th><th>الرصيد</th><th>الحد الأدنى</th></tr></thead>
+        <tbody>
+          {% for i in low_stock_ings %}
+          <tr class="table-danger">
+            <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}">{{ i.name }}</a>
+              <span class="badge bg-secondary">{{ i.category_label }}</span></td>
+            <td dir="ltr" class="fw-bold">{{ i.current_qty }} {{ i.unit_label }}</td>
+            <td dir="ltr">{{ i.min_qty }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">كل المواد فوق الحد الأدنى. 👍</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-truck text-warning"></i> الموردون</h5>
+        <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-sm btn-outline-primary">عرض التفاصيل</a>
+      </div>
+      <div class="row g-3">
+        <div class="col-6">
+          <div class="stat-label">عدد الموردين</div>
+          <div class="stat-value">{{ active_suppliers_count }}</div>
+        </div>
+        <div class="col-6">
+          <div class="stat-label">إجمالي المستحق</div>
+          <div class="stat-value {% if total_owed_to_suppliers > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ total_owed_to_suppliers }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // US-1.8 AC4: dashboard updates without user hitting Refresh
+  setTimeout(() => { window.location.reload(); }, 60000);
+</script>
+{% endblock %}

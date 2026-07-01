@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}العامل {{ worker.name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-person"></i> {{ worker.name }}</h1>
+    <p class="text-muted mb-0">{{ worker.wage_label }} · <span dir="ltr">{{ worker.rate }}</span> جنيه</p>
+  </div>
+  <a href="{{ url_for('labor.edit_worker', worker_id=worker.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card stat-card"><div class="stat-label">مستحق هذا الشهر</div><div class="stat-value" dir="ltr">{{ worker.month_earned }}</div></div></div>
+  <div class="col-md-4"><div class="card stat-card"><div class="stat-label">مدفوع هذا الشهر</div><div class="stat-value text-success" dir="ltr">{{ worker.month_paid }}</div></div></div>
+  <div class="col-md-4"><div class="card stat-card"><div class="stat-label">المتبقي</div><div class="stat-value {% if worker.month_balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ worker.month_balance }}</div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card p-3 mb-3">
+      <h5>حضور هذا الشهر</h5>
+      {% if attendances %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>الحلبات</th><th>الحالة</th></tr></thead>
+        <tbody>
+          {% for a in attendances %}
+          <tr>
+            <td dir="ltr">{{ a.attendance_date }}</td>
+            <td dir="ltr">{{ a.batches_worked }}</td>
+            <td>{% if a.is_absent %}<span class="badge bg-secondary">غياب</span>{% else %}<span class="badge bg-success">حضور</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش حضور مسجّل الشهر ده.</p>{% endif %}
+    </div>
+
+    <div class="card p-3">
+      <h5>الدفعات</h5>
+      {% if payments %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>المبلغ</th><th>السبب</th></tr></thead>
+        <tbody>
+          {% for p in payments %}
+          <tr><td dir="ltr">{{ p.payment_date }}</td><td dir="ltr" class="fw-bold text-success">{{ p.amount }}</td><td>{{ p.reason_label }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش دفعات.</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card p-3">
+      <h5>تسجيل دفعة</h5>
+      <form method="post" action="{{ url_for('labor.record_payment', worker_id=worker.id) }}" novalidate>
+        {{ payment_form.hidden_tag() }}
+        <div class="mb-3">
+          {{ payment_form.amount.label(class="form-label fw-bold") }}
+          <div class="input-group">
+            {{ payment_form.amount(class="form-control", dir="ltr", step="0.01") }}
+            <span class="input-group-text">جنيه</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          {{ payment_form.payment_date.label(class="form-label fw-bold") }}
+          {{ payment_form.payment_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ payment_form.reason.label(class="form-label fw-bold") }}
+          {{ payment_form.reason(class="form-select") }}
+        </div>
+        <div class="mb-3">
+          {{ payment_form.notes.label(class="form-label fw-bold") }}
+          {{ payment_form.notes(class="form-control", rows=2) }}
+        </div>
+        <div class="alert alert-info small">
+          <i class="bi bi-info-circle"></i>
+          الدفعة هتتسجّل أوتوماتيك كمصروف في قسم المصروفات (أجور عمالة).
+        </div>
+        {{ payment_form.submit(class="btn btn-primary w-100") }}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

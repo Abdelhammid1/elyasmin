@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}تسجيل الدخول{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="login-card">
+    <h2 class="login-title"><i class="bi bi-flower3"></i><br>{{ app_name }}</h2>
+    <p class="text-center text-muted small mb-4">نظام الإدارة المتكامل</p>
+
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="mb-3">
+        {{ form.email.label(class="form-label fw-bold") }}
+        {{ form.email(class="form-control form-control-lg", placeholder="name@example.com", dir="ltr") }}
+        {% for error in form.email.errors %}
+          <div class="text-danger small mt-1">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.password.label(class="form-label fw-bold") }}
+        {{ form.password(class="form-control form-control-lg", dir="ltr") }}
+        {% for error in form.password.errors %}
+          <div class="text-danger small mt-1">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="form-check">
+          {{ form.remember_me(class="form-check-input") }}
+          {{ form.remember_me.label(class="form-check-label") }}
+        </div>
+        <a href="{{ url_for('auth.forgot_password') }}" class="small">نسيت كلمة المرور؟</a>
+      </div>
+
+      {{ form.submit(class="btn btn-primary btn-lg w-100") }}
+    </form>
+  </div>
+</div>
+{% endblock %}

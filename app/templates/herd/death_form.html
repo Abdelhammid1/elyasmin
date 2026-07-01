@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}تسجيل نفوق — {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="text-danger"><i class="bi bi-exclamation-triangle"></i> تسجيل نفوق البقرة {{ cow.ear_tag }}</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <div class="alert alert-warning small">
+        <i class="bi bi-info-circle"></i> البيانات لا تُحذف نهائياً — البقرة هتظهر في السجل التاريخي.
+      </div>
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+          {{ form.death_date.label(class="form-label fw-bold") }}
+          {{ form.death_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ form.reason.label(class="form-label fw-bold") }}
+          {{ form.reason(class="form-select") }}
+        </div>
+        <div class="mb-4">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=3) }}
+        </div>
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-danger") }}
+          <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}المادة {{ ingredient.name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-box-seam"></i> {{ ingredient.name }}
+      {% if ingredient.is_low_stock %}<span class="badge bg-danger">تحت الحد الأدنى</span>{% endif %}
+    </h1>
+    <p class="text-muted mb-0">{{ ingredient.category_label }} · وحدة القياس: {{ ingredient.unit_label }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('inventory.edit_ingredient', ingredient_id=ingredient.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">الرصيد الحالي</div>
+      <div class="stat-value" dir="ltr">{{ ingredient.current_qty }}</div>
+      <small class="text-muted">{{ ingredient.unit_label }}</small>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">الحد الأدنى</div>
+      <div class="stat-value" dir="ltr">{{ ingredient.min_qty }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">آخر سعر شراء</div>
+      <div class="stat-value" dir="ltr">{{ ingredient.last_price }}</div>
+      <small class="text-muted">جنيه / {{ ingredient.unit_label }}</small>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">قيمة المخزون</div>
+      <div class="stat-value" dir="ltr">{{ ingredient.stock_value }}</div>
+      <small class="text-muted">جنيه</small>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-clock-history"></i> سجل الحركة (آخر 100)</h5>
+      {% if movements %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>الحركة</th><th>الكمية</th><th>سبب</th><th>مرجع</th></tr></thead>
+        <tbody>
+          {% for m in movements %}
+          <tr>
+            <td dir="ltr">{{ m.moved_on }}</td>
+            <td>{{ m.reason_label }}</td>
+            <td dir="ltr" class="{% if m.delta > 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+              {{ '+' if m.delta > 0 else '' }}{{ m.delta }}
+            </td>
+            <td>{{ m.notes or "—" }}</td>
+            <td>{% if m.ref_id %}#{{ m.ref_id }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش حركة على المادة دي لسه.</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-sliders"></i> تعديل جرد يدوي</h5>
+      <p class="small text-muted">للاستخدام في حالة تعديل الجرد الفعلي (زيادة أو نقصان).</p>
+      <form method="post" action="{{ url_for('inventory.adjust_stock', ingredient_id=ingredient.id) }}" novalidate>
+        {{ adjust_form.hidden_tag() }}
+        <div class="mb-3">
+          {{ adjust_form.delta.label(class="form-label fw-bold") }}
+          {{ adjust_form.delta(class="form-control", dir="ltr", step="0.001", placeholder="مثال: -5 أو +10") }}
+        </div>
+        <div class="mb-3">
+          {{ adjust_form.reason.label(class="form-label fw-bold") }}
+          {{ adjust_form.reason(class="form-control", placeholder="مثال: فقدان بسبب رطوبة") }}
+        </div>
+        {{ adjust_form.submit(class="btn btn-warning w-100") }}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

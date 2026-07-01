@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}المواليد{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-egg"></i> المواليد</h1>
+  <a href="{{ url_for('herd.create_birth') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> تسجيل ولادة</a>
+</div>
+
+<div class="card">
+  {% if births %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>الأم</th>
+          <th>عدد المواليد</th>
+          <th>حالة الولادة</th>
+          <th>المواليد</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in births %}
+        <tr>
+          <td dir="ltr">{{ b.birth_date }}</td>
+          <td><a href="{{ url_for('herd.cow_detail', cow_id=b.mother.id) }}">{{ b.mother.ear_tag }}</a></td>
+          <td>{{ b.calves_count }}</td>
+          <td>{{ b.delivery_label }}</td>
+          <td>
+            {% for c in b.calves %}
+              <span class="badge bg-{{ 'secondary' if not c.is_alive else ('info' if c.gender == 'male' else 'success') }}">
+                {{ 'ذكر' if c.gender == 'male' else 'أنثى' }} {% if not c.is_alive %}— نافق{% endif %}
+                {% if c.cow %}<a href="{{ url_for('herd.cow_detail', cow_id=c.cow.id) }}" class="text-white text-decoration-underline">{{ c.cow.ear_tag }}</a>{% endif %}
+              </span>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش مواليد مسجّلة.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

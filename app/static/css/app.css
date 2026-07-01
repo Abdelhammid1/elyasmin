@@ -1,0 +1,124 @@
+:root {
+  --brand-primary: #0f2c4a;
+  --brand-accent: #f39c12;
+  --brand-soft: #f4f6fa;
+  --brand-border: #e5e9f0;
+}
+
+body {
+  font-family: "Tajawal", "Cairo", "Segoe UI", sans-serif;
+  background: var(--brand-soft);
+  color: #1f2937;
+}
+
+/* Force Latin digits everywhere (per NFR: numbers must be 0-9) */
+body, input, textarea, select, table {
+  font-variant-numeric: lining-nums;
+  unicode-bidi: plaintext;
+}
+
+.brand-nav {
+  background: var(--brand-primary);
+  color: #fff;
+}
+
+.brand-nav a { color: #fff; }
+.brand-nav .nav-link { color: rgba(255,255,255,0.85); }
+.brand-nav .nav-link:hover, .brand-nav .nav-link.active {
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+  border-radius: 6px;
+}
+
+.page-header {
+  border-bottom: 3px solid var(--brand-accent);
+  padding-bottom: .5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card {
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.stat-card {
+  padding: 1.25rem;
+  background: #fff;
+}
+.stat-card .stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+.stat-card .stat-label {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.badge-active { background: #10b981; }
+.badge-sold   { background: #6366f1; }
+.badge-dead   { background: #64748b; }
+
+.table thead {
+  background: var(--brand-primary);
+  color: #fff;
+}
+
+.btn-primary {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+.btn-primary:hover {
+  background: #0b2039;
+  border-color: #0b2039;
+}
+.btn-accent {
+  background: var(--brand-accent);
+  border-color: var(--brand-accent);
+  color: #fff;
+}
+.btn-accent:hover {
+  background: #d98a10;
+  border-color: #d98a10;
+  color: #fff;
+}
+
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f2c4a 0%, #1e4a7a 100%);
+}
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 2.5rem;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.login-title {
+  color: var(--brand-primary);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Mobile at 375px */
+@media (max-width: 576px) {
+  .stat-card .stat-value { font-size: 1.5rem; }
+  .page-header h1 { font-size: 1.25rem; }
+  .table { font-size: 0.85rem; }
+}
+
+/* Print → Save as PDF */
+@media print {
+  .navbar, .btn, .alert-dismissible .btn-close, form, .no-print { display: none !important; }
+  body { background: #fff; }
+  .card { border: 1px solid #999 !important; box-shadow: none; }
+  .page-header { border-bottom: 2px solid #333; }
+  main { padding: 0 !important; }
+  a { color: #000 !important; text-decoration: none !important; }
+}

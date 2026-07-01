@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}تسجيل ولادة{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-egg"></i> تسجيل ولادة جديدة</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ form.mother_id.label(class="form-label fw-bold") }}
+            {{ form.mother_id(class="form-select") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.birth_date.label(class="form-label fw-bold") }}
+            {{ form.birth_date(class="form-control", dir="ltr", type="date") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.calves_count.label(class="form-label fw-bold") }}
+            {{ form.calves_count(class="form-control", id="calvesCount", dir="ltr", min="1", max="5") }}
+            {% for e in form.calves_count.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6">
+            {{ form.delivery_type.label(class="form-label fw-bold") }}
+            {{ form.delivery_type(class="form-select") }}
+          </div>
+          <div class="col-12">
+            {{ form.notes.label(class="form-label fw-bold") }}
+            {{ form.notes(class="form-control", rows=2) }}
+          </div>
+        </div>
+
+        <hr class="my-4">
+        <h5 class="mb-3">تفاصيل المواليد</h5>
+        <div id="calvesContainer" class="row g-3"></div>
+
+        <div class="alert alert-info small mt-3">
+          <i class="bi bi-info-circle"></i>
+          الأم هتنتقل أوتوماتيك لمجموعة الرضاعة.
+          المولود الذكر يروح لمجموعة التسمين، والأنثى تروح للرضاعة.
+          لو ماحطتش رقم أذن، هيتحط رقم مؤقت تقدر تعدله بعدين.
+        </div>
+
+        {% if need_confirm_6mo %}
+        <input type="hidden" name="confirm_6mo" value="1">
+        {% endif %}
+        <div class="d-flex gap-2 mt-4">
+          {{ form.submit(class="btn btn-" + ("warning" if need_confirm_6mo else "primary"), value=("تأكيد وحفظ (أقل من 6 شهور)" if need_confirm_6mo else "تسجيل الولادة")) }}
+          <a href="{{ url_for('herd.list_cows') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const container = document.getElementById("calvesContainer");
+  const countInput = document.getElementById("calvesCount");
+
+  function renderCalfRows() {
+    const n = Math.max(1, Math.min(5, parseInt(countInput.value || "1", 10)));
+    container.innerHTML = "";
+    for (let i = 0; i < n; i++) {
+      const html = `
+        <div class="col-12 p-3 border rounded bg-light">
+          <h6 class="fw-bold">مولود #${i + 1}</h6>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label small">الجنس</label>
+              <select name="calf_gender_${i}" class="form-select">
+                <option value="female">أنثى</option>
+                <option value="male">ذكر (تسمين)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">الحالة</label>
+              <select name="calf_alive_${i}" class="form-select">
+                <option value="1">حي</option>
+                <option value="0">نافق</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">رقم الأذن (اختياري)</label>
+              <input type="text" name="calf_tag_${i}" class="form-control" dir="ltr" placeholder="اتركه فارغ للترقيم التلقائي">
+            </div>
+          </div>
+        </div>`;
+      container.insertAdjacentHTML("beforeend", html);
+    }
+  }
+
+  countInput.addEventListener("input", renderCalfRows);
+  renderCalfRows();
+</script>
+{% endblock %}

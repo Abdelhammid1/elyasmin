@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}تكلفة كيلو اللبن{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-currency-exchange"></i> تكلفة كيلو اللبن</h1>
+    <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span></p>
+  </div>
+  <div class="d-flex gap-2 no-print">
+    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / حفظ PDF</button>
+    <a href="{{ url_for('finance.settings') }}" class="btn btn-outline-primary"><i class="bi bi-gear"></i> الإعدادات</a>
+  </div>
+</div>
+
+<div class="card p-3 mb-3 no-print">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">من تاريخ</label>
+      <input type="date" name="from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">إلى تاريخ</label>
+      <input type="date" name="to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-4 d-grid">
+      <button class="btn btn-primary">تحديث الفترة</button>
+    </div>
+  </form>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">تكلفة العلف المباشر (الحليب فقط)</div>
+      <div class="stat-value" dir="ltr">{{ r.direct_milk }}</div>
+      <small class="text-muted">جنيه</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">نصيب الحليب من غير المباشرة ({{ r.milk_pct }}%)</div>
+      <div class="stat-value" dir="ltr">{{ r.indirect_milk_share }}</div>
+      <small class="text-muted">جنيه</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">تكلفة كيلو اللبن</div>
+      <div class="stat-value text-primary" dir="ltr">{{ r.cost_per_kg }}</div>
+      <small class="text-muted">جنيه / kg</small>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3">
+  <h5 class="mb-3">تفكيك الحساب</h5>
+  <table class="table mb-0">
+    <tbody>
+      <tr>
+        <th>1. تكلفة العلف على مجموعة الحليب</th>
+        <td dir="ltr" class="text-end fw-bold">{{ r.direct_milk }}</td>
+      </tr>
+      <tr>
+        <th>2. تكلفة العلف على باقي المجموعات (للعلم)</th>
+        <td dir="ltr" class="text-end text-muted">{{ r.other_direct }}</td>
+      </tr>
+      <tr>
+        <th>3. إجمالي التكاليف غير المباشرة</th>
+        <td dir="ltr" class="text-end">{{ r.indirect_total }}</td>
+      </tr>
+      <tr>
+        <th>3أ. نصيب الحليب ({{ r.milk_pct }}%)</th>
+        <td dir="ltr" class="text-end fw-bold">{{ r.indirect_milk_share }}</td>
+      </tr>
+      <tr>
+        <th>3ب. نصيب باقي المجموعات ({{ r.others_pct }}%)</th>
+        <td dir="ltr" class="text-end text-muted">{{ r.indirect_others_share }}</td>
+      </tr>
+      <tr class="table-primary">
+        <th>4. إجمالي تكلفة اللبن = 1 + 3أ</th>
+        <td dir="ltr" class="text-end fw-bold fs-5">{{ r.total_milk_cost }}</td>
+      </tr>
+      <tr>
+        <th>5. إجمالي كيلوات اللبن الموردة</th>
+        <td dir="ltr" class="text-end">{{ r.total_milk_kg }} kg</td>
+      </tr>
+      <tr class="table-primary">
+        <th>6. تكلفة الكيلو = 4 ÷ 5</th>
+        <td dir="ltr" class="text-end fw-bold fs-4 text-primary">{{ r.cost_per_kg }} ج/kg</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="alert alert-info mt-3 small">
+  <i class="bi bi-info-circle"></i>
+  نسبة التوزيع 80/20 قابلة للتعديل من <a href="{{ url_for('finance.settings') }}" class="alert-link">الإعدادات</a>.
+</div>
+{% endblock %}

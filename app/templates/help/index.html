@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}المساعدة{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-question-circle"></i> مركز المساعدة</h1>
+  <p class="text-muted mb-0">دليل مختصر خطوة بخطوة لكل ميزة في النظام.</p>
+</div>
+
+<div class="row g-3">
+  {% for t in topics %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card p-3 h-100">
+      <h5 class="mb-2"><i class="bi bi-book"></i> {{ t.title }}</h5>
+      <ol class="mb-3 small">
+        {% for step in t.steps[:2] %}<li>{{ step }}</li>{% endfor %}
+      </ol>
+      <a href="{{ url_for('help.topic', key=t.key) }}" class="btn btn-sm btn-outline-primary mt-auto">اقرأ التفاصيل</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

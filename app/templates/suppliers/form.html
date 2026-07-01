@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == "create" %}إضافة مورد{% else %}تعديل مورد{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-truck"></i> {% if mode == "create" %}إضافة مورد جديد{% else %}تعديل {{ supplier.name }}{% endif %}</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.name.label(class="form-label fw-bold") }}
+          {{ form.name(class="form-control") }}
+          {% for e in form.name.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.phone.label(class="form-label fw-bold") }}
+          {{ form.phone(class="form-control", dir="ltr", placeholder="01xxxxxxxxx") }}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">{{ form.supplied_categories.label.text }}</label>
+          <div class="row g-2">
+            {% for subfield in form.supplied_categories %}
+            <div class="col-md-4">
+              <div class="form-check">
+                {{ subfield(class="form-check-input") }}
+                {{ subfield.label(class="form-check-label") }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% for e in form.supplied_categories.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=2) }}
+        </div>
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

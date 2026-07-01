@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}العميل {{ customer.name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-person-lines-fill"></i> {{ customer.name }}</h1>
+    <p class="text-muted mb-0">{{ customer.contract_label }} · {{ customer.pricing_label }}
+      {% if customer.fixed_price %} · <span dir="ltr">{{ customer.fixed_price }} ج/kg</span>{% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+    <a href="{{ url_for('milk.create_delivery') }}" class="btn btn-primary"><i class="bi bi-droplet"></i> توريد جديد</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي التوريدات</div>
+      <div class="stat-value" dir="ltr">{{ customer.total_delivered_value }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي المدفوع</div>
+      <div class="stat-value text-success" dir="ltr">{{ customer.total_paid }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الرصيد المستحق</div>
+      <div class="stat-value {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ customer.balance }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card p-3 mb-3">
+      <h5><i class="bi bi-droplet"></i> آخر التوريدات (50)</h5>
+      {% if deliveries %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>الكمية</th><th>البروتين</th><th>البكتيريا</th><th>سعر</th><th>الإجمالي</th></tr></thead>
+        <tbody>
+          {% for d in deliveries %}
+          <tr>
+            <td dir="ltr">{{ d.delivery_date }}</td>
+            <td dir="ltr">{{ d.qty_kg }}</td>
+            <td dir="ltr">{{ d.protein_pct if d.protein_pct is not none else '—' }}</td>
+            <td dir="ltr">{{ d.bacteria_count if d.bacteria_count is not none else '—' }}</td>
+            <td dir="ltr">{{ d.unit_price }}</td>
+            <td dir="ltr" class="fw-bold">{{ d.total_value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش توريدات لسه.</p>{% endif %}
+    </div>
+
+    <div class="card p-3">
+      <h5><i class="bi bi-cash-stack"></i> الدفعات (50)</h5>
+      {% if payments %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظات</th></tr></thead>
+        <tbody>
+          {% for p in payments %}
+          <tr><td dir="ltr">{{ p.payment_date }}</td><td dir="ltr" class="fw-bold text-success">{{ p.amount }}</td><td>{{ p.method_label }}</td><td>{{ p.notes or '—' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش دفعات.</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card p-3">
+      <h5><i class="bi bi-cash-coin"></i> تسجيل دفعة</h5>
+      <form method="post" action="{{ url_for('customers.record_payment', customer_id=customer.id) }}" novalidate>
+        {{ payment_form.hidden_tag() }}
+        <div class="mb-3">
+          {{ payment_form.amount.label(class="form-label fw-bold") }}
+          <div class="input-group">
+            {{ payment_form.amount(class="form-control", dir="ltr", step="0.01") }}
+            <span class="input-group-text">جنيه</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          {{ payment_form.payment_date.label(class="form-label fw-bold") }}
+          {{ payment_form.payment_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ payment_form.method.label(class="form-label fw-bold") }}
+          {{ payment_form.method(class="form-select") }}
+        </div>
+        <div class="mb-3">
+          {{ payment_form.notes.label(class="form-label fw-bold") }}
+          {{ payment_form.notes(class="form-control", rows=2) }}
+        </div>
+        {{ payment_form.submit(class="btn btn-primary w-100") }}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

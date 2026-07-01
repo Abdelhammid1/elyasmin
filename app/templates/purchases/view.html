@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}فاتورة #{{ invoice.id }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-receipt"></i> فاتورة شراء #{{ invoice.id }}</h1>
+    <p class="text-muted mb-0">
+      المورد: <a href="{{ url_for('suppliers.supplier_detail', supplier_id=invoice.supplier.id) }}">{{ invoice.supplier.name }}</a>
+      · التاريخ: <span dir="ltr">{{ invoice.invoice_date }}</span>
+      {% if invoice.original_invoice_no %}· رقم أصلي: <span dir="ltr">{{ invoice.original_invoice_no }}</span>{% endif %}
+    </p>
+  </div>
+  <span class="badge fs-6 bg-{{ 'success' if invoice.payment_type == 'cash' else 'warning' }}">{{ invoice.payment_label }}</span>
+</div>
+
+<div class="card p-3 mb-3">
+  <h5 class="mb-3">البنود</h5>
+  <table class="table mb-0">
+    <thead>
+      <tr>
+        <th>المادة</th>
+        <th>النوع</th>
+        <th>الكمية</th>
+        <th>الوحدة</th>
+        <th>السعر / وحدة</th>
+        <th class="text-end">الإجمالي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in invoice.lines %}
+      <tr>
+        <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=line.ingredient.id) }}">{{ line.ingredient.name }}</a></td>
+        <td><span class="badge bg-secondary">{{ line.ingredient.category_label }}</span></td>
+        <td dir="ltr">{{ line.qty }}</td>
+        <td>{{ line.ingredient.unit_label }}</td>
+        <td dir="ltr">{{ line.unit_price }}</td>
+        <td dir="ltr" class="fw-bold text-end">{{ line.line_total }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot class="table-light">
+      <tr>
+        <th colspan="5" class="text-end">إجمالي الفاتورة:</th>
+        <th dir="ltr" class="text-end fs-5">{{ invoice.total }}</th>
+      </tr>
+      <tr>
+        <th colspan="5" class="text-end">المدفوع:</th>
+        <th dir="ltr" class="text-end text-success">{{ invoice.paid_amount }}</th>
+      </tr>
+      <tr>
+        <th colspan="5" class="text-end">المتبقي:</th>
+        <th dir="ltr" class="text-end {% if invoice.outstanding > 0 %}text-danger{% else %}text-success{% endif %}">{{ invoice.outstanding }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{% if invoice.notes %}
+<div class="card p-3">
+  <h6>ملاحظات</h6>
+  <p class="mb-0">{{ invoice.notes }}</p>
+</div>
+{% endif %}
+{% endblock %}

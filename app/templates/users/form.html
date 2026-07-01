@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == "create" %}إضافة مستخدم{% else %}تعديل مستخدم{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-person-plus"></i> {% if mode == "create" %}إضافة مستخدم جديد{% else %}تعديل مستخدم — {{ user.full_name }}{% endif %}</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        {% if mode == "create" %}
+        <div class="mb-3">
+          {{ form.email.label(class="form-label fw-bold") }}
+          {{ form.email(class="form-control", dir="ltr") }}
+          {% for e in form.email.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+        {% else %}
+        <div class="mb-3">
+          <label class="form-label fw-bold">البريد الإلكتروني</label>
+          <input class="form-control" value="{{ user.email }}" dir="ltr" disabled>
+          <small class="text-muted">الإيميل لا يمكن تعديله.</small>
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+          {{ form.full_name.label(class="form-label fw-bold") }}
+          {{ form.full_name(class="form-control") }}
+          {% for e in form.full_name.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.role.label(class="form-label fw-bold") }}
+          {{ form.role(class="form-select") }}
+          {% if user is defined and user.is_first_admin %}
+          <small class="text-muted">مدير النظام الأول لا يمكن تغيير صلاحيته.</small>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.password.label(class="form-label fw-bold") }}
+          {{ form.password(class="form-control", dir="ltr") }}
+          {% for e in form.password.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="form-check mb-4">
+          {{ form.is_active(class="form-check-input") }}
+          {{ form.is_active.label(class="form-check-label") }}
+        </div>
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('users.list_users') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
