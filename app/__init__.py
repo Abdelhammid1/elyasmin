@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Flask, render_template
 
@@ -79,7 +79,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"now": datetime.utcnow, "app_name": "مزرعة الياسمين"}
+        return {"now": datetime.utcnow, "app_name": "مزرعة الياسمين", "timedelta": timedelta}
 
     @app.before_request
     def make_session_permanent():

@@ -11,6 +11,7 @@ class CattleGroup(db.Model):
     TYPE_PRE_BIRTH = "pre_birth"
     TYPE_NURSING = "nursing"
     TYPE_FATTENING = "fattening"
+    TYPE_CUSTOM = "custom"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
@@ -20,9 +21,27 @@ class CattleGroup(db.Model):
 
     cows = db.relationship("Cow", back_populates="group", lazy="dynamic")
 
+    TYPE_LABELS = {
+        TYPE_MILK: "حليب",
+        TYPE_DRY: "جفاف",
+        TYPE_PRE_BIRTH: "انتظار ولادة",
+        TYPE_NURSING: "رضاعة",
+        TYPE_FATTENING: "تسمين",
+        TYPE_CUSTOM: "مخصصة",
+    }
+
+    @property
+    def type_label(self) -> str:
+        return self.TYPE_LABELS.get(self.type, self.type)
+
     @property
     def active_count(self) -> int:
         return self.cows.filter_by(status=Cow.STATUS_ACTIVE, is_archived=False).count()
+
+    @property
+    def can_archive(self) -> bool:
+        """A group can be archived only if it has no active cows."""
+        return self.active_count == 0
 
 
 class Cow(db.Model):

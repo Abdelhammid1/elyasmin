@@ -90,4 +90,6 @@ class Expense(db.Model):
 
     @property
     def category_label(self) -> str:
+        if self.category and self.category.startswith("custom:"):
+            return self.category[len("custom:"):]
         return self.LABELS.get(self.category, self.category)

@@ -56,18 +56,30 @@ def customer_detail(customer_id: int):
     customer = db.session.get(Customer, customer_id)
     if not customer or customer.is_archived:
         abort(404)
+
+    # US-4.3 AC4: statement from any date to any date
+    today = date.today()
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    d_from = date.fromisoformat(fm) if fm else today.replace(day=1)
+    d_to = date.fromisoformat(to) if to else today
+
     deliveries = (
-        MilkDelivery.query.filter_by(customer_id=customer.id, is_archived=False)
+        MilkDelivery.query
+        .filter_by(customer_id=customer.id, is_archived=False)
+        .filter(MilkDelivery.delivery_date >= d_from, MilkDelivery.delivery_date <= d_to)
         .order_by(MilkDelivery.delivery_date.desc())
-        .limit(50)
         .all()
     )
     payments = (
-        CustomerPayment.query.filter_by(customer_id=customer.id, is_archived=False)
+        CustomerPayment.query
+        .filter_by(customer_id=customer.id, is_archived=False)
+        .filter(CustomerPayment.payment_date >= d_from, CustomerPayment.payment_date <= d_to)
         .order_by(CustomerPayment.payment_date.desc())
-        .limit(50)
         .all()
     )
+    period_delivered = sum((d.total_value for d in deliveries), Decimal("0"))
+    period_paid = sum((p.amount for p in payments), Decimal("0"))
     payment_form = CustomerPaymentForm()
     return render_template(
         "customers/detail.html",
@@ -75,6 +87,10 @@ def customer_detail(customer_id: int):
         deliveries=deliveries,
         payments=payments,
         payment_form=payment_form,
+        date_from=d_from,
+        date_to=d_to,
+        period_delivered=period_delivered,
+        period_paid=period_paid,
     )
 
 

@@ -13,7 +13,11 @@
         <div class="row g-3">
           <div class="col-md-6">
             {{ form.category.label(class="form-label fw-bold") }}
-            {{ form.category(class="form-select") }}
+            {{ form.category(class="form-select", id="catSel") }}
+          </div>
+          <div class="col-md-6 d-none" id="customCatBlock">
+            {{ form.custom_category.label(class="form-label fw-bold") }}
+            {{ form.custom_category(class="form-control", placeholder="مثال: نقل بضاعة") }}
           </div>
           <div class="col-md-6">
             {{ form.amount.label(class="form-label fw-bold") }}
@@ -39,4 +43,15 @@
     </div>
   </div>
 </div>
+
+<script>
+  const catSel = document.getElementById('catSel');
+  const customBlock = document.getElementById('customCatBlock');
+  function toggleCustom() {
+    if (catSel.value === '__custom__') customBlock.classList.remove('d-none');
+    else customBlock.classList.add('d-none');
+  }
+  catSel.addEventListener('change', toggleCustom);
+  toggleCustom();
+</script>
 {% endblock %}

@@ -12,7 +12,17 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
-from app.models.herd import AnimalSale, Birth, Cow, Death
+from app.models.herd import AnimalSale, Birth, CattleGroup, Cow, Death
+
+
+GROUP_TYPE_CHOICES = [
+    (CattleGroup.TYPE_MILK, "حليب"),
+    (CattleGroup.TYPE_DRY, "جفاف"),
+    (CattleGroup.TYPE_PRE_BIRTH, "انتظار ولادة"),
+    (CattleGroup.TYPE_NURSING, "رضاعة"),
+    (CattleGroup.TYPE_FATTENING, "تسمين"),
+    (CattleGroup.TYPE_CUSTOM, "مخصصة"),
+]
 
 
 GENDER_CHOICES = [
@@ -31,6 +41,23 @@ DEATH_REASON_CHOICES = [
     (Death.REASON_ACCIDENT, "حادثة"),
     (Death.REASON_UNKNOWN, "غير معروف"),
 ]
+
+
+class GroupForm(FlaskForm):
+    name = StringField(
+        "اسم المجموعة",
+        validators=[DataRequired(message="اسم المجموعة مطلوب."), Length(max=80)],
+    )
+    type = SelectField(
+        "نوع المجموعة",
+        choices=GROUP_TYPE_CHOICES,
+        validators=[DataRequired()],
+    )
+    description = StringField(
+        "الوصف (اختياري)",
+        validators=[Optional(), Length(max=255)],
+    )
+    submit = SubmitField("حفظ")
 
 
 class CowForm(FlaskForm):

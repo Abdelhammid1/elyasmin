@@ -13,21 +13,32 @@
 </div>
 
 <div class="card p-3 mb-3 no-print">
-  <form method="get" class="row g-2 align-items-end">
-    <div class="col-md-3">
+  <form method="get" class="row g-2 align-items-end mb-2">
+    <div class="col-md-4">
       <label class="form-label small fw-bold">من تاريخ</label>
       <input type="date" name="from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <label class="form-label small fw-bold">إلى تاريخ</label>
       <input type="date" name="to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
     </div>
-    <div class="col-md-6 d-flex gap-2">
-      <button class="btn btn-primary flex-grow-1">تحديث</button>
-      {% set today = now().date() %}
-      <a class="btn btn-outline-secondary" href="?from={{ today.replace(day=1) }}&to={{ today }}">هذا الشهر</a>
+    <div class="col-md-4 d-grid">
+      <button class="btn btn-primary">تحديث</button>
     </div>
   </form>
+  {% set today = now().date() %}
+  {% set year_start = today.replace(month=1, day=1) %}
+  {% set month_start = today.replace(day=1) %}
+  {% set week_start = today - timedelta(days=6) %}
+  {% set q_month = ((today.month - 1) // 3) * 3 + 1 %}
+  {% set quarter_start = today.replace(month=q_month, day=1) %}
+  <div class="d-flex flex-wrap gap-2">
+    <span class="small text-muted align-self-center">فترة سريعة:</span>
+    <a class="btn btn-sm btn-outline-primary" href="?from={{ week_start }}&to={{ today }}">هذا الأسبوع</a>
+    <a class="btn btn-sm btn-outline-primary" href="?from={{ month_start }}&to={{ today }}">هذا الشهر</a>
+    <a class="btn btn-sm btn-outline-primary" href="?from={{ quarter_start }}&to={{ today }}">هذا الربع</a>
+    <a class="btn btn-sm btn-outline-primary" href="?from={{ year_start }}&to={{ today }}">هذه السنة</a>
+  </div>
 </div>
 
 <div class="row g-3 mb-3">

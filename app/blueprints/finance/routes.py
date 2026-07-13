@@ -91,8 +91,17 @@ def list_expenses():
 def create_expense():
     form = ExpenseForm()
     if form.validate_on_submit():
+        # US-5.2 AC4: allow custom category
+        cat = form.category.data
+        if cat == "__custom__":
+            custom = (form.custom_category.data or "").strip()
+            if not custom:
+                flash("لازم تكتب اسم النوع الجديد.", "error")
+                return render_template("finance/expense_form.html", form=form)
+            cat = "custom:" + custom
+
         e = Expense(
-            category=form.category.data,
+            category=cat,
             amount=Decimal(str(form.amount.data)),
             expense_date=form.expense_date.data,
             description=form.description.data,

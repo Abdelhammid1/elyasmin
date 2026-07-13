@@ -12,11 +12,16 @@ EXPENSE_CATEGORY_CHOICES = [
     (Expense.CAT_MAINTENANCE, "صيانة"),
     (Expense.CAT_RENT, "إيجار"),
     (Expense.CAT_OTHER, "أخرى"),
+    ("__custom__", "➕ نوع جديد (اكتبه)"),
 ]
 
 
 class ExpenseForm(FlaskForm):
     category = SelectField("النوع", choices=EXPENSE_CATEGORY_CHOICES, validators=[DataRequired()])
+    custom_category = StringField(
+        "اسم النوع الجديد",
+        validators=[Optional(), Length(max=40)],
+    )
     amount = DecimalField(
         "المبلغ",
         places=2,

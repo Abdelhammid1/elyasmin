@@ -11,6 +11,7 @@ from app.forms.herd import (
     CowMoveForm,
     CowSearchForm,
     DeathForm,
+    GroupForm,
     SaleForm,
 )
 from app.models.herd import (
@@ -35,6 +36,14 @@ def _group_choices(include_all: bool = False):
     return choices
 
 
+def _groups_with_types():
+    """List of (id, name, type) for JS-side filtering."""
+    return [
+        {"id": g.id, "name": g.name, "type": g.type}
+        for g in CattleGroup.query.filter_by(is_archived=False).order_by(CattleGroup.name).all()
+    ]
+
+
 def _nursing_group_id():
     grp = CattleGroup.query.filter_by(type=CattleGroup.TYPE_NURSING, is_archived=False).first()
     return grp.id if grp else None
@@ -45,12 +54,101 @@ def _fattening_group_id():
     return grp.id if grp else None
 
 
-# ---------- Groups ----------
+# ---------- Groups CRUD ----------
 @bp.route("/groups")
 @login_required
 def groups():
     groups = CattleGroup.query.filter_by(is_archived=False).order_by(CattleGroup.name).all()
     return render_template("herd/groups.html", groups=groups)
+
+
+@bp.route("/groups/new", methods=["GET", "POST"])
+@login_required
+def create_group():
+    form = GroupForm()
+    if form.validate_on_submit():
+        name = form.name.data.strip()
+        # Case-insensitive uniqueness across all groups (including archived)
+        from sqlalchemy import func as _func
+        exists = CattleGroup.query.filter(_func.lower(CattleGroup.name) == name.lower()).first()
+        if exists:
+            flash("مجموعة بنفس الاسم موجودة قبل كده.", "error")
+        else:
+            g = CattleGroup(
+                name=name,
+                type=form.type.data,
+                description=(form.description.data or "").strip() or None,
+            )
+            db.session.add(g)
+            db.session.flush()
+            log_action("group_created", "CattleGroup", g.id, details=f"type={g.type}")
+            db.session.commit()
+            flash(f"تم إضافة المجموعة {g.name}.", "success")
+            return redirect(url_for("herd.groups"))
+    return render_template("herd/group_form.html", form=form, mode="create")
+
+
+@bp.route("/groups/<int:group_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_group(group_id: int):
+    group = db.session.get(CattleGroup, group_id)
+    if not group or group.is_archived:
+        abort(404)
+    form = GroupForm(obj=group)
+    if form.validate_on_submit():
+        new_name = form.name.data.strip()
+        from sqlalchemy import func as _func
+        if new_name != group.name:
+            conflict = CattleGroup.query.filter(
+                _func.lower(CattleGroup.name) == new_name.lower(),
+                CattleGroup.id != group.id,
+            ).first()
+            if conflict:
+                flash("مجموعة بنفس الاسم موجودة قبل كده.", "error")
+                return render_template("herd/group_form.html", form=form, mode="edit", group=group)
+        group.name = new_name
+        group.type = form.type.data
+        group.description = (form.description.data or "").strip() or None
+        log_action("group_updated", "CattleGroup", group.id)
+        db.session.commit()
+        flash("تم تحديث بيانات المجموعة.", "success")
+        return redirect(url_for("herd.groups"))
+    return render_template("herd/group_form.html", form=form, mode="edit", group=group)
+
+
+@bp.route("/groups/<int:group_id>/archive", methods=["POST"])
+@login_required
+def archive_group(group_id: int):
+    group = db.session.get(CattleGroup, group_id)
+    if not group or group.is_archived:
+        abort(404)
+    if group.active_count > 0:
+        flash(
+            f"مينفعش تأرشف المجموعة '{group.name}' — فيها {group.active_count} رأس نشط. "
+            "انقلهم لمجموعة تانية الأول.",
+            "error",
+        )
+        return redirect(url_for("herd.groups"))
+
+    # Warn if this is the last group of a critical type (nursing/fattening) needed by births
+    if group.type in (CattleGroup.TYPE_NURSING, CattleGroup.TYPE_FATTENING):
+        remaining = CattleGroup.query.filter(
+            CattleGroup.type == group.type,
+            CattleGroup.id != group.id,
+            CattleGroup.is_archived.is_(False),
+        ).count()
+        if remaining == 0:
+            flash(
+                f"⚠️ دي آخر مجموعة من نوع {group.type_label} — تسجيل الولادات هيقف "
+                "لحد ما تضيف مجموعة تانية بنفس النوع.",
+                "warning",
+            )
+
+    group.is_archived = True
+    log_action("group_archived", "CattleGroup", group.id)
+    db.session.commit()
+    flash(f"تم أرشفة المجموعة '{group.name}'.", "success")
+    return redirect(url_for("herd.groups"))
 
 
 # ---------- Cow list & search (US-1.3 AC5) ----------
@@ -151,7 +249,9 @@ def create_cow():
             flash(f"تم إضافة البقرة رقم {cow.ear_tag} بنجاح.", "success")
             return redirect(url_for("herd.cow_detail", cow_id=cow.id))
 
-    return render_template("herd/form.html", form=form, mode="create")
+    return render_template(
+        "herd/form.html", form=form, mode="create", groups_json=_groups_with_types()
+    )
 
 
 # ---------- Edit cow (limited fields) ----------
@@ -172,7 +272,10 @@ def edit_cow(cow_id: int):
             existing = Cow.query.filter_by(ear_tag=new_tag).first()
             if existing:
                 flash(f"رقم الأذن {new_tag} مستخدم قبل كده.", "error")
-                return render_template("herd/form.html", form=form, mode="edit", cow=cow)
+                return render_template(
+                    "herd/form.html", form=form, mode="edit", cow=cow,
+                    groups_json=_groups_with_types(),
+                )
             cow.ear_tag = new_tag
 
         cow.name = form.name.data.strip() if form.name.data else None
@@ -199,7 +302,9 @@ def edit_cow(cow_id: int):
         flash("تم تحديث بيانات البقرة.", "success")
         return redirect(url_for("herd.cow_detail", cow_id=cow.id))
 
-    return render_template("herd/form.html", form=form, mode="edit", cow=cow)
+    return render_template(
+        "herd/form.html", form=form, mode="edit", cow=cow, groups_json=_groups_with_types()
+    )
 
 
 # ---------- US-1.4 Move cow between groups ----------

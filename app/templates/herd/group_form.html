@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == "create" %}إضافة مجموعة{% else %}تعديل مجموعة{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-diagram-3"></i>
+    {% if mode == "create" %}إضافة مجموعة جديدة{% else %}تعديل — {{ group.name }}{% endif %}
+  </h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.name.label(class="form-label fw-bold") }}
+          {{ form.name(class="form-control", placeholder="مثال: مجموعة الأمهات") }}
+          {% for e in form.name.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          <small class="text-muted">لازم اسم فريد — مش موجود في مجموعة تانية.</small>
+        </div>
+
+        <div class="mb-3">
+          {{ form.type.label(class="form-label fw-bold") }}
+          {{ form.type(class="form-select") }}
+          <small class="text-muted">
+            النوع بيحدد التصنيف — رضاعة/تسمين ليها استخدام تلقائي في تسجيل المواليد.
+          </small>
+        </div>
+
+        <div class="mb-3">
+          {{ form.description.label(class="form-label fw-bold") }}
+          {{ form.description(class="form-control") }}
+        </div>
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('herd.groups') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

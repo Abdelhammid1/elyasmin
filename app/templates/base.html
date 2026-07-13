@@ -10,6 +10,21 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
+{# Map every top-level endpoint to a help topic key so each page can show a contextual "?" #}
+{% set help_key_map = {
+  'dashboard': 'dashboard',
+  'herd': 'herd', 'birth': 'births',
+  'inventory': 'inventory',
+  'suppliers': 'suppliers', 'purchases': 'suppliers',
+  'feed': 'feed', 'medicine': 'medicine',
+  'customers': 'customers', 'milk': 'customers',
+  'finance': 'cost',
+  'labor': 'labor'
+} %}
+{% set _ep = (request.endpoint or '').split('.') %}
+{% set _topic = help_key_map.get(_ep[0], '') %}
+{% if _ep|length > 1 and 'birth' in _ep[1] %}{% set _topic = 'births' %}{% endif %}
+{% if 'settings' in (request.endpoint or '') %}{% set _topic = 'settings' %}{% endif %}
 {% if current_user.is_authenticated %}
 <nav class="navbar navbar-expand-lg brand-nav shadow-sm">
   <div class="container-fluid">
@@ -88,6 +103,13 @@
 </nav>
 {% endif %}
 
+{% if current_user.is_authenticated and _topic %}
+<a href="{{ url_for('help.topic', key=_topic) }}"
+   class="contextual-help-btn no-print"
+   title="مساعدة عن الصفحة دي">
+  <i class="bi bi-question-lg"></i>
+</a>
+{% endif %}
 <main class="{% if current_user.is_authenticated %}container-fluid py-4{% endif %}">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

@@ -15,24 +15,25 @@
 </div>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card stat-card">
-      <div class="stat-label">إجمالي التوريدات</div>
-      <div class="stat-value" dir="ltr">{{ customer.total_delivered_value }}</div>
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">إجمالي التوريدات (كل الفترة)</div><div class="stat-value" dir="ltr">{{ customer.total_delivered_value }}</div></div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">إجمالي المدفوع (كل الفترة)</div><div class="stat-value text-success" dir="ltr">{{ customer.total_paid }}</div></div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">الرصيد المستحق</div><div class="stat-value {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ customer.balance }}</div></div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">قيمة الفترة المحددة</div><div class="stat-value text-primary" dir="ltr">{{ period_delivered }}</div><small class="text-muted">مدفوع: <span dir="ltr">{{ period_paid }}</span></small></div></div>
+</div>
+
+<div class="card p-3 mb-3">
+  <form method="get" class="row g-2 align-items-end no-print">
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">كشف حساب من تاريخ</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
     </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card stat-card">
-      <div class="stat-label">إجمالي المدفوع</div>
-      <div class="stat-value text-success" dir="ltr">{{ customer.total_paid }}</div>
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
     </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card stat-card">
-      <div class="stat-label">الرصيد المستحق</div>
-      <div class="stat-value {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ customer.balance }}</div>
-    </div>
-  </div>
+    <div class="col-md-2 d-grid"><button class="btn btn-primary">عرض</button></div>
+    <div class="col-md-2 d-grid"><button type="button" onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة</button></div>
+  </form>
 </div>
 
 <div class="row g-3">
