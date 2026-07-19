@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}تقرير العمالة الشامل{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clipboard-data"></i> تقرير العمالة الشامل</h1>
+    <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span></p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('labor.report_excel', date_from=date_from.isoformat(), date_to=date_to.isoformat()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة</button>
+  </div>
+</div>
+
+<div class="card p-3 mb-3 no-print">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">من تاريخ</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-4 d-grid">
+      <button class="btn btn-primary">تحديث</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>العامل</th>
+          <th>نوع الأجر</th>
+          <th>السعر</th>
+          <th>أيام حضور</th>
+          <th>أيام غياب</th>
+          <th>إجمالي الحلبات</th>
+          <th>المستحق</th>
+          <th>المدفوع</th>
+          <th>المتبقي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><a href="{{ url_for('labor.worker_detail', worker_id=r.worker.id) }}"><strong>{{ r.worker.name }}</strong></a></td>
+          <td>{{ r.worker.wage_label }}</td>
+          <td dir="ltr">{{ r.worker.rate }}</td>
+          <td dir="ltr" class="text-success">{{ r.present_days }}</td>
+          <td dir="ltr" class="text-secondary">{{ r.absent_days }}</td>
+          <td dir="ltr">{{ r.total_batches }}</td>
+          <td dir="ltr" class="fw-bold">{{ r.earned }}</td>
+          <td dir="ltr" class="text-success">{{ r.paid }}</td>
+          <td dir="ltr" class="fw-bold {% if r.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ r.balance }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <th colspan="3">الإجمالي</th>
+          <th dir="ltr">{{ totals.present_days }}</th>
+          <th dir="ltr">{{ totals.absent_days }}</th>
+          <th dir="ltr">{{ totals.total_batches }}</th>
+          <th dir="ltr">{{ totals.earned }}</th>
+          <th dir="ltr">{{ totals.paid }}</th>
+          <th dir="ltr">{{ totals.balance }}</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش عمال مسجّلين.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

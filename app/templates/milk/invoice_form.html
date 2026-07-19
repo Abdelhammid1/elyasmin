@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}فاتورة بيع لبن جديدة{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-receipt-cutoff"></i> إنشاء فاتورة بيع لبن</h1>
+  <p class="text-muted mb-0">اختار العميل والفترة — النظام يجمّع كل التوريدات المسجّلة اللي لسه ما اتفوترتش في فاتورة واحدة.</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label fw-bold">العميل</label>
+          <select name="customer_id" class="form-select" required>
+            <option value="">— اختر —</option>
+            {% for c in customers %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold">من تاريخ</label>
+            <input type="date" name="period_from" class="form-control" dir="ltr" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">إلى تاريخ</label>
+            <input type="date" name="period_to" class="form-control" dir="ltr" required>
+          </div>
+        </div>
+        <div class="mb-3 mt-3">
+          <label class="form-label fw-bold">رقم الفاتورة الخارجي (اختياري)</label>
+          <input type="text" name="invoice_number" class="form-control" dir="ltr">
+        </div>
+        <div class="alert alert-info small">
+          <i class="bi bi-info-circle"></i>
+          هيتم ضم كل التوريدات في الفترة دي اللي لسه ما اتفوترتش. لو محتاج توريد ما يتضمش، فوتره أول في فاتورة تانية.
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">إنشاء الفاتورة</button>
+          <a href="{{ url_for('milk.list_invoices') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

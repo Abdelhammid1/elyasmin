@@ -7,7 +7,8 @@
     <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span></p>
   </div>
   <div class="d-flex gap-2 no-print">
-    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / حفظ PDF</button>
+    <a href="{{ url_for('finance.milk_cost_pdf', **{'from': date_from.isoformat(), 'to': date_to.isoformat()}) }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> حفظ PDF</a>
+    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة</button>
     <a href="{{ url_for('finance.settings') }}" class="btn btn-outline-primary"><i class="bi bi-gear"></i> الإعدادات</a>
   </div>
 </div>

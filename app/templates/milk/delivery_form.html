@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-droplet"></i> تسجيل توريد لبن</h1>
-  <p class="text-muted mb-0">للعملاء بتسعير ثابت، السعر بيتاخد أوتوماتيك. لجهينة/بيتي، اكتب البروتين والبكتيريا والسعر يتحسب أوتوماتيك.</p>
+  <p class="text-muted mb-0">الحقول الإضافية (دهن/بروتين/بكتيريا/نقل/خصومات) اختيارية — املأها لو عايز فاتورة كاملة زي المستخدم عند العميل.</p>
 </div>
 
 {% if not customers %}
@@ -14,12 +14,13 @@
 {% else %}
 
 <div class="row justify-content-center">
-  <div class="col-lg-7">
+  <div class="col-lg-10">
     <div class="card p-4">
       <form method="post" novalidate>
         {{ form.hidden_tag() }}
 
-        <div class="row g-3">
+        <h5 class="mb-3">البيانات الأساسية</h5>
+        <div class="row g-3 mb-4">
           <div class="col-md-6">
             {{ form.customer_id.label(class="form-label fw-bold") }}
             {{ form.customer_id(class="form-select") }}
@@ -30,35 +31,115 @@
           </div>
           <div class="col-md-4">
             {{ form.qty_kg.label(class="form-label fw-bold") }}
-            {{ form.qty_kg(class="form-control", dir="ltr", step="0.001", min="0.001") }}
+            {{ form.qty_kg(class="form-control", dir="ltr", step="0.001", min="0.001", id="qty") }}
           </div>
           <div class="col-md-4">
-            {{ form.protein_pct.label(class="form-label fw-bold") }}
-            {{ form.protein_pct(class="form-control", dir="ltr", step="0.01", min="0", max="15") }}
+            {{ form.unit_price.label(class="form-label fw-bold") }}
+            {{ form.unit_price(class="form-control", dir="ltr", step="0.001", min="0", id="unitPrice") }}
           </div>
           <div class="col-md-4">
-            {{ form.bacteria_count.label(class="form-label fw-bold") }}
-            {{ form.bacteria_count(class="form-control", dir="ltr", step="1", min="0") }}
-          </div>
-          <div class="col-12">
-            {{ form.notes.label(class="form-label fw-bold") }}
-            {{ form.notes(class="form-control", rows=2) }}
+            <label class="form-label fw-bold">الثمن (كمية × سعر)</label>
+            <input type="text" class="form-control-plaintext fw-bold" dir="ltr" readonly id="baseValue">
           </div>
         </div>
 
-        <div class="alert alert-info mt-3 small">
-          <i class="bi bi-info-circle"></i>
-          معادلة سعر التحليل قابلة للتعديل من <a href="{{ url_for('finance.settings') }}" class="alert-link">الإعدادات</a> بدون تغيير الكود.
+        <h5 class="mb-3">التحليل (اختياري)</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            {{ form.protein_pct.label(class="form-label small") }}
+            {{ form.protein_pct(class="form-control", dir="ltr", step="0.01", min="0", max="15") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.bacteria_count.label(class="form-label small") }}
+            {{ form.bacteria_count(class="form-control", dir="ltr", step="1", min="0") }}
+          </div>
+        </div>
+
+        <h5 class="mb-3">التعديلات (+)</h5>
+        <div class="row g-2 mb-4">
+          <div class="col-md-2 col-6">
+            {{ form.fat_bonus.label(class="form-label small") }}
+            {{ form.fat_bonus(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-2 col-6">
+            {{ form.protein_bonus.label(class="form-label small") }}
+            {{ form.protein_bonus(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-2 col-6">
+            {{ form.bacteria_adj.label(class="form-label small") }}
+            {{ form.bacteria_adj(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-2 col-6">
+            {{ form.transport.label(class="form-label small") }}
+            {{ form.transport(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-2 col-6">
+            {{ form.other_adj.label(class="form-label small") }}
+            {{ form.other_adj(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-2 col-6 border-start ps-2">
+            <label class="form-label small fw-bold text-primary">الإجمالي</label>
+            <input type="text" class="form-control-plaintext fw-bold text-primary" dir="ltr" readonly id="subtotal">
+          </div>
+        </div>
+
+        <h5 class="mb-3">الخصومات (−)</h5>
+        <div class="row g-2 mb-4">
+          <div class="col-md-3 col-6">
+            {{ form.qty_deduction.label(class="form-label small") }}
+            {{ form.qty_deduction(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-3 col-6">
+            {{ form.cash_deduction.label(class="form-label small") }}
+            {{ form.cash_deduction(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-3 col-6">
+            {{ form.rounding.label(class="form-label small") }}
+            {{ form.rounding(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+          </div>
+          <div class="col-md-3 col-6 border-start ps-2">
+            <label class="form-label small fw-bold text-success">الصافي</label>
+            <input type="text" class="form-control-plaintext fw-bold text-success fs-4" dir="ltr" readonly id="netTotal">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=2) }}
         </div>
 
         <div class="d-flex gap-2">
-          {{ form.submit(class="btn btn-primary") }}
-          <a href="{{ url_for('milk.list_deliveries') }}" class="btn btn-outline-secondary">إلغاء</a>
+          {{ form.submit(class="btn btn-primary btn-lg") }}
+          <a href="{{ url_for('milk.list_deliveries') }}" class="btn btn-outline-secondary btn-lg">إلغاء</a>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+  const num = (id) => parseFloat(document.getElementById(id)?.value || "0") || 0;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v.toFixed(2); };
+  const inputs = ['qty', 'unitPrice',
+    '{{ form.fat_bonus.id }}', '{{ form.protein_bonus.id }}', '{{ form.bacteria_adj.id }}',
+    '{{ form.transport.id }}', '{{ form.other_adj.id }}',
+    '{{ form.qty_deduction.id }}', '{{ form.cash_deduction.id }}', '{{ form.rounding.id }}'];
+
+  function recompute() {
+    const base = num('qty') * num('unitPrice');
+    set('baseValue', base);
+    const additions = num('{{ form.fat_bonus.id }}') + num('{{ form.protein_bonus.id }}')
+                    + num('{{ form.bacteria_adj.id }}') + num('{{ form.transport.id }}')
+                    + num('{{ form.other_adj.id }}');
+    const subtotal = base + additions;
+    set('subtotal', subtotal);
+    const net = subtotal - num('{{ form.qty_deduction.id }}') - num('{{ form.cash_deduction.id }}')
+              + num('{{ form.rounding.id }}');
+    set('netTotal', net);
+  }
+  inputs.forEach(id => document.getElementById(id)?.addEventListener('input', recompute));
+  recompute();
+</script>
 
 {% endif %}
 {% endblock %}

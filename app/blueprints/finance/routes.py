@@ -15,7 +15,7 @@ from app.models.sales import Customer, DailyProduction, MilkDelivery
 from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
 from app.utils.audit import log_action
 from app.utils.decorators import admin_required
-from app.utils.reports import excel_response
+from app.utils.reports import excel_response, pdf_from_current_page
 
 bp = Blueprint("finance", __name__, template_folder="../../templates/finance")
 
@@ -289,6 +289,24 @@ def pnl():
     d_from, d_to = _period_bounds()
     r = _compute_pnl(d_from, d_to)
     return render_template("finance/pnl.html", r=r, date_from=d_from, date_to=d_to)
+
+
+@bp.route("/pnl/pdf")
+@login_required
+def pnl_pdf():
+    """TC-7.5: real server-side PDF download."""
+    d_from, d_to = _period_bounds()
+    target = url_for("finance.pnl", **{"from": d_from.isoformat(), "to": d_to.isoformat()}, _external=True)
+    return pdf_from_current_page(target, f"pnl_{d_from}_{d_to}.pdf")
+
+
+@bp.route("/milk-cost/pdf")
+@login_required
+def milk_cost_pdf():
+    """TC-7.3: PDF save for milk-cost report."""
+    d_from, d_to = _period_bounds()
+    target = url_for("finance.milk_cost", **{"from": d_from.isoformat(), "to": d_to.isoformat()}, _external=True)
+    return pdf_from_current_page(target, f"milk_cost_{d_from}_{d_to}.pdf")
 
 
 @bp.route("/pnl/excel")

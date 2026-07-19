@@ -37,6 +37,9 @@
             <span class="fw-bold {% if bal > 0 %}text-danger{% else %}text-success{% endif %}">{{ bal }}</span>
           </td>
           <td class="text-end">
+            {% if s.balance_due > 0 %}
+            <a href="{{ url_for('suppliers.supplier_detail', supplier_id=s.id) }}#paymentForm" class="btn btn-sm btn-success" title="تسجيل دفعة"><i class="bi bi-cash-coin"></i> دفع</a>
+            {% endif %}
             <a href="{{ url_for('suppliers.supplier_detail', supplier_id=s.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
             <a href="{{ url_for('suppliers.edit_supplier', supplier_id=s.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
           </td>

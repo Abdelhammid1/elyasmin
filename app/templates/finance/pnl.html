@@ -7,7 +7,8 @@
     <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span></p>
   </div>
   <div class="d-flex gap-2 no-print">
-    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / PDF</button>
+    <a href="{{ url_for('finance.pnl_pdf', **{'from': date_from.isoformat(), 'to': date_to.isoformat()}) }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> حفظ PDF</a>
+    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة</button>
     <a href="{{ url_for('finance.pnl_excel', **{'from': date_from.isoformat(), 'to': date_to.isoformat()}) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
   </div>
 </div>

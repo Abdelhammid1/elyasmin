@@ -49,22 +49,46 @@ class CustomerForm(FlaskForm):
 
 
 class MilkDeliveryForm(FlaskForm):
+    """Matches the client's real invoice Excel format. All adjustment columns
+    are optional and default to 0. Fat/protein/bacteria bonuses can be filled
+    manually or auto-computed from the quality formula in settings."""
+
     customer_id = SelectField("العميل", coerce=int, validators=[DataRequired()])
     delivery_date = DateField("تاريخ التوريد", validators=[DataRequired()], default=date.today)
+
     qty_kg = DecimalField(
         "الكمية (كيلو)",
         places=3,
         validators=[DataRequired(message="الكمية مطلوبة."), NumberRange(min=0.001)],
     )
+    unit_price = DecimalField(
+        "السعر (جنيه/كيلو) — اتركه فارغ لاستخدام سعر العميل الثابت",
+        places=3,
+        validators=[Optional(), NumberRange(min=0)],
+    )
+
     protein_pct = DecimalField(
-        "نسبة البروتين % (لو تسعير بالجودة)",
+        "نسبة البروتين %",
         places=2,
         validators=[Optional(), NumberRange(min=0, max=15)],
     )
     bacteria_count = IntegerField(
-        "عدد البكتيريا (CFU/ml) (لو تسعير بالجودة)",
+        "عدد البكتيريا (CFU/ml)",
         validators=[Optional(), NumberRange(min=0)],
     )
+
+    # Bonuses / adjustments (positive numbers)
+    fat_bonus = DecimalField("الدهن", places=2, default=0, validators=[Optional()])
+    protein_bonus = DecimalField("البروتين", places=2, default=0, validators=[Optional()])
+    bacteria_adj = DecimalField("البكتيريا (تعديل)", places=2, default=0, validators=[Optional()])
+    transport = DecimalField("النقل", places=2, default=0, validators=[Optional()])
+    other_adj = DecimalField("أخرى", places=2, default=0, validators=[Optional()])
+
+    # Deductions (positive numbers, subtracted)
+    qty_deduction = DecimalField("خصم كمية", places=2, default=0, validators=[Optional()])
+    cash_deduction = DecimalField("خصم نقدي", places=2, default=0, validators=[Optional()])
+    rounding = DecimalField("كسور (±)", places=2, default=0, validators=[Optional()])
+
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("تسجيل التوريد")
 

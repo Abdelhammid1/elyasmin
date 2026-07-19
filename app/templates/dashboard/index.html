@@ -27,6 +27,18 @@
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card">
+      <div class="stat-label"><i class="bi bi-trash text-warning"></i> فاقد أمس</div>
+      {% if yesterday_waste is not none %}
+      <div class="stat-value {% if yesterday_waste > 0 %}text-warning{% else %}text-success{% endif %}" dir="ltr">{{ yesterday_waste }}</div>
+      <small class="text-muted">kg</small>
+      {% else %}
+      <div class="stat-value text-muted">—</div>
+      <small class="text-muted">لم يُسجل إنتاج</small>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
       <div class="stat-label"><i class="bi bi-egg text-success"></i> مواليد هذا الشهر</div>
       <div class="stat-value">{{ births_this_month }}</div>
     </div>

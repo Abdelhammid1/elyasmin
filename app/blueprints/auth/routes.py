@@ -6,7 +6,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
 
 from app.extensions import db
-from app.forms.auth import ForgotPasswordForm, LoginForm, ResetPasswordForm
+from app.forms.auth import ChangePasswordForm, ForgotPasswordForm, LoginForm, ResetPasswordForm
 from app.models.auth import LoginAttempt, User
 from app.utils.audit import log_action
 
@@ -116,3 +116,23 @@ def reset_password(token: str):
         return redirect(url_for("auth.login"))
 
     return render_template("auth/reset_password.html", form=form, token=token)
+
+
+@bp.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    """TC-1.5: forced first-login password change; also usable voluntarily."""
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if not current_user.check_password(form.current_password.data):
+            flash("كلمة المرور الحالية غير صحيحة.", "error")
+        elif form.current_password.data == form.new_password.data:
+            flash("كلمة المرور الجديدة لازم تكون مختلفة عن الحالية.", "error")
+        else:
+            current_user.set_password(form.new_password.data)
+            current_user.must_change_password = False
+            log_action("password_changed", "User", current_user.id)
+            db.session.commit()
+            flash("تم تحديث كلمة المرور.", "success")
+            return redirect(url_for("dashboard.index"))
+    return render_template("auth/change_password.html", form=form)

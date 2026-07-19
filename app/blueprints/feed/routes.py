@@ -198,13 +198,35 @@ def edit_recipe(group_id: int):
 @bp.route("/runs")
 @login_required
 def list_runs():
-    runs = (
-        FeedRun.query.filter_by(is_archived=False)
-        .order_by(FeedRun.run_date.desc(), FeedRun.id.desc())
-        .limit(200)
-        .all()
+    """TC-3.6: date range filter + summary totals."""
+    from datetime import date as _date
+
+    today = _date.today()
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    d_from = _date.fromisoformat(fm) if fm else today.replace(day=1)
+    d_to = _date.fromisoformat(to) if to else today
+    group_id = request.args.get("group_id", type=int)
+
+    q = FeedRun.query.filter(
+        FeedRun.is_archived.is_(False),
+        FeedRun.run_date >= d_from,
+        FeedRun.run_date <= d_to,
     )
-    return render_template("feed/runs_list.html", runs=runs)
+    if group_id:
+        q = q.filter(FeedRun.group_id == group_id)
+
+    runs = q.order_by(FeedRun.run_date.desc(), FeedRun.id.desc()).all()
+    total_cost = sum((r.total_cost for r in runs), Decimal("0"))
+    total_weight = sum((r.total_weight_kg for r in runs), Decimal("0"))
+    groups = CattleGroup.query.filter_by(is_archived=False).order_by(CattleGroup.name).all()
+
+    return render_template(
+        "feed/runs_list.html",
+        runs=runs, date_from=d_from, date_to=d_to,
+        selected_group_id=group_id, groups=groups,
+        total_cost=total_cost, total_weight=total_weight,
+    )
 
 
 @bp.route("/runs/new", methods=["GET", "POST"])

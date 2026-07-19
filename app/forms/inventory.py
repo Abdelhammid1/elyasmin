@@ -31,6 +31,19 @@ class IngredientForm(FlaskForm):
         default=0,
         validators=[Optional(), NumberRange(min=0, message="لا يمكن أن يكون سالباً.")],
     )
+    # TC-4.1: allow entering initial stock at creation time
+    initial_qty = DecimalField(
+        "الرصيد الابتدائي (اختياري — للجرد الافتتاحي)",
+        places=3,
+        default=0,
+        validators=[Optional(), NumberRange(min=0, message="لا يمكن أن يكون سالباً.")],
+    )
+    initial_price = DecimalField(
+        "سعر الوحدة الابتدائي (اختياري)",
+        places=2,
+        default=0,
+        validators=[Optional(), NumberRange(min=0)],
+    )
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("حفظ")
 

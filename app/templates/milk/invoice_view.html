@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}فاتورة #{{ invoice.id }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
+  <div>
+    <h1><i class="bi bi-receipt-cutoff"></i> فاتورة بيع اللبن #{{ invoice.id }}</h1>
+    <p class="text-muted mb-0">
+      العميل: <strong>{{ invoice.customer.name }}</strong> ·
+      الفترة: <span dir="ltr">{{ invoice.period_from }} → {{ invoice.period_to }}</span>
+      {% if invoice.invoice_number %}· الرقم الخارجي: <span dir="ltr">{{ invoice.invoice_number }}</span>{% endif %}
+    </p>
+    <span class="badge bg-{{ 'success' if invoice.status == 'issued' else 'warning text-dark' }}">{{ invoice.status_label }}</span>
+  </div>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / حفظ PDF</button>
+    <a href="{{ url_for('milk.invoice_excel', invoice_id=invoice.id) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    {% if invoice.status == 'draft' %}
+    <form method="post" action="{{ url_for('milk.issue_invoice', invoice_id=invoice.id) }}" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> اعتماد</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="print-only text-center mb-3" style="display:none;">
+  <h2>فاتورة بيع اللبن #{{ invoice.id }}</h2>
+  <div>العميل: {{ invoice.customer.name }} · الفترة: {{ invoice.period_from }} → {{ invoice.period_to }}</div>
+</div>
+
+<div class="card p-2 mb-3">
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered mb-0 text-center" style="font-size: 0.75rem;">
+      <thead style="background: #0f2c4a; color: #fff;">
+        <tr>
+          <th>م</th><th>التاريخ</th><th>يوم</th><th>شهر</th><th>اسم العميل</th>
+          <th>نوع العملية</th><th>النشاط</th><th>البند</th><th>اسم المنتج</th>
+          <th>الكمية</th><th>الوحدة</th><th>السعر</th><th>الثمن</th>
+          <th>الدهن</th><th>البروتين</th><th>البكتيريا</th><th>النقل</th><th>أخرى</th><th>الإجمالي</th>
+          <th>خ كمية</th><th>خ نقدي</th><th>كسور</th><th>الصافي</th><th>إجمالي الفاتورة</th><th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set day_labels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] %}
+        {% set month_labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+        {% for d in invoice.deliveries %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td dir="ltr">{{ d.delivery_date }}</td>
+          <td dir="ltr">{{ day_labels[d.delivery_date.weekday()] }}</td>
+          <td dir="ltr">{{ month_labels[d.delivery_date.month - 1] }}</td>
+          <td>{{ invoice.customer.name }}</td>
+          <td>{{ 'أجل' if invoice.customer.contract_type == 'weekly' else 'نقدي' }}</td>
+          <td>الإنتاج الحيواني</td>
+          <td>مبيعات ألبان خام</td>
+          <td>ألبان خام</td>
+          <td dir="ltr">{{ d.qty_kg }}</td>
+          <td>كيلوجرام</td>
+          <td dir="ltr">{{ d.unit_price }}</td>
+          <td dir="ltr">{{ d.base_value }}</td>
+          <td dir="ltr">{{ d.fat_bonus }}</td>
+          <td dir="ltr">{{ d.protein_bonus }}</td>
+          <td dir="ltr">{{ d.bacteria_adj }}</td>
+          <td dir="ltr">{{ d.transport }}</td>
+          <td dir="ltr">{{ d.other_adj }}</td>
+          <td dir="ltr" class="fw-bold">{{ d.subtotal }}</td>
+          <td dir="ltr">{{ d.qty_deduction }}</td>
+          <td dir="ltr">{{ d.cash_deduction }}</td>
+          <td dir="ltr">{{ d.rounding }}</td>
+          <td dir="ltr" class="fw-bold text-success">{{ d.total_value }}</td>
+          <td dir="ltr" class="fw-bold">{% if loop.last %}{{ invoice.grand_total }}{% endif %}</td>
+          <td class="small">{{ d.notes or "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background: #f4f6fa;">
+          <th colspan="22" class="text-end">إجمالي الفاتورة</th>
+          <th dir="ltr" class="fs-6">{{ invoice.grand_total }}</th>
+          <th colspan="2"></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<style>
+@media print {
+  .print-only { display: block !important; }
+}
+</style>
+{% endblock %}

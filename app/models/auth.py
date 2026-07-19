@@ -29,6 +29,8 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(255), nullable=True, index=True)
     reset_token_expires = db.Column(db.DateTime, nullable=True)
 
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False)
+
     def set_password(self, raw: str) -> None:
         self.password_hash = generate_password_hash(raw)
 
@@ -38,6 +40,11 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self) -> bool:
         return self.role == self.ROLE_ADMIN
+
+    @property
+    def can_write(self) -> bool:
+        """False for viewer, True for admin and manager."""
+        return self.role in (self.ROLE_ADMIN, self.ROLE_MANAGER)
 
     @property
     def is_first_admin(self) -> bool:

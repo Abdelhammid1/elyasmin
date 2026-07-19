@@ -36,6 +36,7 @@ def create_user():
                 role=form.role.data,
                 is_active=form.is_active.data,
                 created_by_id=current_user.id,
+                must_change_password=True,  # TC-1.5: forced change on first login
             )
             user.set_password(form.password.data)
             db.session.add(user)

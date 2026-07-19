@@ -82,9 +82,77 @@ def create_app(config_name: str | None = None) -> Flask:
         return {"now": datetime.utcnow, "app_name": "مزرعة الياسمين", "timedelta": timedelta}
 
     @app.before_request
-    def make_session_permanent():
-        from flask import session
+    def track_activity_and_timeout():
+        """Enforce rolling inactivity timeout regardless of remember_me cookie.
+
+        TC-1.4 fix: previously Flask-Login's remember_me kept users signed in for
+        weeks. Now every request checks last activity and forces logout after
+        SESSION_LIFETIME_MINUTES of inactivity.
+        """
+        from flask import request, session
+        from flask_login import current_user, logout_user
 
         session.permanent = True
+
+        # Skip enforcement on auth + static endpoints so a fresh login can succeed
+        if request.endpoint in {"static", None} or (request.endpoint or "").startswith("auth."):
+            session["last_activity"] = datetime.utcnow().timestamp()
+            return
+
+        if current_user.is_authenticated:
+            timeout = app.config["PERMANENT_SESSION_LIFETIME"]
+            last = session.get("last_activity")
+            now = datetime.utcnow().timestamp()
+            if last is not None and (now - last) > timeout.total_seconds():
+                logout_user()
+                session.clear()
+                from flask import flash, redirect, url_for
+
+                flash("انتهت جلستك بسبب عدم النشاط، من فضلك سجّل الدخول مجدداً.", "warning")
+                return redirect(url_for("auth.login"))
+            session["last_activity"] = now
+
+    @app.before_request
+    def enforce_viewer_read_only():
+        """TC-9.6 fix: viewer role cannot use POST / PUT / DELETE / PATCH.
+
+        Applied globally so URL-manipulation attempts fail hard with 403.
+        Auth endpoints (login/logout/change_password) are always allowed.
+        """
+        from flask import abort, request
+        from flask_login import current_user
+
+        if not current_user.is_authenticated:
+            return
+        if current_user.role != "viewer":
+            return
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+        # Allow the viewer to logout + change their own password
+        if (request.endpoint or "") in {"auth.logout", "auth.change_password"}:
+            return
+        abort(403)
+
+    @app.before_request
+    def force_password_change():
+        """TC-1.5 fix: users with must_change_password=True are redirected to the
+        password change page for every request except that page + logout + static.
+        """
+        from flask import redirect, request, url_for
+        from flask_login import current_user
+
+        if not current_user.is_authenticated:
+            return
+        if not getattr(current_user, "must_change_password", False):
+            return
+
+        allowed = {
+            "auth.change_password",
+            "auth.logout",
+            "static",
+        }
+        if request.endpoint in allowed or request.endpoint is None:
+            return
+        return redirect(url_for("auth.change_password"))
 
     return app

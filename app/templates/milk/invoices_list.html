@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}فواتير بيع اللبن{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-receipt-cutoff"></i> فواتير بيع اللبن</h1>
+  <a href="{{ url_for('milk.create_invoice') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> فاتورة جديدة</a>
+</div>
+
+<div class="card">
+  {% if invoices %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>#</th><th>رقم</th><th>العميل</th><th>الفترة</th><th>عدد التوريدات</th><th>الإجمالي</th><th>الحالة</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td>#{{ inv.id }}</td>
+          <td dir="ltr">{{ inv.invoice_number or "—" }}</td>
+          <td>{{ inv.customer.name }}</td>
+          <td dir="ltr" class="small">{{ inv.period_from }} → {{ inv.period_to }}</td>
+          <td>{{ inv.deliveries|length }}</td>
+          <td dir="ltr" class="fw-bold">{{ inv.grand_total }}</td>
+          <td>
+            {% if inv.status == 'draft' %}<span class="badge bg-warning text-dark">{{ inv.status_label }}</span>
+            {% else %}<span class="badge bg-success">{{ inv.status_label }}</span>{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('milk.view_invoice', invoice_id=inv.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            <a href="{{ url_for('milk.invoice_excel', invoice_id=inv.id) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش فواتير لسه.</p>
+    <a href="{{ url_for('milk.create_invoice') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إنشاء فاتورة</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -10,6 +10,7 @@ from app.forms.labor import WorkerForm, WorkerPaymentForm
 from app.models.finance import Expense
 from app.models.labor import Attendance, Worker, WorkerPayment
 from app.utils.audit import log_action
+from app.utils.reports import excel_response
 
 bp = Blueprint("labor", __name__, template_folder="../../templates/labor")
 
@@ -145,6 +146,84 @@ def daily_attendance():
 
 
 # ---------- Payment ----------
+# ---------- TC-8.4: consolidated labor report ----------
+def _labor_report_rows(date_from, date_to):
+    workers = Worker.query.filter_by(is_archived=False).order_by(Worker.name).all()
+    rows = []
+    for w in workers:
+        atts = (
+            Attendance.query
+            .filter(
+                Attendance.worker_id == w.id,
+                Attendance.attendance_date >= date_from,
+                Attendance.attendance_date <= date_to,
+            )
+            .all()
+        )
+        present_days = sum(1 for a in atts if not a.is_absent)
+        absent_days = sum(1 for a in atts if a.is_absent)
+        total_batches = sum((a.batches_worked or 0) for a in atts if not a.is_absent)
+        earned = w.earned_between(date_from, date_to)
+        paid = w.paid_between(date_from, date_to)
+        balance = earned - paid
+        rows.append({
+            "worker": w,
+            "present_days": present_days,
+            "absent_days": absent_days,
+            "total_batches": total_batches,
+            "earned": earned,
+            "paid": paid,
+            "balance": balance,
+        })
+    return rows
+
+
+@bp.route("/report")
+@login_required
+def report():
+    today = date.today()
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    d_from = date.fromisoformat(fm) if fm else today.replace(day=1)
+    d_to = date.fromisoformat(to) if to else today
+    rows = _labor_report_rows(d_from, d_to)
+    totals = {
+        "present_days": sum(r["present_days"] for r in rows),
+        "absent_days": sum(r["absent_days"] for r in rows),
+        "total_batches": sum(r["total_batches"] for r in rows),
+        "earned": sum((r["earned"] for r in rows), Decimal("0")),
+        "paid": sum((r["paid"] for r in rows), Decimal("0")),
+        "balance": sum((r["balance"] for r in rows), Decimal("0")),
+    }
+    return render_template("labor/report.html", rows=rows, totals=totals,
+                           date_from=d_from, date_to=d_to)
+
+
+@bp.route("/report/excel")
+@login_required
+def report_excel():
+    today = date.today()
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    d_from = date.fromisoformat(fm) if fm else today.replace(day=1)
+    d_to = date.fromisoformat(to) if to else today
+    rows = _labor_report_rows(d_from, d_to)
+    data = [
+        [
+            r["worker"].name, r["worker"].wage_label, float(r["worker"].rate),
+            r["present_days"], r["absent_days"], r["total_batches"],
+            float(r["earned"]), float(r["paid"]), float(r["balance"]),
+        ] for r in rows
+    ]
+    return excel_response(
+        "تقرير العمالة",
+        ["العامل", "نوع الأجر", "السعر", "أيام حضور", "أيام غياب", "إجمالي الحلبات",
+         "المستحق", "المدفوع", "المتبقي"],
+        data,
+        f"labor_report_{d_from}_{d_to}.xlsx",
+    )
+
+
 @bp.route("/<int:worker_id>/pay", methods=["POST"])
 @login_required
 def record_payment(worker_id: int):

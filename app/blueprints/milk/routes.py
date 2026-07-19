@@ -8,7 +8,8 @@ from sqlalchemy import func
 from app.extensions import db
 from app.forms.sales import DailyProductionForm, MilkDeliveryForm
 from app.models.finance import Setting
-from app.models.sales import Customer, DailyProduction, MilkDelivery
+from app.models.sales import Customer, DailyProduction, MilkDelivery, MilkInvoice
+from app.utils.reports import excel_response
 from app.utils.audit import log_action
 
 bp = Blueprint("milk", __name__, template_folder="../../templates/milk")
@@ -79,29 +80,47 @@ def create_delivery():
             return render_template("milk/delivery_form.html", form=form, customers=customers)
 
         qty = Decimal(str(form.qty_kg.data))
+        protein = Decimal(str(form.protein_pct.data)) if form.protein_pct.data is not None else None
+        bacteria = Decimal(str(form.bacteria_count.data)) if form.bacteria_count.data is not None else None
 
-        if customer.pricing_type == Customer.PRICING_FIXED:
-            if not customer.fixed_price:
-                flash("العميل مسعّر ثابت بس مفيش سعر محدد. عدّل بياناته أول.", "error")
-                return render_template("milk/delivery_form.html", form=form, customers=customers)
+        # Unit price: form override > customer fixed price > quality formula
+        if form.unit_price.data is not None and form.unit_price.data != 0:
+            unit_price = Decimal(str(form.unit_price.data))
+        elif customer.pricing_type == Customer.PRICING_FIXED and customer.fixed_price:
             unit_price = Decimal(str(customer.fixed_price))
-            protein = None
-            bacteria = None
-        else:
-            if form.protein_pct.data is None or form.bacteria_count.data is None:
-                flash("لازم تدخل البروتين والبكتيريا للعميل المسعّر بالتحليل.", "error")
-                return render_template("milk/delivery_form.html", form=form, customers=customers)
-            protein = Decimal(str(form.protein_pct.data))
-            bacteria = Decimal(str(form.bacteria_count.data))
+        elif protein is not None and bacteria is not None:
             unit_price = price_for_quality(protein, bacteria)
+        else:
+            flash("لازم تدخل سعر يدوي أو تحدد سعر ثابت للعميل أو تدخل بروتين + بكتيريا.", "error")
+            return render_template("milk/delivery_form.html", form=form, customers=customers)
 
-        total = (qty * unit_price).quantize(Decimal("0.01"))
+        def dec(v):
+            return Decimal(str(v)) if v is not None else Decimal("0")
+
+        base = (qty * unit_price).quantize(Decimal("0.01"))
+        fat_b = dec(form.fat_bonus.data)
+        prot_b = dec(form.protein_bonus.data)
+        bact_a = dec(form.bacteria_adj.data)
+        trans = dec(form.transport.data)
+        other = dec(form.other_adj.data)
+        subtotal = (base + fat_b + prot_b + bact_a + trans + other).quantize(Decimal("0.01"))
+
+        qty_d = dec(form.qty_deduction.data)
+        cash_d = dec(form.cash_deduction.data)
+        rnd = dec(form.rounding.data)
+        total = (subtotal - qty_d - cash_d + rnd).quantize(Decimal("0.01"))
+
         delivery = MilkDelivery(
             customer_id=customer.id,
             delivery_date=form.delivery_date.data,
             qty_kg=qty,
             protein_pct=protein,
             bacteria_count=int(bacteria) if bacteria is not None else None,
+            base_value=base,
+            fat_bonus=fat_b, protein_bonus=prot_b, bacteria_adj=bact_a,
+            transport=trans, other_adj=other,
+            subtotal=subtotal,
+            qty_deduction=qty_d, cash_deduction=cash_d, rounding=rnd,
             unit_price=unit_price,
             total_value=total,
             notes=form.notes.data,
@@ -188,3 +207,154 @@ def daily_production():
         total_waste=total_waste,
         waste_pct=waste_pct,
     )
+
+
+# ---------- Milk invoices (client's Excel format) ----------
+@bp.route("/invoices")
+@login_required
+def list_invoices():
+    invoices = (
+        MilkInvoice.query.filter_by(is_archived=False)
+        .order_by(MilkInvoice.issue_date.desc(), MilkInvoice.id.desc())
+        .limit(200)
+        .all()
+    )
+    return render_template("milk/invoices_list.html", invoices=invoices)
+
+
+@bp.route("/invoices/new", methods=["GET", "POST"])
+@login_required
+def create_invoice():
+    """Consolidator: pick customer + period, generate an invoice linking all
+    matching deliveries. Existing invoiced deliveries are excluded."""
+    customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+
+    if request.method == "POST":
+        customer_id = request.form.get("customer_id", type=int)
+        period_from = request.form.get("period_from")
+        period_to = request.form.get("period_to")
+        invoice_number = (request.form.get("invoice_number") or "").strip() or None
+
+        if not (customer_id and period_from and period_to):
+            flash("املأ كل الحقول: العميل + الفترة.", "error")
+            return render_template("milk/invoice_form.html", customers=customers)
+
+        d_from = date.fromisoformat(period_from)
+        d_to = date.fromisoformat(period_to)
+
+        deliveries = (
+            MilkDelivery.query
+            .filter(
+                MilkDelivery.customer_id == customer_id,
+                MilkDelivery.is_archived.is_(False),
+                MilkDelivery.invoice_id.is_(None),
+                MilkDelivery.delivery_date >= d_from,
+                MilkDelivery.delivery_date <= d_to,
+            )
+            .order_by(MilkDelivery.delivery_date)
+            .all()
+        )
+        if not deliveries:
+            flash("مفيش توريدات غير مفوترة للعميل ده في الفترة دي.", "error")
+            return render_template("milk/invoice_form.html", customers=customers)
+
+        invoice = MilkInvoice(
+            customer_id=customer_id,
+            invoice_number=invoice_number,
+            period_from=d_from,
+            period_to=d_to,
+            status=MilkInvoice.STATUS_DRAFT,
+            created_by_id=current_user.id,
+        )
+        db.session.add(invoice)
+        db.session.flush()
+        for d in deliveries:
+            d.invoice_id = invoice.id
+        invoice.recompute_total()
+        log_action("milk_invoice_created", "MilkInvoice", invoice.id,
+                   details=f"customer={customer_id} lines={len(deliveries)} total={invoice.grand_total}")
+        db.session.commit()
+        flash(f"تم إنشاء فاتورة #{invoice.id} بإجمالي {invoice.grand_total} جنيه.", "success")
+        return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+
+    return render_template("milk/invoice_form.html", customers=customers)
+
+
+@bp.route("/invoices/<int:invoice_id>")
+@login_required
+def view_invoice(invoice_id: int):
+    invoice = db.session.get(MilkInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        return render_template("errors/404.html"), 404
+    return render_template("milk/invoice_view.html", invoice=invoice)
+
+
+@bp.route("/invoices/<int:invoice_id>/excel")
+@login_required
+def invoice_excel(invoice_id: int):
+    invoice = db.session.get(MilkInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        return render_template("errors/404.html"), 404
+
+    headers = [
+        "م", "التاريخ", "يوم", "شهر", "اسم العميل", "نوع العملية", "النشاط", "البند",
+        "اسم المنتج", "الكمية", "الوحدة", "السعر", "الثمن",
+        "الدهن", "البروتين", "البكتيريا", "النقل", "أخرى", "الإجمالي",
+        "خ كمية", "خ نقدي", "كسور", "الصافي", "إجمالي الفاتورة", "ملاحظات",
+    ]
+    DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    rows = []
+    running_total = Decimal("0")
+    for idx, d in enumerate(invoice.deliveries, start=1):
+        running_total += d.total_value
+        rows.append([
+            idx,
+            d.delivery_date.isoformat(),
+            DAY_LABELS[d.delivery_date.weekday()],
+            MONTH_LABELS[d.delivery_date.month - 1],
+            invoice.customer.name,
+            "أجل" if invoice.customer.contract_type == "weekly" else "نقدي",
+            "الإنتاج الحيواني",
+            "مبيعات ألبان خام",
+            "ألبان خام",
+            float(d.qty_kg),
+            "كيلوجرام",
+            float(d.unit_price),
+            float(d.base_value),
+            float(d.fat_bonus),
+            float(d.protein_bonus),
+            float(d.bacteria_adj),
+            float(d.transport),
+            float(d.other_adj),
+            float(d.subtotal),
+            float(d.qty_deduction),
+            float(d.cash_deduction),
+            float(d.rounding),
+            float(d.total_value),
+            float(running_total) if idx == len(invoice.deliveries) else "",
+            d.notes or "",
+        ])
+
+    return excel_response(
+        "فاتورة بيع اللبن",
+        headers,
+        rows,
+        f"milk_invoice_{invoice.id}.xlsx",
+    )
+
+
+@bp.route("/invoices/<int:invoice_id>/issue", methods=["POST"])
+@login_required
+def issue_invoice(invoice_id: int):
+    invoice = db.session.get(MilkInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        return render_template("errors/404.html"), 404
+    if invoice.status == MilkInvoice.STATUS_DRAFT:
+        invoice.status = MilkInvoice.STATUS_ISSUED
+        log_action("milk_invoice_issued", "MilkInvoice", invoice.id)
+        db.session.commit()
+        flash(f"تم اعتماد الفاتورة #{invoice.id}.", "success")
+    return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))

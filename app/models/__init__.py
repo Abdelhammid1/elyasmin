@@ -23,7 +23,13 @@ from app.models.feed import (
     FeedRunLine,
     MedicineDispense,
 )
-from app.models.sales import Customer, CustomerPayment, DailyProduction, MilkDelivery
+from app.models.sales import (
+    Customer,
+    CustomerPayment,
+    DailyProduction,
+    MilkDelivery,
+    MilkInvoice,
+)
 from app.models.finance import Expense, Setting
 from app.models.labor import Attendance, Worker, WorkerPayment
 
@@ -35,7 +41,7 @@ __all__ = [
     "Ingredient", "StockMovement",
     "Supplier", "PurchaseInvoice", "PurchaseLine", "SupplierPayment",
     "FeedRecipe", "FeedRecipeLine", "FeedRun", "FeedRunLine", "MedicineDispense",
-    "Customer", "MilkDelivery", "CustomerPayment", "DailyProduction",
+    "Customer", "MilkDelivery", "MilkInvoice", "CustomerPayment", "DailyProduction",
     "Setting", "Expense",
     "Worker", "Attendance", "WorkerPayment",
 ]

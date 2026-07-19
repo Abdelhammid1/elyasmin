@@ -33,6 +33,9 @@
           </td>
           <td dir="ltr" class="fw-bold {% if c.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ c.balance }}</td>
           <td class="text-end">
+            {% if c.balance > 0 %}
+            <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}" class="btn btn-sm btn-success" title="تحصيل دفعة"><i class="bi bi-cash-coin"></i> تحصيل</a>
+            {% endif %}
             <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
             <a href="{{ url_for('customers.edit_customer', customer_id=c.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
           </td>

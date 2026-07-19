@@ -8,7 +8,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models.herd import AnimalSale, Birth, CattleGroup, Cow, Death
 from app.models.inventory import Ingredient
-from app.models.sales import Customer, MilkDelivery
+from app.models.sales import Customer, DailyProduction, MilkDelivery
 from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
 
 bp = Blueprint("dashboard", __name__)
@@ -113,6 +113,14 @@ def index():
         .scalar()
     ) or 0
 
+    # TC-9.1 fix: daily waste on dashboard
+    yesterday_prod = DailyProduction.query.filter_by(production_date=yesterday).first()
+    yesterday_waste = None
+    if yesterday_prod:
+        yesterday_waste = Decimal(str(yesterday_prod.total_kg)) - Decimal(str(yesterday_milk_kg))
+        if yesterday_waste < 0:
+            yesterday_waste = Decimal("0")
+
     total_owed_from_customers = Decimal("0")
     for c in Customer.query.filter_by(is_archived=False).all():
         total_owed_from_customers += c.balance
@@ -121,6 +129,7 @@ def index():
         "dashboard/index.html",
         yesterday_milk_kg=yesterday_milk_kg,
         yesterday_milk_value=yesterday_milk_value,
+        yesterday_waste=yesterday_waste,
         total_owed_from_customers=total_owed_from_customers,
         group_stats=group_stats,
         total_active=total_active,

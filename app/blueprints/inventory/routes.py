@@ -52,8 +52,26 @@ def create_ingredient():
                 notes=form.notes.data,
                 created_by_id=current_user.id,
             )
+            # TC-4.1: seed the opening stock if provided
+            init_qty = form.initial_qty.data or Decimal("0")
+            init_price = form.initial_price.data or Decimal("0")
+            if init_qty > 0:
+                ing.current_qty = init_qty
+                if init_price > 0:
+                    ing.last_price = init_price
             db.session.add(ing)
             db.session.flush()
+            if init_qty > 0:
+                db.session.add(
+                    StockMovement(
+                        ingredient_id=ing.id,
+                        delta=init_qty,
+                        reason=StockMovement.REASON_ADJUST,
+                        unit_price_at_move=init_price if init_price > 0 else None,
+                        notes="جرد افتتاحي",
+                        created_by_id=current_user.id,
+                    )
+                )
             log_action("ingredient_created", "Ingredient", ing.id)
             db.session.commit()
             flash(f"تم إضافة المادة {ing.name}.", "success")

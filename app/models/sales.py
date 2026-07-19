@@ -72,8 +72,25 @@ class MilkDelivery(db.Model):
     protein_pct = db.Column(db.Numeric(5, 2), nullable=True)  # only for quality-based
     bacteria_count = db.Column(db.Integer, nullable=True)  # only for quality-based
 
-    unit_price = db.Column(db.Numeric(10, 3), nullable=False)
-    total_value = db.Column(db.Numeric(14, 2), nullable=False)
+    unit_price = db.Column(db.Numeric(10, 3), nullable=False)  # السعر
+    base_value = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # الثمن = qty × price
+
+    # Client's Excel columns (all adjustments to the base value)
+    fat_bonus = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))       # الدهن
+    protein_bonus = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))   # البروتين
+    bacteria_adj = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))    # البكتيريا
+    transport = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))       # النقل
+    other_adj = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))       # أخرى
+
+    subtotal = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))        # الإجمالي
+
+    qty_deduction = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))   # خ كمية
+    cash_deduction = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # خ نقدي
+    rounding = db.Column(db.Numeric(10, 2), nullable=False, default=Decimal("0"))        # كسور
+
+    total_value = db.Column(db.Numeric(14, 2), nullable=False)                            # الصافي
+
+    invoice_id = db.Column(db.Integer, db.ForeignKey("milk_invoices.id"), nullable=True)
 
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
@@ -81,6 +98,45 @@ class MilkDelivery(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     customer = db.relationship("Customer", back_populates="deliveries")
+    invoice = db.relationship("MilkInvoice", back_populates="deliveries")
+
+
+class MilkInvoice(db.Model):
+    """Groups multiple daily deliveries for a customer over a period into one
+    printable/exportable invoice. Matches the client's real Excel format."""
+
+    __tablename__ = "milk_invoices"
+
+    STATUS_DRAFT = "draft"
+    STATUS_ISSUED = "issued"
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False, index=True)
+    invoice_number = db.Column(db.String(40), nullable=True, index=True)  # optional external #
+    period_from = db.Column(db.Date, nullable=False)
+    period_to = db.Column(db.Date, nullable=False)
+    issue_date = db.Column(db.Date, nullable=False, default=date.today)
+    status = db.Column(db.String(20), nullable=False, default=STATUS_DRAFT)
+
+    grand_total = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+    notes = db.Column(db.Text, nullable=True)
+    is_archived = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    customer = db.relationship("Customer")
+    deliveries = db.relationship(
+        "MilkDelivery",
+        back_populates="invoice",
+        order_by="MilkDelivery.delivery_date",
+    )
+
+    @property
+    def status_label(self) -> str:
+        return "مسوّدة" if self.status == self.STATUS_DRAFT else "صادرة"
+
+    def recompute_total(self) -> None:
+        self.grand_total = sum((d.total_value for d in self.deliveries), Decimal("0"))
 
 
 class CustomerPayment(db.Model):
