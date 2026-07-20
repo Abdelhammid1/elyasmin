@@ -32,7 +32,22 @@ source .venv/bin/activate     # على Linux/macOS
 # .venv\Scripts\activate      # على Windows
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# ⚠️ خطوة إجبارية بعد pip install:
+# Playwright بيحتاج ينزّل نسخة من Chromium بشكل منفصل.
+# لو ماتنفذتش الخطوة دي، ميزة "تصدير PDF" (تقرير الأرباح والخسائر
+# + تقرير تكلفة اللبن) هتفشل بـ:
+#   playwright._impl._api_types.Error: Executable doesn't exist
+playwright install --with-deps chromium
 ```
+
+> 🚨 **مهم — Playwright + Chromium**
+> `pip install` بيسطّب مكتبة Playwright بس، ما بيجيبش الـ browser binary.
+> لازم تشغّل `playwright install --with-deps chromium` **بعد** كل تنصيب جديد
+> (سيرفر جديد، Docker rebuild، أو reset للـ virtualenv).
+> على Linux لأول مرة، ممكن يطلب صلاحية sudo عشان يجيب مكتبات النظام
+> (Xvfb, libnss3, إلخ). لو الـ user اللي بيشغّل الأمر مش عنده sudo،
+> استخدم: `playwright install chromium` (بدون `--with-deps`) وسطّب الـ system libs يدوياً.
 
 ### 3. إعداد ملف البيئة `.env`
 

@@ -31,11 +31,17 @@ Short version:
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+playwright install --with-deps chromium   # required for PDF export
 cp .env.example .env  # then set SECRET_KEY
 flask --app flask_app.py db upgrade
 python seed.py        # creates 5 groups + admin@yasmin-farm.com / Admin@12345
 python flask_app.py   # → http://127.0.0.1:5001
 ```
+
+> **Note**: `pip install` only installs the Playwright Python package. Chromium
+> is downloaded separately via `playwright install --with-deps chromium` and is
+> required by the PDF export feature (P&L and milk-cost reports). Skip it and
+> those routes will fail with `Executable doesn't exist`.
 
 ## Tests
 
