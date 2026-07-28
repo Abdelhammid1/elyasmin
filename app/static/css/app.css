@@ -22,12 +22,35 @@ body, input, textarea, select, table {
   color: #fff;
 }
 
-.brand-nav a { color: #fff; }
-.brand-nav .nav-link { color: rgba(255,255,255,0.85); }
-.brand-nav .nav-link:hover, .brand-nav .nav-link.active {
+/* BUG-1 fix: only apply white color to direct nav items,
+   NOT to dropdown items (which live on a white background). */
+.brand-nav .navbar-brand,
+.brand-nav > .container-fluid > .navbar-collapse .nav-link {
+  color: rgba(255, 255, 255, 0.9);
+}
+.brand-nav .nav-link:hover,
+.brand-nav .nav-link.active,
+.brand-nav .nav-link.show {
   color: #fff;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 6px;
+}
+
+/* Dropdown items keep the default dark text on white background so they
+   are readable before hover. */
+.brand-nav .dropdown-menu {
+  border: 1px solid var(--brand-border);
+}
+.brand-nav .dropdown-menu .dropdown-item {
+  color: #1f2937;
+}
+.brand-nav .dropdown-menu .dropdown-item:hover,
+.brand-nav .dropdown-menu .dropdown-item:focus {
+  background: var(--brand-soft);
+  color: var(--brand-primary);
+}
+.brand-nav .dropdown-menu .dropdown-item-text {
+  color: #6b7280;
 }
 
 .page-header {
