@@ -19,6 +19,8 @@ def list_ingredients():
     query = Ingredient.query.filter_by(is_archived=False)
     if category in (Ingredient.CATEGORY_FEED, Ingredient.CATEGORY_MEDICINE):
         query = query.filter_by(category=category)
+    elif category == "custom":
+        query = query.filter(Ingredient.category.like("custom:%"))
     ingredients = query.order_by(Ingredient.category, Ingredient.name).all()
     total_stock_value = sum((i.stock_value for i in ingredients), Decimal("0"))
     low_stock_count = sum(1 for i in ingredients if i.is_low_stock)
@@ -37,16 +39,26 @@ def create_ingredient():
     form = IngredientForm()
     if form.validate_on_submit():
         name = form.name.data.strip()
+
+        # TICKET-3: resolve custom category if user picked "__custom__"
+        cat = form.category.data
+        if cat == "__custom__":
+            custom = (form.custom_category.data or "").strip()
+            if not custom:
+                flash("لازم تكتب اسم النوع الجديد.", "error")
+                return render_template("inventory/form.html", form=form, mode="create")
+            cat = "custom:" + custom
+
         existing = Ingredient.query.filter(
             func.lower(Ingredient.name) == name.lower(),
-            Ingredient.category == form.category.data,
+            Ingredient.category == cat,
         ).first()
         if existing:
             flash("مادة بنفس الاسم في نفس التصنيف مسجّلة قبل كده.", "error")
         else:
             ing = Ingredient(
                 name=name,
-                category=form.category.data,
+                category=cat,
                 unit=form.unit.data,
                 min_qty=form.min_qty.data or Decimal("0"),
                 notes=form.notes.data,
@@ -108,12 +120,21 @@ def edit_ingredient(ingredient_id: int):
         abort(404)
     form = IngredientForm(obj=ing)
     if form.validate_on_submit():
+        # TICKET-3: resolve custom category
+        cat = form.category.data
+        if cat == "__custom__":
+            custom = (form.custom_category.data or "").strip()
+            if not custom:
+                flash("لازم تكتب اسم النوع الجديد.", "error")
+                return render_template("inventory/form.html", form=form, mode="edit", ingredient=ing)
+            cat = "custom:" + custom
+
         # Name change: ensure uniqueness within category
         new_name = form.name.data.strip()
-        if new_name != ing.name or form.category.data != ing.category:
+        if new_name != ing.name or cat != ing.category:
             conflict = Ingredient.query.filter(
                 func.lower(Ingredient.name) == new_name.lower(),
-                Ingredient.category == form.category.data,
+                Ingredient.category == cat,
                 Ingredient.id != ing.id,
             ).first()
             if conflict:
@@ -121,7 +142,7 @@ def edit_ingredient(ingredient_id: int):
                 return render_template("inventory/form.html", form=form, mode="edit", ingredient=ing)
 
         ing.name = new_name
-        ing.category = form.category.data
+        ing.category = cat
         ing.unit = form.unit.data
         ing.min_qty = form.min_qty.data or Decimal("0")
         ing.notes = form.notes.data

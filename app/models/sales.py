@@ -26,8 +26,12 @@ class Customer(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
+    # TICKET-1: link to a supplier record when it's the same person
+    linked_supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True, index=True)
+
     deliveries = db.relationship("MilkDelivery", back_populates="customer", lazy="dynamic")
     payments = db.relationship("CustomerPayment", back_populates="customer", lazy="dynamic")
+    linked_supplier = db.relationship("Supplier", foreign_keys=[linked_supplier_id])
 
     @property
     def contract_label(self) -> str:
@@ -59,6 +63,15 @@ class Customer(db.Model):
     def balance(self) -> Decimal:
         """Amount the customer still owes us (positive = customer owes us)."""
         return self.total_delivered_value - self.total_paid
+
+    @property
+    def net_balance(self) -> Decimal:
+        """TICKET-1: combined balance when the customer is also a supplier.
+
+        Positive = they owe us net, negative = we owe them net.
+        """
+        supplier_balance = -self.linked_supplier.balance_due if self.linked_supplier else Decimal("0")
+        return self.balance + supplier_balance
 
 
 class MilkDelivery(db.Model):

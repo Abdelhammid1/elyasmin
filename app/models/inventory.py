@@ -17,7 +17,7 @@ class Ingredient(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False, index=True)
-    category = db.Column(db.String(20), nullable=False, index=True)
+    category = db.Column(db.String(60), nullable=False, index=True)
     unit = db.Column(db.String(20), nullable=False, default=UNIT_KG)
 
     current_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
@@ -33,10 +33,17 @@ class Ingredient(db.Model):
 
     @property
     def category_label(self) -> str:
+        # Custom categories are stored with a "custom:" prefix (e.g. "custom:قطع غيار")
+        if self.category and self.category.startswith("custom:"):
+            return self.category[len("custom:"):]
         return {
             self.CATEGORY_FEED: "علف / مادة خام",
             self.CATEGORY_MEDICINE: "دواء بيطري",
         }.get(self.category, self.category)
+
+    @property
+    def is_custom_category(self) -> bool:
+        return bool(self.category and self.category.startswith("custom:"))
 
     @property
     def unit_label(self) -> str:

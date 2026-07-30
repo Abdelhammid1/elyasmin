@@ -44,6 +44,11 @@ class CustomerForm(FlaskForm):
         places=3,
         validators=[Optional(), NumberRange(min=0)],
     )
+    # TICKET-1: optional link to an existing supplier record
+    linked_supplier_id = SelectField(
+        "ربط بحساب مورد (اختياري — لو نفس الشخص)",
+        coerce=int, validators=[Optional()],
+    )
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=1000)])
     submit = SubmitField("حفظ")
 

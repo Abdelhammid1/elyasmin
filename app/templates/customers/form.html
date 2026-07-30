@@ -40,6 +40,15 @@
         </div>
 
         <div class="mb-3">
+          {{ form.linked_supplier_id.label(class="form-label fw-bold") }}
+          {{ form.linked_supplier_id(class="form-select") }}
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            لو العميل هو نفسه مورد عندك، اربطهم هنا وهتشوف رصيد موحّد في الصفحتين.
+          </small>
+        </div>
+
+        <div class="mb-3">
           {{ form.notes.label(class="form-label fw-bold") }}
           {{ form.notes(class="form-control", rows=2) }}
         </div>

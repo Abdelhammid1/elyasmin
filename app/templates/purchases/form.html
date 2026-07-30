@@ -55,7 +55,74 @@
     <div id="linesContainer"></div>
 
     <div class="text-end mt-3">
-      <h4>الإجمالي: <span id="invoiceTotal" dir="ltr">0.00</span> جنيه</h4>
+      <div class="row g-2 justify-content-end">
+        <div class="col-md-4">
+          <div class="small text-muted">إجمالي البنود</div>
+          <div class="h5" dir="ltr" id="invoiceSubtotal">0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TICKET-2: Tax + Discount -->
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3"><i class="bi bi-percent"></i> الضريبة والخصومات (اختياري)</h5>
+    <div class="row g-3">
+      <div class="col-md-4">
+        {{ form.tax_type.label(class="form-label fw-bold") }}
+        {{ form.tax_type(class="form-select", id="taxTypeSel") }}
+      </div>
+      <div class="col-md-4 d-none" id="taxCustomBlock">
+        {{ form.tax_custom.label(class="form-label fw-bold") }}
+        {{ form.tax_custom(class="form-control", placeholder="مثال: ضريبة جمركية") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.tax_amount.label(class="form-label fw-bold") }}
+        <div class="input-group">
+          {{ form.tax_amount(class="form-control", dir="ltr", step="0.01", min="0", id="taxAmount") }}
+          <span class="input-group-text">جنيه</span>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        {{ form.discount_type.label(class="form-label fw-bold") }}
+        {{ form.discount_type(class="form-select", id="discountTypeSel") }}
+      </div>
+      <div class="col-md-4 d-none" id="discountCustomBlock">
+        {{ form.discount_custom.label(class="form-label fw-bold") }}
+        {{ form.discount_custom(class="form-control", placeholder="مثال: خصم عرض ترويجي") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.discount_amount.label(class="form-label fw-bold") }}
+        <div class="input-group">
+          {{ form.discount_amount(class="form-control", dir="ltr", step="0.01", min="0", id="discountAmount") }}
+          <span class="input-group-text">جنيه</span>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+    <div class="row justify-content-end">
+      <div class="col-md-6">
+        <table class="table table-sm mb-0">
+          <tr>
+            <td>إجمالي البنود:</td>
+            <td dir="ltr" class="text-end" id="finalSubtotal">0.00</td>
+          </tr>
+          <tr class="text-danger">
+            <td>− الخصم:</td>
+            <td dir="ltr" class="text-end" id="finalDiscount">0.00</td>
+          </tr>
+          <tr class="text-primary">
+            <td>+ الضريبة:</td>
+            <td dir="ltr" class="text-end" id="finalTax">0.00</td>
+          </tr>
+          <tr class="fw-bold border-top">
+            <td>الإجمالي النهائي:</td>
+            <td dir="ltr" class="text-end fs-5" id="finalTotal">0.00</td>
+          </tr>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -67,7 +134,17 @@
 
 <script>
   const container = document.getElementById('linesContainer');
-  const totalEl = document.getElementById('invoiceTotal');
+  const subtotalEl = document.getElementById('invoiceSubtotal');
+  const finalSubEl = document.getElementById('finalSubtotal');
+  const finalDiscEl = document.getElementById('finalDiscount');
+  const finalTaxEl = document.getElementById('finalTax');
+  const finalTotalEl = document.getElementById('finalTotal');
+  const taxAmountInput = document.getElementById('taxAmount');
+  const discountAmountInput = document.getElementById('discountAmount');
+  const taxTypeSel = document.getElementById('taxTypeSel');
+  const discountTypeSel = document.getElementById('discountTypeSel');
+  const taxCustomBlock = document.getElementById('taxCustomBlock');
+  const discountCustomBlock = document.getElementById('discountCustomBlock');
   const ingredients = [
     {% for i in ingredients %}
       { id: {{ i.id }}, name: "{{ i.name }} — {{ i.unit_label }}", unit: "{{ i.unit_label }}", last: "{{ i.last_price }}" },
@@ -143,8 +220,27 @@
     document.querySelectorAll('.line-total').forEach(el => {
       sum += parseFloat(el.textContent || "0");
     });
-    totalEl.textContent = sum.toFixed(2);
+    const tax = parseFloat(taxAmountInput.value || "0") || 0;
+    const disc = parseFloat(discountAmountInput.value || "0") || 0;
+    const final = sum - disc + tax;
+    subtotalEl.textContent = sum.toFixed(2);
+    finalSubEl.textContent = sum.toFixed(2);
+    finalDiscEl.textContent = disc.toFixed(2);
+    finalTaxEl.textContent = tax.toFixed(2);
+    finalTotalEl.textContent = final.toFixed(2);
   }
+
+  function toggleCustomBlock(sel, block) {
+    if (sel.value === '__custom__') block.classList.remove('d-none');
+    else block.classList.add('d-none');
+  }
+
+  taxAmountInput.addEventListener('input', updateTotal);
+  discountAmountInput.addEventListener('input', updateTotal);
+  taxTypeSel.addEventListener('change', () => toggleCustomBlock(taxTypeSel, taxCustomBlock));
+  discountTypeSel.addEventListener('change', () => toggleCustomBlock(discountTypeSel, discountCustomBlock));
+  toggleCustomBlock(taxTypeSel, taxCustomBlock);
+  toggleCustomBlock(discountTypeSel, discountCustomBlock);
 
   document.getElementById('addLine').addEventListener('click', addLine);
   addLine();  // start with one line

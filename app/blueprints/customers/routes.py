@@ -8,6 +8,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.forms.sales import CustomerForm, CustomerPaymentForm
 from app.models.sales import Customer, CustomerPayment, MilkDelivery
+from app.models.suppliers import Supplier
 from app.utils.audit import log_action
 
 bp = Blueprint("customers", __name__, template_folder="../../templates/customers")
@@ -21,15 +22,24 @@ def list_customers():
     return render_template("customers/list.html", customers=customers, total_owed_to_us=total_owed_to_us)
 
 
+def _supplier_link_choices():
+    active = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
+    return [(0, "— بدون ربط —")] + [(s.id, s.name) for s in active]
+
+
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def create_customer():
     form = CustomerForm()
+    form.linked_supplier_id.choices = _supplier_link_choices()
     if form.validate_on_submit():
         name = form.name.data.strip()
         if Customer.query.filter(func.lower(Customer.name) == name.lower()).first():
             flash("عميل بنفس الاسم مسجّل قبل كده.", "error")
         else:
+            linked_sid = form.linked_supplier_id.data or None
+            if linked_sid == 0:
+                linked_sid = None
             c = Customer(
                 name=name,
                 phone=(form.phone.data or "").strip() or None,
@@ -38,11 +48,16 @@ def create_customer():
                 fixed_price=form.fixed_price.data
                 if form.pricing_type.data == Customer.PRICING_FIXED
                 else None,
+                linked_supplier_id=linked_sid,
                 notes=form.notes.data,
                 created_by_id=current_user.id,
             )
             db.session.add(c)
             db.session.flush()
+            if linked_sid:
+                sup = db.session.get(Supplier, linked_sid)
+                if sup:
+                    sup.linked_customer_id = c.id
             log_action("customer_created", "Customer", c.id)
             db.session.commit()
             flash(f"تم إضافة العميل {c.name}.", "success")
@@ -101,6 +116,10 @@ def edit_customer(customer_id: int):
     if not customer or customer.is_archived:
         abort(404)
     form = CustomerForm(obj=customer)
+    form.linked_supplier_id.choices = _supplier_link_choices()
+    if request.method == "GET":
+        form.linked_supplier_id.data = customer.linked_supplier_id or 0
+
     if form.validate_on_submit():
         customer.name = form.name.data.strip()
         customer.phone = (form.phone.data or "").strip() or None
@@ -110,6 +129,22 @@ def edit_customer(customer_id: int):
             form.fixed_price.data if form.pricing_type.data == Customer.PRICING_FIXED else None
         )
         customer.notes = form.notes.data
+
+        # Handle link change
+        new_linked = form.linked_supplier_id.data or None
+        if new_linked == 0:
+            new_linked = None
+        if customer.linked_supplier_id != new_linked:
+            if customer.linked_supplier_id:
+                old = db.session.get(Supplier, customer.linked_supplier_id)
+                if old and old.linked_customer_id == customer.id:
+                    old.linked_customer_id = None
+            customer.linked_supplier_id = new_linked
+            if new_linked:
+                sup = db.session.get(Supplier, new_linked)
+                if sup:
+                    sup.linked_customer_id = customer.id
+
         log_action("customer_updated", "Customer", customer.id)
         db.session.commit()
         flash("تم تحديث بيانات العميل.", "success")

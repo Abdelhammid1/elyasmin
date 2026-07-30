@@ -21,6 +21,28 @@
   <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">قيمة الفترة المحددة</div><div class="stat-value text-primary" dir="ltr">{{ period_delivered }}</div><small class="text-muted">مدفوع: <span dir="ltr">{{ period_paid }}</span></small></div></div>
 </div>
 
+{% if customer.linked_supplier %}
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <i class="bi bi-people-fill"></i>
+    <strong>هذا العميل هو نفسه المورد:</strong>
+    <a href="{{ url_for('suppliers.supplier_detail', supplier_id=customer.linked_supplier.id) }}" class="alert-link">{{ customer.linked_supplier.name }}</a>
+    <span class="ms-2 small text-muted">
+      (رصيد كمورد: <span dir="ltr">{{ customer.linked_supplier.balance_due }}</span>)
+    </span>
+  </div>
+  <div class="text-end">
+    <div class="small text-muted">الرصيد الصافي (عميل − مورد)</div>
+    <div class="fs-5 fw-bold {% if customer.net_balance > 0 %}text-success{% elif customer.net_balance < 0 %}text-danger{% endif %}" dir="ltr">
+      {{ customer.net_balance }} جنيه
+    </div>
+    <small class="text-muted">
+      {% if customer.net_balance > 0 %}يستحق لنا صافي{% elif customer.net_balance < 0 %}نستحق له صافي{% else %}متعادل{% endif %}
+    </small>
+  </div>
+</div>
+{% endif %}
+
 <div class="card p-3 mb-3">
   <form method="get" class="row g-2 align-items-end no-print">
     <div class="col-md-4">

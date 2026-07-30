@@ -27,11 +27,30 @@
   </div>
   <div class="col-md-4">
     <div class="card stat-card">
-      <div class="stat-label">الرصيد المستحق</div>
+      <div class="stat-label">الرصيد المستحق للمورد</div>
       <div class="stat-value {% if supplier.balance_due > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ supplier.balance_due }}</div>
     </div>
   </div>
 </div>
+
+{% if supplier.linked_customer %}
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <i class="bi bi-people-fill"></i>
+    <strong>هذا المورد هو نفسه العميل:</strong>
+    <a href="{{ url_for('customers.customer_detail', customer_id=supplier.linked_customer.id) }}" class="alert-link">{{ supplier.linked_customer.name }}</a>
+  </div>
+  <div class="text-end">
+    <div class="small text-muted">الرصيد الصافي (عميل − مورد)</div>
+    <div class="fs-5 fw-bold {% if supplier.net_balance > 0 %}text-success{% elif supplier.net_balance < 0 %}text-danger{% endif %}" dir="ltr">
+      {{ supplier.net_balance }} جنيه
+    </div>
+    <small class="text-muted">
+      {% if supplier.net_balance > 0 %}يستحق لنا صافي{% elif supplier.net_balance < 0 %}نستحق له صافي{% else %}متعادل{% endif %}
+    </small>
+  </div>
+</div>
+{% endif %}
 
 <div class="row g-3">
   <div class="col-lg-7">

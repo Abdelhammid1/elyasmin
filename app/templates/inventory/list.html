@@ -16,6 +16,7 @@
   <li class="nav-item"><a class="nav-link {% if category == 'all' %}active{% endif %}" href="?category=all">الكل</a></li>
   <li class="nav-item"><a class="nav-link {% if category == 'feed' %}active{% endif %}" href="?category=feed">علف / مواد خام</a></li>
   <li class="nav-item"><a class="nav-link {% if category == 'medicine' %}active{% endif %}" href="?category=medicine">أدوية بيطرية</a></li>
+  <li class="nav-item"><a class="nav-link {% if category == 'custom' %}active{% endif %}" href="?category=custom">أنواع مخصصة</a></li>
   <li class="nav-item ms-auto"><a class="nav-link" href="{{ url_for('inventory.all_movements') }}"><i class="bi bi-clock-history"></i> كل الحركات</a></li>
 </ul>
 

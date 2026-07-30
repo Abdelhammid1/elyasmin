@@ -110,12 +110,33 @@ def create_invoice():
                 "purchases/form.html", form=form, ingredients=ingredients, suppliers=suppliers
             )
 
+        # TICKET-2: resolve tax + discount type (custom OR predefined)
+        def _resolve_type(picked: str, custom_val: str) -> str | None:
+            picked = (picked or "").strip()
+            if not picked:
+                return None
+            if picked == "__custom__":
+                custom_val = (custom_val or "").strip()
+                if not custom_val:
+                    return None  # user picked custom but didn't type — treat as no type
+                return "custom:" + custom_val
+            return picked
+
+        tax_type = _resolve_type(form.tax_type.data, form.tax_custom.data)
+        discount_type = _resolve_type(form.discount_type.data, form.discount_custom.data)
+        tax_amount = Decimal(str(form.tax_amount.data or 0))
+        discount_amount = Decimal(str(form.discount_amount.data or 0))
+
         # Build the invoice
         invoice = PurchaseInvoice(
             supplier_id=supplier.id,
             invoice_date=form.invoice_date.data,
             payment_type=form.payment_type.data,
             original_invoice_no=form.original_invoice_no.data or None,
+            tax_type=tax_type,
+            tax_amount=tax_amount,
+            discount_type=discount_type,
+            discount_amount=discount_amount,
             notes=form.notes.data,
             created_by_id=current_user.id,
         )
@@ -155,7 +176,12 @@ def create_invoice():
                 )
             )
 
-        invoice.total = total
+        invoice.subtotal = total
+        # TICKET-2: final total = subtotal − discount + tax
+        final_total = (total - discount_amount + tax_amount).quantize(Decimal("0.01"))
+        invoice.total = final_total
+        total = final_total  # keep the rest of the function using the new final total
+
         # Cash → marked paid immediately + record as expense; Credit → paid_amount stays 0
         if invoice.payment_type == PurchaseInvoice.PAY_CASH:
             invoice.paid_amount = total

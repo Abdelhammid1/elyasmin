@@ -8,6 +8,7 @@ from app.models.inventory import Ingredient
 CATEGORY_CHOICES = [
     (Ingredient.CATEGORY_FEED, "علف / مادة خام"),
     (Ingredient.CATEGORY_MEDICINE, "دواء بيطري"),
+    ("__custom__", "➕ نوع جديد (اكتبه)"),
 ]
 
 UNIT_CHOICES = [
@@ -24,6 +25,10 @@ class IngredientForm(FlaskForm):
         validators=[DataRequired(message="الاسم مطلوب."), Length(max=120)],
     )
     category = SelectField("النوع", choices=CATEGORY_CHOICES, validators=[DataRequired()])
+    custom_category = StringField(
+        "اسم النوع الجديد",
+        validators=[Optional(), Length(max=40)],
+    )
     unit = SelectField("وحدة القياس", choices=UNIT_CHOICES, validators=[DataRequired()])
     min_qty = DecimalField(
         "الحد الأدنى",

@@ -37,6 +37,15 @@
           {% for e in form.supplied_categories.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
         </div>
 
+        <div class="mb-3">
+          {{ form.linked_customer_id.label(class="form-label fw-bold") }}
+          {{ form.linked_customer_id(class="form-select") }}
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            لو المورد هو نفسه العميل، اربطهم هنا وهتشوف رصيد موحّد في الصفحتين.
+          </small>
+        </div>
+
         <div class="mb-4">
           {{ form.notes.label(class="form-label fw-bold") }}
           {{ form.notes(class="form-control", rows=2) }}

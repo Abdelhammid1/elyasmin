@@ -49,6 +49,11 @@ class SupplierForm(FlaskForm):
         choices=CATEGORY_CHOICES,
         validators=[DataRequired(message="اختر نوع واحد على الأقل.")],
     )
+    # TICKET-1: optional link to an existing customer record
+    linked_customer_id = SelectField(
+        "ربط بحساب عميل (اختياري — لو نفس الشخص)",
+        coerce=int, validators=[Optional()],
+    )
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=1000)])
     submit = SubmitField("حفظ")
 
@@ -71,6 +76,22 @@ class SupplierPaymentForm(FlaskForm):
     submit = SubmitField("تسجيل الدفعة")
 
 
+TAX_TYPE_CHOICES = [
+    ("", "— بدون ضريبة —"),
+    ("vat", "القيمة المضافة"),
+    ("commercial", "تجارية"),
+    ("industrial", "صناعية"),
+    ("__custom__", "➕ نوع آخر (اكتبه)"),
+]
+
+DISCOUNT_TYPE_CHOICES = [
+    ("", "— بدون خصم —"),
+    ("cash", "خصم نقدي"),
+    ("quantity", "خصم كمية"),
+    ("__custom__", "➕ نوع آخر (اكتبه)"),
+]
+
+
 class PurchaseInvoiceForm(FlaskForm):
     """The invoice header. Line items are parsed dynamically from request.form."""
 
@@ -86,5 +107,20 @@ class PurchaseInvoiceForm(FlaskForm):
         "رقم الفاتورة الأصلي من المورد (اختياري)",
         validators=[Optional(), Length(max=80)],
     )
+
+    # TICKET-2: tax + discount
+    tax_type = SelectField("نوع الضريبة", choices=TAX_TYPE_CHOICES, validators=[Optional()])
+    tax_custom = StringField("اسم الضريبة الجديدة", validators=[Optional(), Length(max=40)])
+    tax_amount = DecimalField(
+        "قيمة الضريبة", places=2, default=0,
+        validators=[Optional()],
+    )
+    discount_type = SelectField("نوع الخصم", choices=DISCOUNT_TYPE_CHOICES, validators=[Optional()])
+    discount_custom = StringField("اسم الخصم الجديد", validators=[Optional(), Length(max=40)])
+    discount_amount = DecimalField(
+        "قيمة الخصم", places=2, default=0,
+        validators=[Optional()],
+    )
+
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=1000)])
     submit = SubmitField("حفظ الفاتورة")

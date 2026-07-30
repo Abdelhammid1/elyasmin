@@ -20,7 +20,11 @@
         <div class="row g-3">
           <div class="col-md-6">
             {{ form.category.label(class="form-label fw-bold") }}
-            {{ form.category(class="form-select") }}
+            {{ form.category(class="form-select", id="catSel") }}
+          </div>
+          <div class="col-md-6 d-none" id="customCatBlock">
+            {{ form.custom_category.label(class="form-label fw-bold") }}
+            {{ form.custom_category(class="form-control", placeholder="مثال: قطع غيار") }}
           </div>
           <div class="col-md-6">
             {{ form.unit.label(class="form-label fw-bold") }}
@@ -57,4 +61,19 @@
     </div>
   </div>
 </div>
+
+<script>
+  // TICKET-3: show custom-category input when "نوع جديد" picked
+  (function() {
+    const sel = document.getElementById('catSel');
+    const block = document.getElementById('customCatBlock');
+    if (!sel || !block) return;
+    const toggle = () => {
+      if (sel.value === '__custom__') block.classList.remove('d-none');
+      else block.classList.add('d-none');
+    };
+    sel.addEventListener('change', toggle);
+    toggle();
+  })();
+</script>
 {% endblock %}

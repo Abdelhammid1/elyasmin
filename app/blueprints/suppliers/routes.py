@@ -8,6 +8,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.forms.suppliers import SupplierForm, SupplierPaymentForm
 from app.models.finance import Expense
+from app.models.sales import Customer
 from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
 from app.utils.audit import log_action
 from app.utils.reports import excel_response
@@ -23,24 +24,40 @@ def list_suppliers():
     return render_template("suppliers/list.html", suppliers=suppliers, total_owed=total_owed)
 
 
+def _customer_link_choices():
+    """Available customer records to link a supplier to (unlinked + own current)."""
+    active = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    return [(0, "— بدون ربط —")] + [(c.id, c.name) for c in active]
+
+
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def create_supplier():
     form = SupplierForm()
+    form.linked_customer_id.choices = _customer_link_choices()
     if form.validate_on_submit():
         name = form.name.data.strip()
         if Supplier.query.filter(func.lower(Supplier.name) == name.lower()).first():
             flash("مورد بنفس الاسم مسجّل قبل كده.", "error")
         else:
+            linked_cid = form.linked_customer_id.data or None
+            if linked_cid == 0:
+                linked_cid = None
             supplier = Supplier(
                 name=name,
                 phone=(form.phone.data or "").strip() or None,
                 supplied_categories=",".join(form.supplied_categories.data),
+                linked_customer_id=linked_cid,
                 notes=form.notes.data,
                 created_by_id=current_user.id,
             )
             db.session.add(supplier)
             db.session.flush()
+            # Reciprocal link on the customer side
+            if linked_cid:
+                cust = db.session.get(Customer, linked_cid)
+                if cust:
+                    cust.linked_supplier_id = supplier.id
             log_action("supplier_created", "Supplier", supplier.id)
             db.session.commit()
             flash(f"تم إضافة المورد {supplier.name}.", "success")
@@ -82,14 +99,32 @@ def edit_supplier(supplier_id: int):
         abort(404)
 
     form = SupplierForm(obj=supplier)
+    form.linked_customer_id.choices = _customer_link_choices()
     if request.method == "GET":
         form.supplied_categories.data = supplier.categories_list
+        form.linked_customer_id.data = supplier.linked_customer_id or 0
 
     if form.validate_on_submit():
         supplier.name = form.name.data.strip()
         supplier.phone = (form.phone.data or "").strip() or None
         supplier.supplied_categories = ",".join(form.supplied_categories.data)
         supplier.notes = form.notes.data
+
+        # Handle link change: reset old customer + set new one
+        new_linked = form.linked_customer_id.data or None
+        if new_linked == 0:
+            new_linked = None
+        if supplier.linked_customer_id != new_linked:
+            if supplier.linked_customer_id:
+                old = db.session.get(Customer, supplier.linked_customer_id)
+                if old and old.linked_supplier_id == supplier.id:
+                    old.linked_supplier_id = None
+            supplier.linked_customer_id = new_linked
+            if new_linked:
+                cust = db.session.get(Customer, new_linked)
+                if cust:
+                    cust.linked_supplier_id = supplier.id
+
         log_action("supplier_updated", "Supplier", supplier.id)
         db.session.commit()
         flash("تم تحديث بيانات المورد.", "success")
