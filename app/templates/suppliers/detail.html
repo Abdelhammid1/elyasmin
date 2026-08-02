@@ -50,6 +50,56 @@
     </small>
   </div>
 </div>
+
+{# TICKET-4: embed linked customer's transactions #}
+<details class="card p-3 mb-3">
+  <summary class="fw-bold" style="cursor: pointer;">
+    <i class="bi bi-people-fill text-info"></i>
+    حركة الحساب كعميل ({{ supplier.linked_customer.name }})
+    — <small class="text-muted">اضغط للعرض</small>
+  </summary>
+  <div class="mt-3 row g-3">
+    <div class="col-md-7">
+      <h6>آخر التوريدات ({{ linked_deliveries|length }})</h6>
+      {% if linked_deliveries %}
+      <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+        <tbody>
+          {% for d in linked_deliveries %}
+          <tr>
+            <td dir="ltr">{{ d.delivery_date }}</td>
+            <td dir="ltr">{{ d.qty_kg }}</td>
+            <td dir="ltr">{{ d.unit_price }}</td>
+            <td dir="ltr" class="fw-bold">{{ d.total_value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}<p class="text-muted mb-0 small">مفيش توريدات.</p>{% endif %}
+    </div>
+    <div class="col-md-5">
+      <h6>آخر دفعات العميل ({{ linked_customer_payments|length }})</h6>
+      {% if linked_customer_payments %}
+      <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th></tr></thead>
+        <tbody>
+          {% for p in linked_customer_payments %}
+          <tr>
+            <td dir="ltr">{{ p.payment_date }}</td>
+            <td dir="ltr" class="fw-bold text-success">{{ p.amount }}</td>
+            <td>{{ p.method_label }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}<p class="text-muted mb-0 small">مفيش دفعات.</p>{% endif %}
+    </div>
+  </div>
+</details>
 {% endif %}
 
 <div class="row g-3">

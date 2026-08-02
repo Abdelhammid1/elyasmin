@@ -43,18 +43,24 @@
         <th colspan="5" class="text-end">إجمالي البنود:</th>
         <th dir="ltr" class="text-end">{{ invoice.subtotal }}</th>
       </tr>
-      {% if invoice.discount_amount > 0 %}
+      {% for c in invoice.discount_rows %}
       <tr class="text-danger">
-        <th colspan="5" class="text-end">− {{ invoice.discount_label }}:</th>
-        <th dir="ltr" class="text-end">{{ invoice.discount_amount }}</th>
+        <th colspan="5" class="text-end">
+          − {{ c.type_label }}
+          {% if c.is_percentage %}<small>({{ c.rate_pct }}%)</small>{% endif %}:
+        </th>
+        <th dir="ltr" class="text-end">{{ c.amount_egp }}</th>
       </tr>
-      {% endif %}
-      {% if invoice.tax_amount > 0 %}
+      {% endfor %}
+      {% for c in invoice.tax_rows %}
       <tr class="text-primary">
-        <th colspan="5" class="text-end">+ {{ invoice.tax_label }}:</th>
-        <th dir="ltr" class="text-end">{{ invoice.tax_amount }}</th>
+        <th colspan="5" class="text-end">
+          + {{ c.type_label }}
+          {% if c.is_percentage %}<small>({{ c.rate_pct }}%)</small>{% endif %}:
+        </th>
+        <th dir="ltr" class="text-end">{{ c.amount_egp }}</th>
       </tr>
-      {% endif %}
+      {% endfor %}
       <tr>
         <th colspan="5" class="text-end">إجمالي الفاتورة:</th>
         <th dir="ltr" class="text-end fs-5">{{ invoice.total }}</th>

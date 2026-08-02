@@ -12,12 +12,14 @@ class Ingredient(db.Model):
 
     UNIT_KG = "kg"
     UNIT_LITRE = "litre"
+    UNIT_ML = "ml"
     UNIT_PIECE = "piece"
     UNIT_BOX = "box"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False, index=True)
     category = db.Column(db.String(60), nullable=False, index=True)
+    # TICKET-2: `unit` is the DISPLAY/BASE unit — everything stored/computed in this
     unit = db.Column(db.String(20), nullable=False, default=UNIT_KG)
 
     current_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
@@ -30,6 +32,43 @@ class Ingredient(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     __table_args__ = (db.UniqueConstraint("name", "category", name="uq_ingredient_name_category"),)
+
+    # TICKET-2: alternate purchase/dispense units with conversion factors
+    alt_units = db.relationship(
+        "IngredientUnit",
+        back_populates="ingredient",
+        cascade="all, delete-orphan",
+        order_by="IngredientUnit.id",
+    )
+
+    @property
+    def base_unit(self) -> str:
+        """Alias — `unit` is always the base storage/computation unit."""
+        return self.unit
+
+    @property
+    def base_unit_label(self) -> str:
+        return self.unit_label
+
+    def all_units(self) -> list["IngredientUnit"]:
+        """Base unit (factor=1) followed by any registered alt units."""
+        base = IngredientUnit(
+            ingredient_id=self.id,
+            unit_code=self.unit,
+            unit_label=self.unit_label,
+            factor_to_base=Decimal("1"),
+            is_base=True,
+        )
+        return [base] + list(self.alt_units or [])
+
+    def factor_for(self, unit_code: str) -> Decimal | None:
+        """How many base units = 1 of `unit_code`? None if unknown."""
+        if unit_code == self.unit:
+            return Decimal("1")
+        for u in (self.alt_units or []):
+            if u.unit_code == unit_code:
+                return u.factor_to_base
+        return None
 
     @property
     def category_label(self) -> str:
@@ -50,6 +89,7 @@ class Ingredient(db.Model):
         return {
             self.UNIT_KG: "كيلو",
             self.UNIT_LITRE: "لتر",
+            self.UNIT_ML: "مل",
             self.UNIT_PIECE: "قطعة",
             self.UNIT_BOX: "علبة",
         }.get(self.unit, self.unit)
@@ -63,6 +103,38 @@ class Ingredient(db.Model):
         return (self.current_qty or Decimal("0")) * (self.last_price or Decimal("0"))
 
 
+class IngredientUnit(db.Model):
+    """TICKET-2: alternate purchase/dispense units for an ingredient with the
+    conversion factor to the base unit.
+
+    Example: ingredient "ذرة" with base_unit=kg
+      alt_units = [
+        (unit_code='ton',  unit_label='طن',       factor=1000),
+        (unit_code='sack50', unit_label='شكارة 50', factor=50),
+      ]
+    """
+
+    __tablename__ = "ingredient_units"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ingredient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("ingredients.id", name="fk_ingunit_ingredient"),
+        nullable=False, index=True,
+    )
+    unit_code = db.Column(db.String(40), nullable=False)
+    unit_label = db.Column(db.String(60), nullable=False)
+    factor_to_base = db.Column(db.Numeric(14, 6), nullable=False, default=Decimal("1"))
+    is_default_purchase = db.Column(db.Boolean, nullable=False, default=False)
+    is_base = False  # set to True only for the transient "virtual" base row from all_units()
+
+    ingredient = db.relationship("Ingredient", back_populates="alt_units")
+
+    __table_args__ = (
+        db.UniqueConstraint("ingredient_id", "unit_code", name="uq_ingredient_unit"),
+    )
+
+
 class StockMovement(db.Model):
     __tablename__ = "stock_movements"
 
@@ -73,10 +145,14 @@ class StockMovement(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), nullable=False, index=True)
-    delta = db.Column(db.Numeric(14, 3), nullable=False)  # positive = in, negative = out
+    delta = db.Column(db.Numeric(14, 3), nullable=False)  # ALWAYS in ingredient's base unit
     reason = db.Column(db.String(20), nullable=False)
-    ref_id = db.Column(db.Integer, nullable=True)  # invoice/feed_run/dispense id
+    ref_id = db.Column(db.Integer, nullable=True)
     unit_price_at_move = db.Column(db.Numeric(12, 2), nullable=True)
+
+    # TICKET-2: audit trail — what did the user actually type?
+    input_qty = db.Column(db.Numeric(14, 3), nullable=True)
+    input_unit_code = db.Column(db.String(40), nullable=True)
 
     moved_on = db.Column(db.Date, nullable=False, default=date.today, index=True)
     notes = db.Column(db.String(255), nullable=True)

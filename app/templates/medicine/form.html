@@ -13,13 +13,21 @@
 
         <div class="mb-3">
           {{ form.ingredient_id.label(class="form-label fw-bold") }}
-          {{ form.ingredient_id(class="form-select") }}
+          {{ form.ingredient_id(class="form-select", id="medSel") }}
         </div>
 
-        <div class="mb-3">
-          {{ form.qty.label(class="form-label fw-bold") }}
-          {{ form.qty(class="form-control", dir="ltr", type="number", step="0.001", min="0.001") }}
-          {% for e in form.qty.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        <div class="row g-3">
+          <div class="col-md-8">
+            {{ form.qty.label(class="form-label fw-bold") }}
+            {{ form.qty(class="form-control", dir="ltr", type="number", step="0.001", min="0.001") }}
+            {% for e in form.qty.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">وحدة القياس</label>
+            <select name="unit_code" class="form-select" id="unitSel">
+              <option value="">— اختر الدواء أولاً —</option>
+            </select>
+          </div>
         </div>
 
         <div class="mb-3">
@@ -77,5 +85,40 @@
   }
   targetSel.addEventListener('change', toggle);
   toggle();
+
+  // TICKET-2: unit dropdown per-medicine
+  const MEDS = {
+    {% for m in (meds or []) %}
+    {{ m.id }}: {
+      base_code: "{{ m.unit }}",
+      base_label: "{{ m.unit_label }}",
+      alt_units: [
+        {% for u in m.alt_units %}
+          { code: "{{ u.unit_code }}", label: "{{ u.unit_label }}", factor: "{{ u.factor_to_base }}" },
+        {% endfor %}
+      ]
+    },
+    {% endfor %}
+  };
+  const medSel = document.getElementById('medSel');
+  const unitSel = document.getElementById('unitSel');
+  function refreshUnits() {
+    unitSel.innerHTML = '';
+    const m = MEDS[medSel.value];
+    if (!m) {
+      unitSel.innerHTML = '<option value="">— اختر الدواء أولاً —</option>';
+      return;
+    }
+    const opts = [{ code: m.base_code, label: m.base_label + ' (أساسي)' }]
+      .concat(m.alt_units.map(u => ({ code: u.code, label: u.label + ' (× ' + u.factor + ')' })));
+    opts.forEach(u => {
+      const o = document.createElement('option');
+      o.value = u.code;
+      o.textContent = u.label;
+      unitSel.appendChild(o);
+    });
+  }
+  medSel.addEventListener('change', refreshUnits);
+  refreshUnits();
 </script>
 {% endblock %}

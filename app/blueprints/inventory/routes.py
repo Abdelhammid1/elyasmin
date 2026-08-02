@@ -6,8 +6,32 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.inventory import IngredientForm, StockAdjustForm
-from app.models.inventory import Ingredient, StockMovement
+from app.models.inventory import Ingredient, IngredientUnit, StockMovement
 from app.utils.audit import log_action
+
+
+def _parse_alt_units(form_data):
+    """Parse dynamic alt-unit rows (unit_code_N, unit_label_N, unit_factor_N) from form."""
+    rows = []
+    idx = 0
+    while True:
+        key = f"altunit_code_{idx}"
+        if key not in form_data:
+            break
+        code = (form_data.get(key) or "").strip()
+        label = (form_data.get(f"altunit_label_{idx}") or "").strip()
+        factor_raw = (form_data.get(f"altunit_factor_{idx}") or "").strip()
+        idx += 1
+        if not code or not label or not factor_raw:
+            continue
+        try:
+            factor = Decimal(factor_raw)
+        except Exception:  # noqa: BLE001
+            continue
+        if factor <= 0:
+            continue
+        rows.append({"code": code, "label": label, "factor": factor})
+    return rows
 
 bp = Blueprint("inventory", __name__, template_folder="../../templates/inventory")
 
@@ -84,6 +108,16 @@ def create_ingredient():
                         created_by_id=current_user.id,
                     )
                 )
+            # TICKET-2: persist alt units the user added on the form
+            for row in _parse_alt_units(request.form):
+                if row["code"] == ing.unit:
+                    continue  # can't duplicate the base unit as an alt unit
+                db.session.add(IngredientUnit(
+                    ingredient_id=ing.id,
+                    unit_code=row["code"],
+                    unit_label=row["label"],
+                    factor_to_base=row["factor"],
+                ))
             log_action("ingredient_created", "Ingredient", ing.id)
             db.session.commit()
             flash(f"تم إضافة المادة {ing.name}.", "success")
@@ -146,6 +180,30 @@ def edit_ingredient(ingredient_id: int):
         ing.unit = form.unit.data
         ing.min_qty = form.min_qty.data or Decimal("0")
         ing.notes = form.notes.data
+
+        # TICKET-2: sync alt units — delete removed rows, upsert current
+        submitted = _parse_alt_units(request.form)
+        submitted_codes = {r["code"] for r in submitted if r["code"] != ing.unit}
+        # Remove alt units no longer submitted
+        for existing in list(ing.alt_units or []):
+            if existing.unit_code not in submitted_codes:
+                db.session.delete(existing)
+        # Upsert
+        existing_by_code = {u.unit_code: u for u in (ing.alt_units or [])}
+        for row in submitted:
+            if row["code"] == ing.unit:
+                continue
+            if row["code"] in existing_by_code:
+                existing_by_code[row["code"]].unit_label = row["label"]
+                existing_by_code[row["code"]].factor_to_base = row["factor"]
+            else:
+                db.session.add(IngredientUnit(
+                    ingredient_id=ing.id,
+                    unit_code=row["code"],
+                    unit_label=row["label"],
+                    factor_to_base=row["factor"],
+                ))
+
         log_action("ingredient_updated", "Ingredient", ing.id)
         db.session.commit()
         flash("تم تحديث المادة.", "success")
@@ -166,7 +224,15 @@ def adjust_stock(ingredient_id: int):
                 flash(e, "error")
         return redirect(url_for("inventory.ingredient_detail", ingredient_id=ing.id))
 
-    delta = Decimal(str(form.delta.data))
+    input_delta = Decimal(str(form.delta.data))
+    # TICKET-2: convert delta from user's unit to base
+    unit_code = (request.form.get("unit_code") or ing.unit).strip()
+    if unit_code != ing.unit and ing.factor_for(unit_code) is None:
+        flash(f"الوحدة {unit_code} مش معرّفة للصنف ده.", "error")
+        return redirect(url_for("inventory.ingredient_detail", ingredient_id=ing.id))
+    factor = ing.factor_for(unit_code) or Decimal("1")
+    delta = (input_delta * Decimal(str(factor))).quantize(Decimal("0.001"))
+
     if ing.current_qty + delta < 0:
         flash("مينفعش الرصيد يبقى بالسالب.", "error")
         return redirect(url_for("inventory.ingredient_detail", ingredient_id=ing.id))
@@ -176,6 +242,8 @@ def adjust_stock(ingredient_id: int):
         ingredient_id=ing.id,
         delta=delta,
         reason=StockMovement.REASON_ADJUST,
+        input_qty=input_delta,
+        input_unit_code=unit_code,
         notes=form.reason.data.strip(),
         created_by_id=current_user.id,
     )

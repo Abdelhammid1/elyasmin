@@ -82,12 +82,36 @@ def supplier_detail(supplier_id: int):
         .all()
     )
     payment_form = SupplierPaymentForm()
+
+    # TICKET-4: embed linked customer's transactions in the same page
+    linked_deliveries = []
+    linked_customer_payments = []
+    if supplier.linked_customer:
+        from app.models.sales import CustomerPayment, MilkDelivery
+
+        linked_deliveries = (
+            MilkDelivery.query
+            .filter_by(customer_id=supplier.linked_customer.id, is_archived=False)
+            .order_by(MilkDelivery.delivery_date.desc())
+            .limit(20)
+            .all()
+        )
+        linked_customer_payments = (
+            CustomerPayment.query
+            .filter_by(customer_id=supplier.linked_customer.id, is_archived=False)
+            .order_by(CustomerPayment.payment_date.desc())
+            .limit(20)
+            .all()
+        )
+
     return render_template(
         "suppliers/detail.html",
         supplier=supplier,
         invoices=invoices,
         payments=payments,
         payment_form=payment_form,
+        linked_deliveries=linked_deliveries,
+        linked_customer_payments=linked_customer_payments,
     )
 
 

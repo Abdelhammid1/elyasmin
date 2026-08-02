@@ -124,9 +124,14 @@ class MedicineDispense(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), nullable=False)
+    # qty stored ALWAYS in ingredient's base unit
     qty = db.Column(db.Numeric(14, 3), nullable=False)
     unit_price_at_dispense = db.Column(db.Numeric(12, 2), nullable=False, default=Decimal("0"))
     total_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+
+    # TICKET-2 audit trail
+    input_qty = db.Column(db.Numeric(14, 3), nullable=True)
+    input_unit_code = db.Column(db.String(40), nullable=True)
 
     cow_id = db.Column(db.Integer, db.ForeignKey("cows.id"), nullable=True)
     group_id = db.Column(db.Integer, db.ForeignKey("cattle_groups.id"), nullable=True)

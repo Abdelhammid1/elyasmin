@@ -48,6 +48,19 @@
           {% endif %}
         </div>
 
+        <hr class="my-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0"><i class="bi bi-arrow-left-right"></i> وحدات إضافية (اختياري)</h6>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="addAltUnit">
+            <i class="bi bi-plus"></i> إضافة وحدة
+          </button>
+        </div>
+        <p class="small text-muted">
+          مثال: لو الوحدة الأساسية "كيلو"، تقدر تضيف وحدة "طن" بمعامل تحويل 1000
+          (يعني 1 طن = 1000 كيلو). كل الأرصدة والحسابات دايماً بالوحدة الأساسية.
+        </p>
+        <div id="altUnitsContainer"></div>
+
         <div class="mb-3 mt-3">
           {{ form.notes.label(class="form-label fw-bold") }}
           {{ form.notes(class="form-control", rows=2) }}
@@ -74,6 +87,47 @@
     };
     sel.addEventListener('change', toggle);
     toggle();
+  })();
+
+  // TICKET-2: dynamic alt-units rows
+  (function() {
+    const container = document.getElementById('altUnitsContainer');
+    let idx = 0;
+    function rowHTML(code, label, factor) {
+      const i = idx++;
+      return `
+        <div class="row g-2 align-items-end mb-2 altunit-row" data-idx="${i}">
+          <div class="col-md-3">
+            <label class="form-label small">الكود (اختصار)</label>
+            <input type="text" name="altunit_code_${i}" class="form-control" dir="ltr" value="${code || ''}" placeholder="ton">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">الاسم بالعربي</label>
+            <input type="text" name="altunit_label_${i}" class="form-control" value="${label || ''}" placeholder="طن">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small">معامل التحويل (لكل وحدة أساسية)</label>
+            <input type="number" name="altunit_factor_${i}" class="form-control" dir="ltr" step="0.000001" min="0.000001" value="${factor || ''}" placeholder="1000">
+          </div>
+          <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger btn-sm w-100 remove-altunit"><i class="bi bi-x-lg"></i> حذف</button>
+          </div>
+        </div>`;
+    }
+    function addRow(code, label, factor) {
+      container.insertAdjacentHTML('beforeend', rowHTML(code, label, factor));
+      container.lastElementChild.querySelector('.remove-altunit').addEventListener('click', function() {
+        this.closest('.altunit-row').remove();
+      });
+    }
+    document.getElementById('addAltUnit').addEventListener('click', () => addRow());
+
+    // Prefill existing alt units in edit mode
+    {% if ingredient is defined and ingredient.alt_units %}
+    {% for u in ingredient.alt_units %}
+    addRow("{{ u.unit_code }}", "{{ u.unit_label }}", "{{ u.factor_to_base }}");
+    {% endfor %}
+    {% endif %}
   })();
 </script>
 {% endblock %}

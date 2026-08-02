@@ -43,6 +43,20 @@
   </div>
 </div>
 
+{% if ingredient.alt_units %}
+<div class="card p-3 mb-3">
+  <h6 class="mb-2"><i class="bi bi-arrow-left-right"></i> وحدات القياس المتاحة</h6>
+  <div class="d-flex flex-wrap gap-2">
+    <span class="badge bg-primary">{{ ingredient.unit_label }} (أساسي)</span>
+    {% for u in ingredient.alt_units %}
+      <span class="badge bg-secondary">
+        {{ u.unit_label }} = <span dir="ltr">{{ u.factor_to_base }}</span> {{ ingredient.unit_label }}
+      </span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="row g-3">
   <div class="col-lg-8">
     <div class="card p-3">
@@ -77,6 +91,15 @@
         <div class="mb-3">
           {{ adjust_form.delta.label(class="form-label fw-bold") }}
           {{ adjust_form.delta(class="form-control", dir="ltr", step="0.001", placeholder="مثال: -5 أو +10") }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">وحدة القياس</label>
+          <select name="unit_code" class="form-select">
+            <option value="{{ ingredient.unit }}">{{ ingredient.unit_label }} (أساسي)</option>
+            {% for u in ingredient.alt_units %}
+              <option value="{{ u.unit_code }}">{{ u.unit_label }} (× {{ u.factor_to_base }})</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="mb-3">
           {{ adjust_form.reason.label(class="form-label fw-bold") }}

@@ -81,22 +81,31 @@ def create_dispense():
             ing = db.session.get(Ingredient, form.ingredient_id.data)
             if not ing or ing.category != Ingredient.CATEGORY_MEDICINE or ing.is_archived:
                 flash("لازم تختار دواء صحيح.", "error")
-                return render_template("medicine/form.html", form=form)
+                return render_template("medicine/form.html", form=form, meds=_meds)
 
             try:
-                qty = Decimal(str(form.qty.data).strip())
+                input_qty = Decimal(str(form.qty.data).strip())
             except (InvalidOperation, ValueError):
                 flash("قيمة الكمية غير صالحة.", "error")
-                return render_template("medicine/form.html", form=form)
-            if qty <= 0:
+                return render_template("medicine/form.html", form=form, meds=_meds)
+            if input_qty <= 0:
                 flash("الكمية لازم تكون أكبر من صفر.", "error")
-                return render_template("medicine/form.html", form=form)
+                return render_template("medicine/form.html", form=form, meds=_meds)
+
+            # TICKET-2: convert from user's unit to base unit
+            from app.utils.units import to_base
+            unit_code = (request.form.get("unit_code") or ing.unit).strip()
+            if unit_code != ing.unit and ing.factor_for(unit_code) is None:
+                flash(f"الوحدة {unit_code} مش معرّفة للدواء ده.", "error")
+                return render_template("medicine/form.html", form=form, meds=_meds)
+            qty = to_base(input_qty, unit_code, ing) or input_qty
+
             if qty > ing.current_qty:
                 flash(
                     f"مفيش رصيد كافي. المتاح: {ing.current_qty} {ing.unit_label}.",
                     "error",
                 )
-                return render_template("medicine/form.html", form=form)
+                return render_template("medicine/form.html", form=form, meds=_meds)
 
             target = form.dispense_target.data
             cow_id = form.cow_id.data if target == "cow" and form.cow_id.data else None
@@ -104,10 +113,10 @@ def create_dispense():
 
             if target == "cow" and not cow_id:
                 flash("من فضلك اختار البقرة.", "error")
-                return render_template("medicine/form.html", form=form)
+                return render_template("medicine/form.html", form=form, meds=_meds)
             if target == "group" and not group_id:
                 flash("من فضلك اختار المجموعة.", "error")
-                return render_template("medicine/form.html", form=form)
+                return render_template("medicine/form.html", form=form, meds=_meds)
 
             unit_price = ing.last_price or Decimal("0")
             total_cost = (qty * unit_price).quantize(Decimal("0.01"))
@@ -117,6 +126,8 @@ def create_dispense():
                 qty=qty,
                 unit_price_at_dispense=unit_price,
                 total_cost=total_cost,
+                input_qty=input_qty,
+                input_unit_code=unit_code,
                 cow_id=cow_id,
                 group_id=group_id,
                 dispensed_on=form.dispensed_on.data,
@@ -126,7 +137,7 @@ def create_dispense():
             db.session.add(dispense)
             db.session.flush()
 
-            # Deduct inventory
+            # Deduct inventory (always in base unit)
             ing.current_qty = ing.current_qty - qty
             db.session.add(
                 StockMovement(
@@ -135,6 +146,8 @@ def create_dispense():
                     reason=StockMovement.REASON_MEDICINE,
                     ref_id=dispense.id,
                     unit_price_at_move=unit_price,
+                    input_qty=input_qty,
+                    input_unit_code=unit_code,
                     moved_on=form.dispensed_on.data,
                     notes=f"صرف دواء — {dispense.target_label}",
                     created_by_id=current_user.id,
@@ -152,4 +165,4 @@ def create_dispense():
             return redirect(url_for("medicine.list_dispenses"))
         # form invalid — fall through to re-render with errors
 
-    return render_template("medicine/form.html", form=form)
+    return render_template("medicine/form.html", form=form, meds=_meds)

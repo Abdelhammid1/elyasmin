@@ -76,16 +76,16 @@ class SupplierPaymentForm(FlaskForm):
     submit = SubmitField("تسجيل الدفعة")
 
 
+# TICKET-3: tax + discount types (Dina 2026-08-01)
+# - "commercial_industrial" is ONE combined option (per Egyptian tax law)
+# - "__custom__" lets the user type any name they need
 TAX_TYPE_CHOICES = [
-    ("", "— بدون ضريبة —"),
-    ("vat", "القيمة المضافة"),
-    ("commercial", "تجارية"),
-    ("industrial", "صناعية"),
+    ("vat", "ضريبة القيمة المضافة"),
+    ("commercial_industrial", "ضريبة تجارية وصناعية"),
     ("__custom__", "➕ نوع آخر (اكتبه)"),
 ]
 
 DISCOUNT_TYPE_CHOICES = [
-    ("", "— بدون خصم —"),
     ("cash", "خصم نقدي"),
     ("quantity", "خصم كمية"),
     ("__custom__", "➕ نوع آخر (اكتبه)"),
@@ -93,7 +93,8 @@ DISCOUNT_TYPE_CHOICES = [
 
 
 class PurchaseInvoiceForm(FlaskForm):
-    """The invoice header. Line items are parsed dynamically from request.form."""
+    """Invoice header. Line items AND tax/discount charge rows are parsed
+    dynamically from request.form (see purchases/routes.py)."""
 
     supplier_id = SelectField("المورد", coerce=int, validators=[DataRequired()])
     invoice_date = DateField("تاريخ الفاتورة", validators=[DataRequired()], default=date.today)
@@ -107,20 +108,5 @@ class PurchaseInvoiceForm(FlaskForm):
         "رقم الفاتورة الأصلي من المورد (اختياري)",
         validators=[Optional(), Length(max=80)],
     )
-
-    # TICKET-2: tax + discount
-    tax_type = SelectField("نوع الضريبة", choices=TAX_TYPE_CHOICES, validators=[Optional()])
-    tax_custom = StringField("اسم الضريبة الجديدة", validators=[Optional(), Length(max=40)])
-    tax_amount = DecimalField(
-        "قيمة الضريبة", places=2, default=0,
-        validators=[Optional()],
-    )
-    discount_type = SelectField("نوع الخصم", choices=DISCOUNT_TYPE_CHOICES, validators=[Optional()])
-    discount_custom = StringField("اسم الخصم الجديد", validators=[Optional(), Length(max=40)])
-    discount_amount = DecimalField(
-        "قيمة الخصم", places=2, default=0,
-        validators=[Optional()],
-    )
-
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=1000)])
     submit = SubmitField("حفظ الفاتورة")

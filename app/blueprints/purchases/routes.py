@@ -7,8 +7,9 @@ from app.extensions import db
 from app.forms.suppliers import PurchaseInvoiceForm
 from app.models.finance import Expense
 from app.models.inventory import Ingredient, StockMovement
-from app.models.suppliers import PurchaseInvoice, PurchaseLine, Supplier
+from app.models.suppliers import PurchaseInvoice, PurchaseInvoiceCharge, PurchaseLine, Supplier
 from app.utils.audit import log_action
+from app.utils.units import per_base_price, to_base
 
 bp = Blueprint("purchases", __name__, template_folder="../../templates/purchases")
 
@@ -69,6 +70,7 @@ def create_invoice():
             ing_id_raw = request.form.get(ing_key)
             qty_raw = request.form.get(f"line_qty_{i}")
             price_raw = request.form.get(f"line_price_{i}")
+            unit_code_raw = (request.form.get(f"line_unit_{i}") or "").strip()  # TICKET-2
             i += 1
 
             if not ing_id_raw or not qty_raw or not price_raw:
@@ -102,7 +104,24 @@ def create_invoice():
                     "purchases/form.html", form=form, ingredients=ingredients, suppliers=suppliers
                 )
 
-            line_items.append({"ingredient": ing, "qty": qty, "price": price})
+            # TICKET-2: convert qty + price from input unit → base unit
+            input_unit = unit_code_raw or ing.unit  # default = base unit
+            if input_unit != ing.unit and ing.factor_for(input_unit) is None:
+                flash(f"الوحدة {input_unit} مش معرّفة للصنف {ing.name}.", "error")
+                return render_template(
+                    "purchases/form.html", form=form, ingredients=ingredients, suppliers=suppliers
+                )
+            qty_base = to_base(qty, input_unit, ing) or qty
+            price_base = per_base_price(price, input_unit, ing) or price
+
+            line_items.append({
+                "ingredient": ing,
+                "qty": qty_base,          # in base unit
+                "price": price_base,      # per base unit
+                "input_qty": qty,
+                "input_unit": input_unit,
+                "input_price": price,
+            })
 
         if not line_items:
             flash("لازم تضيف بند واحد على الأقل في الفاتورة.", "error")
@@ -110,7 +129,7 @@ def create_invoice():
                 "purchases/form.html", form=form, ingredients=ingredients, suppliers=suppliers
             )
 
-        # TICKET-2: resolve tax + discount type (custom OR predefined)
+        # TICKET-3: parse dynamic tax/discount rows from request.form
         def _resolve_type(picked: str, custom_val: str) -> str | None:
             picked = (picked or "").strip()
             if not picked:
@@ -118,14 +137,40 @@ def create_invoice():
             if picked == "__custom__":
                 custom_val = (custom_val or "").strip()
                 if not custom_val:
-                    return None  # user picked custom but didn't type — treat as no type
+                    return None
                 return "custom:" + custom_val
             return picked
 
-        tax_type = _resolve_type(form.tax_type.data, form.tax_custom.data)
-        discount_type = _resolve_type(form.discount_type.data, form.discount_custom.data)
-        tax_amount = Decimal(str(form.tax_amount.data or 0))
-        discount_amount = Decimal(str(form.discount_amount.data or 0))
+        # rows are keyed as: charge_kind_0, charge_type_0, charge_custom_0, charge_mode_0, charge_value_0
+        # mode = 'pct' or 'egp'
+        charge_rows = []
+        idx = 0
+        while True:
+            key = f"charge_kind_{idx}"
+            if key not in request.form:
+                break
+            kind = (request.form.get(key) or "").strip()
+            type_picked = (request.form.get(f"charge_type_{idx}") or "").strip()
+            type_custom = (request.form.get(f"charge_custom_{idx}") or "").strip()
+            mode = (request.form.get(f"charge_mode_{idx}") or "egp").strip()
+            value_raw = (request.form.get(f"charge_value_{idx}") or "").strip()
+            idx += 1
+
+            if kind not in (PurchaseInvoiceCharge.KIND_TAX, PurchaseInvoiceCharge.KIND_DISCOUNT):
+                continue
+            resolved_type = _resolve_type(type_picked, type_custom)
+            if not resolved_type or not value_raw:
+                continue
+            try:
+                value = Decimal(value_raw)
+            except (InvalidOperation, ValueError):
+                continue
+            if value <= 0:
+                continue
+            charge_rows.append({
+                "kind": kind, "type": resolved_type,
+                "is_pct": mode == "pct", "value": value,
+            })
 
         # Build the invoice
         invoice = PurchaseInvoice(
@@ -133,10 +178,6 @@ def create_invoice():
             invoice_date=form.invoice_date.data,
             payment_type=form.payment_type.data,
             original_invoice_no=form.original_invoice_no.data or None,
-            tax_type=tax_type,
-            tax_amount=tax_amount,
-            discount_type=discount_type,
-            discount_amount=discount_amount,
             notes=form.notes.data,
             created_by_id=current_user.id,
         )
@@ -155,10 +196,13 @@ def create_invoice():
                     qty=item["qty"],
                     unit_price=item["price"],
                     line_total=line_total,
+                    input_qty=item.get("input_qty"),
+                    input_unit_code=item.get("input_unit"),
+                    input_unit_price=item.get("input_price"),
                 )
             )
 
-            # US-2.3: update inventory + last purchase price
+            # US-2.3: update inventory + last purchase price (always in base unit)
             ing = item["ingredient"]
             ing.current_qty = (ing.current_qty or Decimal("0")) + item["qty"]
             ing.last_price = item["price"]
@@ -170,6 +214,8 @@ def create_invoice():
                     reason=StockMovement.REASON_PURCHASE,
                     ref_id=invoice.id,
                     unit_price_at_move=item["price"],
+                    input_qty=item.get("input_qty"),
+                    input_unit_code=item.get("input_unit"),
                     moved_on=invoice.invoice_date,
                     notes=f"فاتورة #{invoice.id} — {supplier.name}",
                     created_by_id=current_user.id,
@@ -177,10 +223,35 @@ def create_invoice():
             )
 
         invoice.subtotal = total
-        # TICKET-2: final total = subtotal − discount + tax
-        final_total = (total - discount_amount + tax_amount).quantize(Decimal("0.01"))
+
+        # TICKET-3: persist each charge row + compute amount_egp from % if needed
+        discount_total = Decimal("0")
+        tax_total = Decimal("0")
+        for order, row in enumerate(charge_rows):
+            if row["is_pct"]:
+                amount_egp = (total * row["value"] / Decimal("100")).quantize(Decimal("0.01"))
+            else:
+                amount_egp = row["value"].quantize(Decimal("0.01"))
+
+            db.session.add(
+                PurchaseInvoiceCharge(
+                    invoice_id=invoice.id,
+                    kind=row["kind"],
+                    type_name=row["type"],
+                    is_percentage=row["is_pct"],
+                    rate_pct=row["value"] if row["is_pct"] else None,
+                    amount_egp=amount_egp,
+                    display_order=order,
+                )
+            )
+            if row["kind"] == PurchaseInvoiceCharge.KIND_TAX:
+                tax_total += amount_egp
+            else:
+                discount_total += amount_egp
+
+        final_total = (total - discount_total + tax_total).quantize(Decimal("0.01"))
         invoice.total = final_total
-        total = final_total  # keep the rest of the function using the new final total
+        total = final_total  # rest of function uses this as the true total
 
         # Cash → marked paid immediately + record as expense; Credit → paid_amount stays 0
         if invoice.payment_type == PurchaseInvoice.PAY_CASH:

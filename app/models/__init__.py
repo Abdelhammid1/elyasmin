@@ -9,9 +9,10 @@ from app.models.herd import (
     Death,
 )
 from app.models.audit import AuditLog
-from app.models.inventory import Ingredient, StockMovement
+from app.models.inventory import Ingredient, IngredientUnit, StockMovement
 from app.models.suppliers import (
     PurchaseInvoice,
+    PurchaseInvoiceCharge,
     PurchaseLine,
     Supplier,
     SupplierPayment,
@@ -38,8 +39,8 @@ __all__ = [
     "CattleGroup", "Cow", "CowMovement",
     "Birth", "Calf", "Death", "AnimalSale",
     "AuditLog",
-    "Ingredient", "StockMovement",
-    "Supplier", "PurchaseInvoice", "PurchaseLine", "SupplierPayment",
+    "Ingredient", "IngredientUnit", "StockMovement",
+    "Supplier", "PurchaseInvoice", "PurchaseInvoiceCharge", "PurchaseLine", "SupplierPayment",
     "FeedRecipe", "FeedRecipeLine", "FeedRun", "FeedRunLine", "MedicineDispense",
     "Customer", "MilkDelivery", "MilkInvoice", "CustomerPayment", "DailyProduction",
     "Setting", "Expense",

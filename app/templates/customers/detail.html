@@ -41,6 +41,57 @@
     </small>
   </div>
 </div>
+
+{# TICKET-4: embed linked supplier's transactions #}
+<details class="card p-3 mb-3">
+  <summary class="fw-bold" style="cursor: pointer;">
+    <i class="bi bi-truck text-warning"></i>
+    حركة الحساب كمورد ({{ customer.linked_supplier.name }})
+    — <small class="text-muted">اضغط للعرض</small>
+  </summary>
+  <div class="mt-3 row g-3">
+    <div class="col-md-7">
+      <h6>آخر فواتير الشراء ({{ linked_invoices|length }})</h6>
+      {% if linked_invoices %}
+      <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>الإجمالي</th><th>المتبقي</th></tr></thead>
+        <tbody>
+          {% for inv in linked_invoices %}
+          <tr>
+            <td>#{{ inv.id }}</td>
+            <td dir="ltr">{{ inv.invoice_date }}</td>
+            <td><span class="badge bg-{{ 'success' if inv.payment_type == 'cash' else 'warning text-dark' }}">{{ inv.payment_label }}</span></td>
+            <td dir="ltr" class="fw-bold">{{ inv.total }}</td>
+            <td dir="ltr" class="{% if inv.outstanding > 0 %}text-danger{% endif %}">{{ inv.outstanding }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}<p class="text-muted mb-0 small">مفيش فواتير.</p>{% endif %}
+    </div>
+    <div class="col-md-5">
+      <h6>آخر دفعات للمورد ({{ linked_supplier_payments|length }})</h6>
+      {% if linked_supplier_payments %}
+      <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th></tr></thead>
+        <tbody>
+          {% for p in linked_supplier_payments %}
+          <tr>
+            <td dir="ltr">{{ p.payment_date }}</td>
+            <td dir="ltr" class="fw-bold text-danger">{{ p.amount }}</td>
+            <td>{{ p.method_label }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}<p class="text-muted mb-0 small">مفيش دفعات.</p>{% endif %}
+    </div>
+  </div>
+</details>
 {% endif %}
 
 <div class="card p-3 mb-3">

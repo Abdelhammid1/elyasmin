@@ -64,44 +64,27 @@
     </div>
   </div>
 
-  <!-- TICKET-2: Tax + Discount -->
+  <!-- TICKET-3: Multi-tax + multi-discount with % or EGP toggle -->
   <div class="card p-4 mb-3">
-    <h5 class="mb-3"><i class="bi bi-percent"></i> الضريبة والخصومات (اختياري)</h5>
-    <div class="row g-3">
-      <div class="col-md-4">
-        {{ form.tax_type.label(class="form-label fw-bold") }}
-        {{ form.tax_type(class="form-select", id="taxTypeSel") }}
-      </div>
-      <div class="col-md-4 d-none" id="taxCustomBlock">
-        {{ form.tax_custom.label(class="form-label fw-bold") }}
-        {{ form.tax_custom(class="form-control", placeholder="مثال: ضريبة جمركية") }}
-      </div>
-      <div class="col-md-4">
-        {{ form.tax_amount.label(class="form-label fw-bold") }}
-        <div class="input-group">
-          {{ form.tax_amount(class="form-control", dir="ltr", step="0.01", min="0", id="taxAmount") }}
-          <span class="input-group-text">جنيه</span>
-        </div>
-      </div>
-
-      <div class="col-md-4">
-        {{ form.discount_type.label(class="form-label fw-bold") }}
-        {{ form.discount_type(class="form-select", id="discountTypeSel") }}
-      </div>
-      <div class="col-md-4 d-none" id="discountCustomBlock">
-        {{ form.discount_custom.label(class="form-label fw-bold") }}
-        {{ form.discount_custom(class="form-control", placeholder="مثال: خصم عرض ترويجي") }}
-      </div>
-      <div class="col-md-4">
-        {{ form.discount_amount.label(class="form-label fw-bold") }}
-        <div class="input-group">
-          {{ form.discount_amount(class="form-control", dir="ltr", step="0.01", min="0", id="discountAmount") }}
-          <span class="input-group-text">جنيه</span>
-        </div>
-      </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0"><i class="bi bi-percent"></i> الضرائب (اختياري)</h5>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="addTax">
+        <i class="bi bi-plus"></i> إضافة ضريبة
+      </button>
     </div>
+    <div id="taxesContainer"></div>
 
-    <hr>
+    <hr class="my-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0"><i class="bi bi-tags"></i> الخصومات (اختياري)</h5>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="addDiscount">
+        <i class="bi bi-plus"></i> إضافة خصم
+      </button>
+    </div>
+    <div id="discountsContainer"></div>
+
+    <hr class="my-4">
     <div class="row justify-content-end">
       <div class="col-md-6">
         <table class="table table-sm mb-0">
@@ -110,11 +93,11 @@
             <td dir="ltr" class="text-end" id="finalSubtotal">0.00</td>
           </tr>
           <tr class="text-danger">
-            <td>− الخصم:</td>
+            <td>− إجمالي الخصومات:</td>
             <td dir="ltr" class="text-end" id="finalDiscount">0.00</td>
           </tr>
           <tr class="text-primary">
-            <td>+ الضريبة:</td>
+            <td>+ إجمالي الضرائب:</td>
             <td dir="ltr" class="text-end" id="finalTax">0.00</td>
           </tr>
           <tr class="fw-bold border-top">
@@ -139,15 +122,34 @@
   const finalDiscEl = document.getElementById('finalDiscount');
   const finalTaxEl = document.getElementById('finalTax');
   const finalTotalEl = document.getElementById('finalTotal');
-  const taxAmountInput = document.getElementById('taxAmount');
-  const discountAmountInput = document.getElementById('discountAmount');
-  const taxTypeSel = document.getElementById('taxTypeSel');
-  const discountTypeSel = document.getElementById('discountTypeSel');
-  const taxCustomBlock = document.getElementById('taxCustomBlock');
-  const discountCustomBlock = document.getElementById('discountCustomBlock');
+  const taxesContainer = document.getElementById('taxesContainer');
+  const discountsContainer = document.getElementById('discountsContainer');
+  const TAX_CHOICES = [
+    ['vat', 'ضريبة القيمة المضافة'],
+    ['commercial_industrial', 'ضريبة تجارية وصناعية'],
+    ['__custom__', '➕ نوع آخر (اكتبه)'],
+  ];
+  const DISCOUNT_CHOICES = [
+    ['cash', 'خصم نقدي'],
+    ['quantity', 'خصم كمية'],
+    ['__custom__', '➕ نوع آخر (اكتبه)'],
+  ];
+  let chargeIndex = 0;
   const ingredients = [
     {% for i in ingredients %}
-      { id: {{ i.id }}, name: "{{ i.name }} — {{ i.unit_label }}", unit: "{{ i.unit_label }}", last: "{{ i.last_price }}" },
+      {
+        id: {{ i.id }},
+        name: "{{ i.name }} — {{ i.unit_label }}",
+        unit: "{{ i.unit_label }}",
+        base_code: "{{ i.unit }}",
+        base_label: "{{ i.unit_label }}",
+        last: "{{ i.last_price }}",
+        alt_units: [
+          {% for u in i.alt_units %}
+            { code: "{{ u.unit_code }}", label: "{{ u.unit_label }}", factor: "{{ u.factor_to_base }}" },
+          {% endfor %}
+        ]
+      },
     {% endfor %}
   ];
   let lineIndex = 0;
@@ -167,9 +169,15 @@
             ${makeOptions()}
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label small">الكمية</label>
           <input type="number" name="line_qty_${idx}" class="form-control qty-input" dir="ltr" step="0.001" min="0.001">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">الوحدة</label>
+          <select name="line_unit_${idx}" class="form-select unit-select">
+            <option value="">— اختر الصنف أولاً —</option>
+          </select>
         </div>
         <div class="col-md-2">
           <label class="form-label small">السعر / وحدة</label>
@@ -189,18 +197,38 @@
 
   function bindRow(row) {
     const ingSel = row.querySelector('.ing-select');
+    const unitSel = row.querySelector('.unit-select');
     const qty = row.querySelector('.qty-input');
     const price = row.querySelector('.price-input');
     const totalCell = row.querySelector('.line-total');
 
+    function populateUnits(ing) {
+      unitSel.innerHTML = '';
+      if (!ing) {
+        unitSel.innerHTML = '<option value="">— اختر الصنف أولاً —</option>';
+        return;
+      }
+      const opts = [{ code: ing.base_code, label: ing.base_label + ' (أساسي)' }]
+        .concat(ing.alt_units.map(u => ({ code: u.code, label: u.label + ' (× ' + u.factor + ')' })));
+      opts.forEach(u => {
+        const o = document.createElement('option');
+        o.value = u.code;
+        o.textContent = u.label;
+        unitSel.appendChild(o);
+      });
+    }
+
     ingSel.addEventListener('change', () => {
       const opt = ingSel.options[ingSel.selectedIndex];
       const last = opt ? opt.getAttribute('data-last') : "";
+      const ing = ingredients.find(x => String(x.id) === ingSel.value);
+      populateUnits(ing);
       if (last && !price.value) price.value = last;
       recalc();
     });
     qty.addEventListener('input', recalc);
     price.addEventListener('input', recalc);
+    unitSel.addEventListener('change', recalc);
     row.querySelector('.remove-line').addEventListener('click', () => {
       row.remove();
       recalc();
@@ -215,33 +243,107 @@
     }
   }
 
+  function chargeRowHTML(kind, choices) {
+    const idx = chargeIndex++;
+    const opts = choices.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+    return `
+      <div class="row g-2 align-items-end charge-row mb-2" data-idx="${idx}" data-kind="${kind}">
+        <input type="hidden" name="charge_kind_${idx}" value="${kind}">
+        <div class="col-md-4">
+          <label class="form-label small">النوع</label>
+          <select name="charge_type_${idx}" class="form-select charge-type">${opts}</select>
+        </div>
+        <div class="col-md-3 d-none charge-custom-block">
+          <label class="form-label small">اسم مخصص</label>
+          <input type="text" name="charge_custom_${idx}" class="form-control charge-custom" placeholder="اكتب الاسم">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">الطريقة</label>
+          <select name="charge_mode_${idx}" class="form-select charge-mode">
+            <option value="pct">نسبة %</option>
+            <option value="egp">جنيه مباشر</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small charge-value-label">القيمة (%)</label>
+          <input type="number" name="charge_value_${idx}" class="form-control charge-value" dir="ltr" step="0.01" min="0">
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small">المبلغ</label>
+          <div class="form-control-plaintext charge-computed" dir="ltr">0.00</div>
+        </div>
+        <div class="col-12 text-end">
+          <button type="button" class="btn btn-sm btn-outline-danger remove-charge">
+            <i class="bi bi-x-lg"></i> حذف
+          </button>
+        </div>
+        <hr class="my-1">
+      </div>`;
+  }
+
+  function bindChargeRow(row) {
+    const typeSel = row.querySelector('.charge-type');
+    const customBlock = row.querySelector('.charge-custom-block');
+    const modeSel = row.querySelector('.charge-mode');
+    const valueInput = row.querySelector('.charge-value');
+    const valueLabel = row.querySelector('.charge-value-label');
+    const computedEl = row.querySelector('.charge-computed');
+
+    typeSel.addEventListener('change', () => {
+      if (typeSel.value === '__custom__') customBlock.classList.remove('d-none');
+      else customBlock.classList.add('d-none');
+    });
+    modeSel.addEventListener('change', () => {
+      valueLabel.textContent = modeSel.value === 'pct' ? 'القيمة (%)' : 'القيمة (جنيه)';
+      updateTotal();
+    });
+    valueInput.addEventListener('input', updateTotal);
+    row.querySelector('.remove-charge').addEventListener('click', () => {
+      row.remove();
+      updateTotal();
+    });
+  }
+
+  function computeChargeAmount(row, subtotal) {
+    const mode = row.querySelector('.charge-mode').value;
+    const value = parseFloat(row.querySelector('.charge-value').value || "0") || 0;
+    let amount;
+    if (mode === 'pct') amount = subtotal * value / 100;
+    else amount = value;
+    row.querySelector('.charge-computed').textContent = amount.toFixed(2);
+    return amount;
+  }
+
   function updateTotal() {
     let sum = 0;
     document.querySelectorAll('.line-total').forEach(el => {
       sum += parseFloat(el.textContent || "0");
     });
-    const tax = parseFloat(taxAmountInput.value || "0") || 0;
-    const disc = parseFloat(discountAmountInput.value || "0") || 0;
-    const final = sum - disc + tax;
+    let taxSum = 0, discSum = 0;
+    document.querySelectorAll('#taxesContainer .charge-row').forEach(r => {
+      taxSum += computeChargeAmount(r, sum);
+    });
+    document.querySelectorAll('#discountsContainer .charge-row').forEach(r => {
+      discSum += computeChargeAmount(r, sum);
+    });
+    const final = sum - discSum + taxSum;
     subtotalEl.textContent = sum.toFixed(2);
     finalSubEl.textContent = sum.toFixed(2);
-    finalDiscEl.textContent = disc.toFixed(2);
-    finalTaxEl.textContent = tax.toFixed(2);
+    finalDiscEl.textContent = discSum.toFixed(2);
+    finalTaxEl.textContent = taxSum.toFixed(2);
     finalTotalEl.textContent = final.toFixed(2);
   }
 
-  function toggleCustomBlock(sel, block) {
-    if (sel.value === '__custom__') block.classList.remove('d-none');
-    else block.classList.add('d-none');
+  function addCharge(kind) {
+    const target = kind === 'tax' ? taxesContainer : discountsContainer;
+    const choices = kind === 'tax' ? TAX_CHOICES : DISCOUNT_CHOICES;
+    target.insertAdjacentHTML('beforeend', chargeRowHTML(kind, choices));
+    bindChargeRow(target.lastElementChild);
+    updateTotal();
   }
 
-  taxAmountInput.addEventListener('input', updateTotal);
-  discountAmountInput.addEventListener('input', updateTotal);
-  taxTypeSel.addEventListener('change', () => toggleCustomBlock(taxTypeSel, taxCustomBlock));
-  discountTypeSel.addEventListener('change', () => toggleCustomBlock(discountTypeSel, discountCustomBlock));
-  toggleCustomBlock(taxTypeSel, taxCustomBlock);
-  toggleCustomBlock(discountTypeSel, discountCustomBlock);
-
+  document.getElementById('addTax').addEventListener('click', () => addCharge('tax'));
+  document.getElementById('addDiscount').addEventListener('click', () => addCharge('discount'));
   document.getElementById('addLine').addEventListener('click', addLine);
   addLine();  // start with one line
 </script>

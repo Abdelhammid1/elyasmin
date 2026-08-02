@@ -96,6 +96,28 @@ def customer_detail(customer_id: int):
     period_delivered = sum((d.total_value for d in deliveries), Decimal("0"))
     period_paid = sum((p.amount for p in payments), Decimal("0"))
     payment_form = CustomerPaymentForm()
+
+    # TICKET-4: embed linked supplier's transactions in the same page
+    linked_invoices = []
+    linked_supplier_payments = []
+    if customer.linked_supplier:
+        from app.models.suppliers import PurchaseInvoice, SupplierPayment
+
+        linked_invoices = (
+            PurchaseInvoice.query
+            .filter_by(supplier_id=customer.linked_supplier.id, is_archived=False)
+            .order_by(PurchaseInvoice.invoice_date.desc())
+            .limit(20)
+            .all()
+        )
+        linked_supplier_payments = (
+            SupplierPayment.query
+            .filter_by(supplier_id=customer.linked_supplier.id, is_archived=False)
+            .order_by(SupplierPayment.payment_date.desc())
+            .limit(20)
+            .all()
+        )
+
     return render_template(
         "customers/detail.html",
         customer=customer,
@@ -106,6 +128,8 @@ def customer_detail(customer_id: int):
         date_to=d_to,
         period_delivered=period_delivered,
         period_paid=period_paid,
+        linked_invoices=linked_invoices,
+        linked_supplier_payments=linked_supplier_payments,
     )
 
 

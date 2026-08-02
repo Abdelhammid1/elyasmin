@@ -94,15 +94,7 @@ class PurchaseInvoice(db.Model):
     original_invoice_no = db.Column(db.String(80), nullable=True)
 
     subtotal = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # sum of lines before tax/discount
-
-    # TICKET-2: tax + discount
-    # Types stored as: predefined ('vat', 'commercial', 'industrial', 'cash', 'quantity') OR 'custom:<name>'
-    tax_type = db.Column(db.String(60), nullable=True)
-    tax_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
-    discount_type = db.Column(db.String(60), nullable=True)
-    discount_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
-
-    total = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # subtotal - discount + tax
+    total = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # subtotal - discounts + taxes
     paid_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
 
     notes = db.Column(db.Text, nullable=True)
@@ -112,16 +104,12 @@ class PurchaseInvoice(db.Model):
 
     supplier = db.relationship("Supplier", back_populates="invoices")
     lines = db.relationship("PurchaseLine", back_populates="invoice", cascade="all, delete-orphan")
-
-    TAX_LABELS = {
-        "vat": "ضريبة القيمة المضافة",
-        "commercial": "ضريبة تجارية",
-        "industrial": "ضريبة صناعية",
-    }
-    DISCOUNT_LABELS = {
-        "cash": "خصم نقدي",
-        "quantity": "خصم كمية",
-    }
+    charges = db.relationship(
+        "PurchaseInvoiceCharge",
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="PurchaseInvoiceCharge.display_order, PurchaseInvoiceCharge.id",
+    )
 
     @property
     def payment_label(self) -> str:
@@ -131,20 +119,62 @@ class PurchaseInvoice(db.Model):
     def outstanding(self) -> Decimal:
         return self.total - self.paid_amount
 
-    def _label(self, value: str | None, mapping: dict) -> str:
-        if not value:
-            return "—"
-        if value.startswith("custom:"):
-            return value[len("custom:"):]
-        return mapping.get(value, value)
+    @property
+    def tax_rows(self) -> list:
+        return [c for c in self.charges if c.kind == PurchaseInvoiceCharge.KIND_TAX]
 
     @property
-    def tax_label(self) -> str:
-        return self._label(self.tax_type, self.TAX_LABELS)
+    def discount_rows(self) -> list:
+        return [c for c in self.charges if c.kind == PurchaseInvoiceCharge.KIND_DISCOUNT]
 
     @property
-    def discount_label(self) -> str:
-        return self._label(self.discount_type, self.DISCOUNT_LABELS)
+    def total_tax(self) -> Decimal:
+        return sum((c.amount_egp for c in self.tax_rows), Decimal("0"))
+
+    @property
+    def total_discount(self) -> Decimal:
+        return sum((c.amount_egp for c in self.discount_rows), Decimal("0"))
+
+
+class PurchaseInvoiceCharge(db.Model):
+    """TICKET-3: multiple taxes / discounts per invoice, each optionally as
+    a percentage of subtotal or a fixed EGP amount."""
+
+    __tablename__ = "purchase_invoice_charges"
+
+    KIND_TAX = "tax"
+    KIND_DISCOUNT = "discount"
+
+    TAX_LABELS = {
+        "vat": "ضريبة القيمة المضافة",
+        "commercial_industrial": "ضريبة تجارية وصناعية",
+    }
+    DISCOUNT_LABELS = {
+        "cash": "خصم نقدي",
+        "quantity": "خصم كمية",
+    }
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(
+        db.Integer,
+        db.ForeignKey("purchase_invoices.id", name="fk_charge_invoice"),
+        nullable=False, index=True,
+    )
+    kind = db.Column(db.String(10), nullable=False)  # tax | discount
+    type_name = db.Column(db.String(60), nullable=False)  # vat | commercial_industrial | cash | quantity | custom:<name>
+    is_percentage = db.Column(db.Boolean, nullable=False, default=False)
+    rate_pct = db.Column(db.Numeric(6, 3), nullable=True)
+    amount_egp = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+    display_order = db.Column(db.Integer, nullable=False, default=0)
+
+    invoice = db.relationship("PurchaseInvoice", back_populates="charges")
+
+    @property
+    def type_label(self) -> str:
+        if self.type_name and self.type_name.startswith("custom:"):
+            return self.type_name[len("custom:"):]
+        mapping = self.TAX_LABELS if self.kind == self.KIND_TAX else self.DISCOUNT_LABELS
+        return mapping.get(self.type_name, self.type_name)
 
 
 class PurchaseLine(db.Model):
@@ -153,9 +183,16 @@ class PurchaseLine(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey("purchase_invoices.id"), nullable=False)
     ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), nullable=False)
+    # qty is ALWAYS in the ingredient's base unit (after conversion)
     qty = db.Column(db.Numeric(14, 3), nullable=False)
+    # unit_price is per BASE unit (already converted from the input unit)
     unit_price = db.Column(db.Numeric(12, 2), nullable=False)
     line_total = db.Column(db.Numeric(14, 2), nullable=False)
+
+    # TICKET-2 audit trail — what the user actually typed
+    input_qty = db.Column(db.Numeric(14, 3), nullable=True)
+    input_unit_code = db.Column(db.String(40), nullable=True)
+    input_unit_price = db.Column(db.Numeric(12, 2), nullable=True)  # per input-unit
 
     invoice = db.relationship("PurchaseInvoice", back_populates="lines")
     ingredient = db.relationship("Ingredient")

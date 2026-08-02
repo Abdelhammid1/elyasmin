@@ -14,6 +14,7 @@ CATEGORY_CHOICES = [
 UNIT_CHOICES = [
     (Ingredient.UNIT_KG, "كيلو"),
     (Ingredient.UNIT_LITRE, "لتر"),
+    (Ingredient.UNIT_ML, "مل"),
     (Ingredient.UNIT_PIECE, "قطعة"),
     (Ingredient.UNIT_BOX, "علبة"),
 ]
