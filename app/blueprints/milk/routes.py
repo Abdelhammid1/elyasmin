@@ -232,6 +232,28 @@ def edit_delivery(delivery_id: int):
             return render_template("milk/delivery_form.html", form=form, customers=customers,
                                    mode="edit", delivery=delivery)
 
+        # The customer and the date are what decide which invoice a line belongs
+        # to. Once the delivery is on an invoice they must not move, or the
+        # invoice ends up holding another customer's milk — and invoice_excel
+        # prints invoice.customer.name on every row, so it would mislabel it.
+        if delivery.invoice:
+            if customer.id != delivery.customer_id:
+                flash(
+                    f"مش ممكن تغيّر العميل — التوريد ده على فاتورة #{delivery.invoice_id}. "
+                    "لو غلط، شيله من الفاتورة الأول.",
+                    "error",
+                )
+                return render_template("milk/delivery_form.html", form=form, customers=customers,
+                                       mode="edit", delivery=delivery)
+            if form.delivery_date.data != delivery.delivery_date:
+                flash(
+                    f"مش ممكن تغيّر التاريخ — التوريد ده على فاتورة #{delivery.invoice_id} "
+                    f"لفترة {delivery.invoice.period_from} إلى {delivery.invoice.period_to}.",
+                    "error",
+                )
+                return render_template("milk/delivery_form.html", form=form, customers=customers,
+                                       mode="edit", delivery=delivery)
+
         old_price, old_total = delivery.unit_price, delivery.total_value
         if not _apply_form(delivery, form, customer, unpriced=unpriced):
             return render_template("milk/delivery_form.html", form=form, customers=customers,

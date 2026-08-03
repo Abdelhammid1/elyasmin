@@ -22,7 +22,9 @@
 <div class="alert alert-info">
   <i class="bi bi-receipt"></i>
   التوريد ده على فاتورة <a href="{{ url_for('milk.view_invoice', invoice_id=delivery.invoice.id) }}" class="alert-link">#{{ delivery.invoice.id }}</a>
-  ({{ delivery.invoice.status_label }}) — أي تعديل هيحدّث إجمالي الفاتورة أوتوماتيك.
+  ({{ delivery.invoice.status_label }}) — تعديل السعر أو الخصومات هيحدّث إجمالي الفاتورة أوتوماتيك.
+  <br>
+  <strong>العميل والتاريخ مقفولين</strong> طالما التوريد على فاتورة — لو محتاج تغيّرهم، شيله من الفاتورة الأول.
 </div>
 {% endif %}
 
