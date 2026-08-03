@@ -204,7 +204,29 @@ def run_desktop(page: Page) -> None:
     snap(page, "suppliers_list", "قائمة الموردين", "الموردون مع إجمالي الرصيد المستحق للمزرعة.")
 
     page.goto(f"{BASE}/suppliers/new")
-    snap(page, "suppliers_new", "إضافة مورد", "نموذج مورد جديد — الاسم + التليفون + أنواع المواد.")
+    snap(page, "suppliers_new", "إضافة مورد", "نموذج مورد جديد — الاسم + التليفون + الرصيد الافتتاحي + أنواع المواد.")
+
+    # TICKET-1: a supplier created with an opening balance must show that balance
+    # as owed straight away, before any invoice exists.
+    unique_supplier = "مورد اختبار " + str(int(time.time()) % 100000)
+    page.fill('input[name="name"]', unique_supplier)
+    page.fill('input[name="opening_balance"]', "5000")
+    page.check('input[name="supplied_categories"] >> nth=0')
+    page.click('input[type="submit"]')
+    try:
+        page.wait_for_selector(".alert-success", timeout=5_000)
+    except PWTimeoutError:
+        pass
+    if "5000" in page.content():
+        snap(
+            page,
+            "supplier_opening_balance",
+            "مورد برصيد افتتاحي",
+            "TICKET-1: الرصيد الافتتاحي (5000) بيظهر كرصيد مستحق للمورد من غير أي فاتورة.",
+        )
+    else:
+        fail(page, "supplier_opening_balance", "مورد برصيد افتتاحي",
+             "الرصيد الافتتاحي 5000 لم يظهر في صفحة المورد")
 
     page.goto(f"{BASE}/suppliers/1")
     snap(
@@ -274,6 +296,19 @@ def run_desktop(page: Page) -> None:
     page.goto(f"{BASE}/customers/new")
     snap(page, "customers_new", "إضافة عميل", "نموذج عميل — تسعير ثابت أو بالتحليل.")
 
+    # Create a quality-priced customer — a fresh seed has none, and the milk
+    # delivery form (and TICKET-3 below) needs one to render at all.
+    unique_customer = "عميل تحليل " + str(int(time.time()) % 100000)
+    page.fill('input[name="name"]', unique_customer)
+    page.select_option('select[name="pricing_type"]', "quality")
+    page.click('input[type="submit"]')
+    try:
+        page.wait_for_selector(".alert-success", timeout=5_000)
+    except PWTimeoutError:
+        pass
+    snap(page, "customer_quality_created", "عميل بتسعير التحليل",
+         "عميل تسعيره على أساس تحليل الجودة — لازم بروتين + بكتيريا عشان يتحسب سعره.")
+
     page.goto(f"{BASE}/customers/1")
     snap(page, "customer_detail", "تفاصيل عميل", "التوريدات + الدفعات + نموذج تسجيل دفعة.")
 
@@ -285,6 +320,29 @@ def run_desktop(page: Page) -> None:
 
     page.goto(f"{BASE}/milk/deliveries/new")
     snap(page, "milk_delivery_new", "تسجيل توريد", "النموذج يدعم تسعير ثابت وتسعير بالجودة.")
+
+    # TICKET-3: the original repro — a quality-priced customer, protein filled but
+    # bacteria left empty, used to fail silently with no message at all.
+    page.select_option('select[name="customer_id"]',
+                       label=f"{unique_customer} (على أساس التحليل)")
+    page.fill('input[name="qty_kg"]', "100")
+    page.fill('input[name="protein_pct"]', "3.5%")   # the % must be typeable
+    page.click('input[type="submit"]')
+    page.wait_for_load_state("networkidle")
+    body = page.content()
+    # The bug was a blank re-render with zero feedback. Assert on the inline error
+    # text itself — it only ever appears as a field error, never as static markup.
+    if "مطلوب لأن تسعير العميل على أساس التحليل" in body and "3.5%" in body:
+        snap(
+            page,
+            "milk_delivery_feedback",
+            "TICKET-3: رسالة واضحة بدل الفشل الصامت",
+            "النموذج بقى يقول للمستخدم إيه الناقص بالظبط، وبيحتفظ بـ 3.5% في الخانة "
+            "(الـ number input القديم كان بيمسحها).",
+        )
+    else:
+        fail(page, "milk_delivery_feedback", "TICKET-3: رسالة واضحة بدل الفشل الصامت",
+             "رسالة الخطأ المضمّنة لم تظهر أو الخانة فقدت قيمة 3.5% — الفشل الصامت لسه موجود")
 
     page.goto(f"{BASE}/milk/production")
     snap(page, "milk_production", "الإنتاج والفاقد", "تسجيل الإنتاج اليومي وحساب الفاقد الشهري.")

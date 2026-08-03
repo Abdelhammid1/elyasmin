@@ -17,3 +17,9 @@ migrations/versions/*.pyc
 htmlcov/
 .pytest_cache/
 .coverage
+
+# pasted screenshots (local only)
+.clips/
+
+# personal ticket notes + screenshots — never pushed
+tickets/
