@@ -46,7 +46,9 @@ def list_deliveries():
         .all()
     )
     day_qty = sum((d.qty_kg for d in deliveries), Decimal("0"))
-    day_value = sum((d.total_value for d in deliveries), Decimal("0"))
+    # TICKET-4: unpriced deliveries have total_value = None
+    day_value = sum((d.total_value for d in deliveries if d.total_value is not None), Decimal("0"))
+    unpriced_count = sum(1 for d in deliveries if not d.is_priced)
 
     production = DailyProduction.query.filter_by(production_date=day).first()
     waste = (production.total_kg - day_qty) if production else None
@@ -61,7 +63,97 @@ def list_deliveries():
         day_value=day_value,
         production=production,
         waste=waste,
+        unpriced_count=unpriced_count,
     )
+
+
+def _dec(v) -> Decimal:
+    return Decimal(str(v)) if v is not None else Decimal("0")
+
+
+def _resolve_unit_price(form, customer):
+    """Unit price: form override > customer fixed price > quality formula.
+
+    Returns the price, or None when it cannot be resolved — in which case the
+    reason has already been flashed and pinned to the offending field.
+    """
+    if form.unit_price.data is not None and form.unit_price.data != 0:
+        return Decimal(str(form.unit_price.data))
+
+    if customer.pricing_type == Customer.PRICING_FIXED and customer.fixed_price:
+        return Decimal(str(customer.fixed_price))
+
+    protein = form.protein_pct.data
+    bacteria = form.bacteria_count.data
+    if protein is not None and bacteria is not None:
+        return price_for_quality(Decimal(str(protein)), Decimal(str(bacteria)))
+
+    if customer.pricing_type == Customer.PRICING_QUALITY:
+        # TICKET-3: quality pricing needs BOTH readings — say which one is missing
+        # and pin it to the field so it renders next to the input, not just as a flash.
+        missing = []
+        if protein is None:
+            missing.append("نسبة البروتين")
+            form.protein_pct.errors.append("مطلوب لأن تسعير العميل على أساس التحليل.")
+        if bacteria is None:
+            missing.append("عدد البكتيريا")
+            form.bacteria_count.errors.append("مطلوب لأن تسعير العميل على أساس التحليل.")
+        flash(
+            f"العميل ({customer.name}) تسعيره على أساس التحليل — لازم تدخل: "
+            f"{' و '.join(missing)}. أو اكتب سعر يدوي في خانة السعر.",
+            "error",
+        )
+        return None
+
+    flash("لازم تدخل سعر يدوي أو تحدد سعر ثابت للعميل أو تدخل بروتين + بكتيريا.", "error")
+    return None
+
+
+def _apply_form(delivery, form, customer, *, unpriced: bool) -> bool:
+    """TICKET-4: fill a delivery from the form, priced or not.
+
+    Shared by create and edit so the two can't drift apart. Returns False when
+    pricing was required but couldn't be resolved (reason already flashed).
+    """
+    unit_price = None
+    if not unpriced:
+        unit_price = _resolve_unit_price(form, customer)
+        if unit_price is None:
+            return False
+
+    qty = Decimal(str(form.qty_kg.data))
+    protein = Decimal(str(form.protein_pct.data)) if form.protein_pct.data is not None else None
+    bacteria = Decimal(str(form.bacteria_count.data)) if form.bacteria_count.data is not None else None
+
+    fat_b = _dec(form.fat_bonus.data)
+    prot_b = _dec(form.protein_bonus.data)
+    bact_a = _dec(form.bacteria_adj.data)
+    trans = _dec(form.transport.data)
+    other = _dec(form.other_adj.data)
+    qty_d = _dec(form.qty_deduction.data)
+    cash_d = _dec(form.cash_deduction.data)
+    rnd = _dec(form.rounding.data)
+
+    base = (qty * unit_price).quantize(Decimal("0.01")) if unit_price is not None else Decimal("0")
+    subtotal = (base + fat_b + prot_b + bact_a + trans + other).quantize(Decimal("0.01"))
+    # An unpriced delivery has no net value at all — that NULL is what keeps it
+    # out of balances, invoices and the settlement report until it is priced.
+    total = (subtotal - qty_d - cash_d + rnd).quantize(Decimal("0.01")) if unit_price is not None else None
+
+    delivery.customer_id = customer.id
+    delivery.delivery_date = form.delivery_date.data
+    delivery.qty_kg = qty
+    delivery.protein_pct = protein
+    delivery.bacteria_count = int(bacteria) if bacteria is not None else None
+    delivery.base_value = base
+    delivery.fat_bonus, delivery.protein_bonus, delivery.bacteria_adj = fat_b, prot_b, bact_a
+    delivery.transport, delivery.other_adj = trans, other
+    delivery.subtotal = subtotal
+    delivery.qty_deduction, delivery.cash_deduction, delivery.rounding = qty_d, cash_d, rnd
+    delivery.unit_price = unit_price
+    delivery.total_value = total
+    delivery.notes = form.notes.data
+    return True
 
 
 @bp.route("/deliveries/new", methods=["GET", "POST"])
@@ -72,87 +164,98 @@ def create_delivery():
         Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
     )
     form.customer_id.choices = [(c.id, f"{c.name} ({c.pricing_label})") for c in customers]
+    # TICKET-4: second submit button — save now, price later
+    unpriced = "save_unpriced" in request.form
 
     if form.validate_on_submit():
         customer = db.session.get(Customer, form.customer_id.data)
         if not customer or customer.is_archived:
             flash("العميل غير صالح.", "error")
-            return render_template("milk/delivery_form.html", form=form, customers=customers)
+            return render_template("milk/delivery_form.html", form=form, customers=customers, mode="create")
 
-        qty = Decimal(str(form.qty_kg.data))
-        protein = Decimal(str(form.protein_pct.data)) if form.protein_pct.data is not None else None
-        bacteria = Decimal(str(form.bacteria_count.data)) if form.bacteria_count.data is not None else None
+        delivery = MilkDelivery(created_by_id=current_user.id)
+        if not _apply_form(delivery, form, customer, unpriced=unpriced):
+            return render_template("milk/delivery_form.html", form=form, customers=customers, mode="create")
 
-        # Unit price: form override > customer fixed price > quality formula
-        if form.unit_price.data is not None and form.unit_price.data != 0:
-            unit_price = Decimal(str(form.unit_price.data))
-        elif customer.pricing_type == Customer.PRICING_FIXED and customer.fixed_price:
-            unit_price = Decimal(str(customer.fixed_price))
-        elif protein is not None and bacteria is not None:
-            unit_price = price_for_quality(protein, bacteria)
-        elif customer.pricing_type == Customer.PRICING_QUALITY:
-            # TICKET-3: quality pricing needs BOTH readings — say which one is missing
-            # and pin it to the field so it renders next to the input, not just as a flash.
-            missing = []
-            if protein is None:
-                missing.append("نسبة البروتين")
-                form.protein_pct.errors.append("مطلوب لأن تسعير العميل على أساس التحليل.")
-            if bacteria is None:
-                missing.append("عدد البكتيريا")
-                form.bacteria_count.errors.append("مطلوب لأن تسعير العميل على أساس التحليل.")
-            flash(
-                f"العميل ({customer.name}) تسعيره على أساس التحليل — لازم تدخل: "
-                f"{' و '.join(missing)}. أو اكتب سعر يدوي في خانة السعر.",
-                "error",
-            )
-            return render_template("milk/delivery_form.html", form=form, customers=customers)
-        else:
-            flash("لازم تدخل سعر يدوي أو تحدد سعر ثابت للعميل أو تدخل بروتين + بكتيريا.", "error")
-            return render_template("milk/delivery_form.html", form=form, customers=customers)
-
-        def dec(v):
-            return Decimal(str(v)) if v is not None else Decimal("0")
-
-        base = (qty * unit_price).quantize(Decimal("0.01"))
-        fat_b = dec(form.fat_bonus.data)
-        prot_b = dec(form.protein_bonus.data)
-        bact_a = dec(form.bacteria_adj.data)
-        trans = dec(form.transport.data)
-        other = dec(form.other_adj.data)
-        subtotal = (base + fat_b + prot_b + bact_a + trans + other).quantize(Decimal("0.01"))
-
-        qty_d = dec(form.qty_deduction.data)
-        cash_d = dec(form.cash_deduction.data)
-        rnd = dec(form.rounding.data)
-        total = (subtotal - qty_d - cash_d + rnd).quantize(Decimal("0.01"))
-
-        delivery = MilkDelivery(
-            customer_id=customer.id,
-            delivery_date=form.delivery_date.data,
-            qty_kg=qty,
-            protein_pct=protein,
-            bacteria_count=int(bacteria) if bacteria is not None else None,
-            base_value=base,
-            fat_bonus=fat_b, protein_bonus=prot_b, bacteria_adj=bact_a,
-            transport=trans, other_adj=other,
-            subtotal=subtotal,
-            qty_deduction=qty_d, cash_deduction=cash_d, rounding=rnd,
-            unit_price=unit_price,
-            total_value=total,
-            notes=form.notes.data,
-            created_by_id=current_user.id,
-        )
         db.session.add(delivery)
         db.session.flush()
         log_action(
             "milk_delivery_created", "MilkDelivery", delivery.id,
-            details=f"customer={customer.id} qty={qty} price={unit_price} total={total}",
+            details=f"customer={customer.id} qty={delivery.qty_kg} "
+                    f"price={delivery.unit_price} total={delivery.total_value}",
         )
         db.session.commit()
-        flash(f"تم تسجيل توريد {qty}kg لـ {customer.name} بسعر {unit_price} = {total} جنيه.", "success")
+        if delivery.is_priced:
+            flash(
+                f"تم تسجيل توريد {delivery.qty_kg}kg لـ {customer.name} "
+                f"بسعر {delivery.unit_price} = {delivery.total_value} جنيه.",
+                "success",
+            )
+        else:
+            flash(
+                f"تم تسجيل توريد {delivery.qty_kg}kg لـ {customer.name} بدون سعر. "
+                "التوريد مش هيدخل في حساب العميل ولا في أي فاتورة لحد ما تسعّره.",
+                "warning",
+            )
         return redirect(url_for("milk.list_deliveries", day=delivery.delivery_date.isoformat()))
 
-    return render_template("milk/delivery_form.html", form=form, customers=customers)
+    return render_template("milk/delivery_form.html", form=form, customers=customers, mode="create")
+
+
+@bp.route("/deliveries/<int:delivery_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_delivery(delivery_id: int):
+    """TICKET-4: add or correct a delivery's price after the fact."""
+    delivery = db.session.get(MilkDelivery, delivery_id)
+    if not delivery or delivery.is_archived:
+        abort(404)
+
+    if delivery.is_locked:
+        flash(
+            f"التوريد ده على فاتورة صادرة (#{delivery.invoice_id}) — مش ممكن يتعدل. "
+            "لو فيه غلط، اعمل تسوية على الفاتورة نفسها.",
+            "error",
+        )
+        return redirect(url_for("milk.list_deliveries", day=delivery.delivery_date.isoformat()))
+
+    customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    form = MilkDeliveryForm(obj=delivery)
+    form.customer_id.choices = [(c.id, f"{c.name} ({c.pricing_label})") for c in customers]
+    if request.method == "GET":
+        form.customer_id.data = delivery.customer_id
+    unpriced = "save_unpriced" in request.form
+
+    if form.validate_on_submit():
+        customer = db.session.get(Customer, form.customer_id.data)
+        if not customer or customer.is_archived:
+            flash("العميل غير صالح.", "error")
+            return render_template("milk/delivery_form.html", form=form, customers=customers,
+                                   mode="edit", delivery=delivery)
+
+        old_price, old_total = delivery.unit_price, delivery.total_value
+        if not _apply_form(delivery, form, customer, unpriced=unpriced):
+            return render_template("milk/delivery_form.html", form=form, customers=customers,
+                                   mode="edit", delivery=delivery)
+
+        # A draft invoice's total has to follow the line it contains
+        if delivery.invoice and delivery.invoice.status == MilkInvoice.STATUS_DRAFT:
+            delivery.invoice.recompute_total()
+
+        log_action(
+            "milk_delivery_updated", "MilkDelivery", delivery.id,
+            details=f"price {old_price} -> {delivery.unit_price}; "
+                    f"total {old_total} -> {delivery.total_value}",
+        )
+        db.session.commit()
+        flash(
+            f"تم تحديث التوريد — الصافي {delivery.total_value} جنيه."
+            if delivery.is_priced else "تم تحديث التوريد — لسه بدون سعر.",
+            "success" if delivery.is_priced else "warning",
+        )
+        return redirect(url_for("milk.list_deliveries", day=delivery.delivery_date.isoformat()))
+
+    return render_template("milk/delivery_form.html", form=form, customers=customers,
+                           mode="edit", delivery=delivery)
 
 
 # ---------- US-4.4 Daily production ----------
@@ -258,21 +361,42 @@ def create_invoice():
         d_from = date.fromisoformat(period_from)
         d_to = date.fromisoformat(period_to)
 
+        period_filter = (
+            MilkDelivery.customer_id == customer_id,
+            MilkDelivery.is_archived.is_(False),
+            MilkDelivery.invoice_id.is_(None),
+            MilkDelivery.delivery_date >= d_from,
+            MilkDelivery.delivery_date <= d_to,
+        )
+        # TICKET-4: an unpriced delivery has no value to bill, and the Excel
+        # export would crash on float(None). Leave it for a later invoice.
         deliveries = (
             MilkDelivery.query
-            .filter(
-                MilkDelivery.customer_id == customer_id,
-                MilkDelivery.is_archived.is_(False),
-                MilkDelivery.invoice_id.is_(None),
-                MilkDelivery.delivery_date >= d_from,
-                MilkDelivery.delivery_date <= d_to,
-            )
+            .filter(*period_filter, MilkDelivery.total_value.isnot(None))
             .order_by(MilkDelivery.delivery_date)
             .all()
         )
+        skipped = (
+            MilkDelivery.query
+            .filter(*period_filter, MilkDelivery.total_value.is_(None))
+            .count()
+        )
         if not deliveries:
-            flash("مفيش توريدات غير مفوترة للعميل ده في الفترة دي.", "error")
+            if skipped:
+                flash(
+                    f"كل توريدات الفترة دي ({skipped}) لسه بدون سعر — سعّرها الأول "
+                    "عشان تقدر تعمل فاتورة.",
+                    "error",
+                )
+            else:
+                flash("مفيش توريدات غير مفوترة للعميل ده في الفترة دي.", "error")
             return render_template("milk/invoice_form.html", customers=customers)
+        if skipped:
+            flash(
+                f"تم استثناء {skipped} توريد لسه بدون سعر من الفاتورة. "
+                "سعّرهم واعمل لهم فاتورة بعدين.",
+                "warning",
+            )
 
         invoice = MilkInvoice(
             customer_id=customer_id,

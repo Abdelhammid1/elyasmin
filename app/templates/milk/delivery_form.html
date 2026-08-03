@@ -1,10 +1,30 @@
 {% extends "base.html" %}
-{% block title %}تسجيل توريد{% endblock %}
+{% set mode = mode | default("create") %}
+{% block title %}{% if mode == "edit" %}تعديل توريد{% else %}تسجيل توريد{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-droplet"></i> تسجيل توريد لبن</h1>
+  <h1>
+    <i class="bi bi-droplet"></i>
+    {% if mode == "edit" %}تعديل توريد لبن{% else %}تسجيل توريد لبن{% endif %}
+  </h1>
   <p class="text-muted mb-0">الحقول الإضافية (دهن/بروتين/بكتيريا/نقل/خصومات) اختيارية — املأها لو عايز فاتورة كاملة زي المستخدم عند العميل.</p>
 </div>
+
+{% if mode == "edit" and delivery and not delivery.is_priced %}
+<div class="alert alert-warning">
+  <i class="bi bi-hourglass-split"></i>
+  التوريد ده لسه <strong>بانتظار التسعير</strong> — مش داخل في حساب العميل ولا في أي فاتورة.
+  اكتب السعر واحفظ عشان يتحسب.
+</div>
+{% endif %}
+
+{% if mode == "edit" and delivery and delivery.invoice %}
+<div class="alert alert-info">
+  <i class="bi bi-receipt"></i>
+  التوريد ده على فاتورة <a href="{{ url_for('milk.view_invoice', invoice_id=delivery.invoice.id) }}" class="alert-link">#{{ delivery.invoice.id }}</a>
+  ({{ delivery.invoice.status_label }}) — أي تعديل هيحدّث إجمالي الفاتورة أوتوماتيك.
+</div>
+{% endif %}
 
 {% if not customers %}
 <div class="alert alert-warning">
@@ -128,10 +148,18 @@
           {% for e in form.notes.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
         </div>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
           {{ form.submit(class="btn btn-primary btn-lg") }}
+          {# TICKET-4: the client records the delivery first and prices it later #}
+          <button type="submit" name="save_unpriced" value="1" class="btn btn-outline-warning btn-lg">
+            <i class="bi bi-hourglass-split"></i> احفظ بدون سعر — أسعّره بعدين
+          </button>
           <a href="{{ url_for('milk.list_deliveries') }}" class="btn btn-outline-secondary btn-lg">إلغاء</a>
         </div>
+        <small class="text-muted d-block mt-2">
+          «احفظ بدون سعر» بيسجّل الكمية والتاريخ دلوقتي، والتوريد يفضل بره حساب العميل
+          وبره الفواتير لحد ما ترجع تكتب السعر.
+        </small>
       </form>
     </div>
   </div>

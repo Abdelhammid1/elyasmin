@@ -85,7 +85,9 @@ class MilkDelivery(db.Model):
     protein_pct = db.Column(db.Numeric(5, 2), nullable=True)  # only for quality-based
     bacteria_count = db.Column(db.Integer, nullable=True)  # only for quality-based
 
-    unit_price = db.Column(db.Numeric(10, 3), nullable=False)  # السعر
+    # TICKET-4: nullable — the client records a delivery first and prices it
+    # later, sometimes days later. NULL total_value means "not priced yet".
+    unit_price = db.Column(db.Numeric(10, 3), nullable=True)  # السعر
     base_value = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # الثمن = qty × price
 
     # Client's Excel columns (all adjustments to the base value)
@@ -101,7 +103,7 @@ class MilkDelivery(db.Model):
     cash_deduction = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # خ نقدي
     rounding = db.Column(db.Numeric(10, 2), nullable=False, default=Decimal("0"))        # كسور
 
-    total_value = db.Column(db.Numeric(14, 2), nullable=False)                            # الصافي
+    total_value = db.Column(db.Numeric(14, 2), nullable=True)                             # الصافي
 
     invoice_id = db.Column(db.Integer, db.ForeignKey("milk_invoices.id"), nullable=True)
 
@@ -112,6 +114,23 @@ class MilkDelivery(db.Model):
 
     customer = db.relationship("Customer", back_populates="deliveries")
     invoice = db.relationship("MilkInvoice", back_populates="deliveries")
+
+    @property
+    def is_priced(self) -> bool:
+        """TICKET-4: False while the delivery is still awaiting its price."""
+        return self.unit_price is not None and self.total_value is not None
+
+    @property
+    def pricing_status_label(self) -> str:
+        return "مسعّر" if self.is_priced else "بانتظار التسعير"
+
+    @property
+    def is_locked(self) -> bool:
+        """TICKET-4: an issued invoice is a document the customer already has.
+
+        Once it is issued the delivery behind it must not change.
+        """
+        return bool(self.invoice and self.invoice.status == MilkInvoice.STATUS_ISSUED)
 
 
 class MilkInvoice(db.Model):
@@ -149,7 +168,11 @@ class MilkInvoice(db.Model):
         return "مسوّدة" if self.status == self.STATUS_DRAFT else "صادرة"
 
     def recompute_total(self) -> None:
-        self.grand_total = sum((d.total_value for d in self.deliveries), Decimal("0"))
+        # TICKET-4: unpriced deliveries carry total_value = None; skip them
+        self.grand_total = sum(
+            (d.total_value for d in self.deliveries if d.total_value is not None),
+            Decimal("0"),
+        )
 
 
 class CustomerPayment(db.Model):

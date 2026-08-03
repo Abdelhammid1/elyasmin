@@ -82,8 +82,11 @@
           <tr>
             <td dir="ltr">{{ d.delivery_date }}</td>
             <td dir="ltr">{{ d.qty_kg }}</td>
-            <td dir="ltr">{{ d.unit_price }}</td>
-            <td dir="ltr" class="fw-bold">{{ d.total_value }}</td>
+            <td dir="ltr">{{ d.unit_price if d.unit_price is not none else '—' }}</td>
+            <td dir="ltr" class="fw-bold">
+              {% if d.is_priced %}{{ d.total_value }}
+              {% else %}<span class="badge bg-warning text-dark">بانتظار التسعير</span>{% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

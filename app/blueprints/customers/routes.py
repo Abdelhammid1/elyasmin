@@ -93,7 +93,10 @@ def customer_detail(customer_id: int):
         .order_by(CustomerPayment.payment_date.desc())
         .all()
     )
-    period_delivered = sum((d.total_value for d in deliveries), Decimal("0"))
+    # TICKET-4: unpriced deliveries carry total_value = None
+    period_delivered = sum(
+        (d.total_value for d in deliveries if d.total_value is not None), Decimal("0")
+    )
     period_paid = sum((p.amount for p in payments), Decimal("0"))
     payment_form = CustomerPaymentForm()
 
