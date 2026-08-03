@@ -23,6 +23,17 @@
         </div>
 
         <div class="mb-3">
+          {{ form.opening_balance.label(class="form-label fw-bold") }}
+          {{ form.opening_balance(class="form-control", dir="ltr", step="0.01", min="0", placeholder="0.00") }}
+          {% for e in form.opening_balance.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            رقم البداية بس — الفلوس اللي عليك للمورد قبل ما تبدأ تسجّل فواتير هنا.
+            هيتضاف على الرصيد المستحق. سيبه 0 لو مفيش.
+          </small>
+        </div>
+
+        <div class="mb-3">
           <label class="form-label fw-bold">{{ form.supplied_categories.label.text }}</label>
           <div class="row g-2">
             {% for subfield in form.supplied_categories %}

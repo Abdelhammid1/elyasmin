@@ -44,6 +44,16 @@ class SupplierForm(FlaskForm):
         validators=[DataRequired(message="الاسم مطلوب."), Length(max=120)],
     )
     phone = StringField("رقم التليفون", validators=[Optional(), Length(max=30)])
+    # TICKET-1: opening balance — what we already owe him before the system
+    opening_balance = DecimalField(
+        "رصيد افتتاحي (اللي إحنا مدينين بيه للمورد قبل ما نبدأ النظام)",
+        places=2,
+        default=0,
+        validators=[
+            Optional(),
+            NumberRange(min=0, message="الرصيد الافتتاحي لازم يكون صفر أو أكبر."),
+        ],
+    )
     supplied_categories = MultiCheckboxField(
         "نوع المواد اللي بيوردها",
         choices=CATEGORY_CHOICES,

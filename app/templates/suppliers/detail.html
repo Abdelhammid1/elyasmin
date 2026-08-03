@@ -12,20 +12,32 @@
   </div>
 </div>
 
+{# TICKET-1: the opening-balance card only appears when there is one, so
+   existing suppliers keep the original 3-card layout. #}
+{% set has_opening = supplier.opening_balance and supplier.opening_balance != 0 %}
+{% set col = "col-md-3" if has_opening else "col-md-4" %}
 <div class="row g-3 mb-4">
-  <div class="col-md-4">
+  {% if has_opening %}
+  <div class="{{ col }}">
+    <div class="card stat-card">
+      <div class="stat-label">رصيد افتتاحي</div>
+      <div class="stat-value text-muted" dir="ltr">{{ supplier.opening_balance }}</div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="{{ col }}">
     <div class="card stat-card">
       <div class="stat-label">إجمالي الفواتير</div>
       <div class="stat-value" dir="ltr">{{ supplier.total_invoiced }}</div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="{{ col }}">
     <div class="card stat-card">
       <div class="stat-label">إجمالي المدفوع</div>
       <div class="stat-value text-success" dir="ltr">{{ supplier.total_paid }}</div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="{{ col }}">
     <div class="card stat-card">
       <div class="stat-label">الرصيد المستحق للمورد</div>
       <div class="stat-value {% if supplier.balance_due > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ supplier.balance_due }}</div>

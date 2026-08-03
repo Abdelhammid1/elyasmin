@@ -47,6 +47,7 @@ def create_supplier():
                 name=name,
                 phone=(form.phone.data or "").strip() or None,
                 supplied_categories=",".join(form.supplied_categories.data),
+                opening_balance=Decimal(str(form.opening_balance.data or 0)),
                 linked_customer_id=linked_cid,
                 notes=form.notes.data,
                 created_by_id=current_user.id,
@@ -133,6 +134,16 @@ def edit_supplier(supplier_id: int):
         supplier.phone = (form.phone.data or "").strip() or None
         supplier.supplied_categories = ",".join(form.supplied_categories.data)
         supplier.notes = form.notes.data
+
+        # TICKET-1: opening balance moves the supplier's whole balance — audit it separately
+        old_opening = Decimal(str(supplier.opening_balance or 0))
+        new_opening = Decimal(str(form.opening_balance.data or 0))
+        if new_opening != old_opening:
+            supplier.opening_balance = new_opening
+            log_action(
+                "supplier_opening_balance_changed", "Supplier", supplier.id,
+                details=f"{old_opening} -> {new_opening}",
+            )
 
         # Handle link change: reset old customer + set new one
         new_linked = form.linked_customer_id.data or None

@@ -17,6 +17,10 @@ class Supplier(db.Model):
     name = db.Column(db.String(120), unique=True, nullable=False, index=True)
     phone = db.Column(db.String(30), nullable=True)
     supplied_categories = db.Column(db.String(120), nullable=False, default="")  # comma-separated
+    # TICKET-1 (Dina): debt already owed to this supplier before the system started
+    opening_balance = db.Column(
+        db.Numeric(14, 2), nullable=False, default=Decimal("0"), server_default="0"
+    )
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -67,8 +71,8 @@ class Supplier(db.Model):
 
     @property
     def balance_due(self) -> Decimal:
-        """Amount still owed to the supplier."""
-        return self.total_invoiced - self.total_paid
+        """Amount still owed to the supplier, including any opening balance."""
+        return Decimal(str(self.opening_balance or 0)) + self.total_invoiced - self.total_paid
 
     @property
     def net_balance(self) -> Decimal:
