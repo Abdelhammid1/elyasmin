@@ -90,6 +90,22 @@ def create_delivery():
             unit_price = Decimal(str(customer.fixed_price))
         elif protein is not None and bacteria is not None:
             unit_price = price_for_quality(protein, bacteria)
+        elif customer.pricing_type == Customer.PRICING_QUALITY:
+            # TICKET-3: quality pricing needs BOTH readings — say which one is missing
+            # and pin it to the field so it renders next to the input, not just as a flash.
+            missing = []
+            if protein is None:
+                missing.append("نسبة البروتين")
+                form.protein_pct.errors.append("مطلوب لأن تسعير العميل على أساس التحليل.")
+            if bacteria is None:
+                missing.append("عدد البكتيريا")
+                form.bacteria_count.errors.append("مطلوب لأن تسعير العميل على أساس التحليل.")
+            flash(
+                f"العميل ({customer.name}) تسعيره على أساس التحليل — لازم تدخل: "
+                f"{' و '.join(missing)}. أو اكتب سعر يدوي في خانة السعر.",
+                "error",
+            )
+            return render_template("milk/delivery_form.html", form=form, customers=customers)
         else:
             flash("لازم تدخل سعر يدوي أو تحدد سعر ثابت للعميل أو تدخل بروتين + بكتيريا.", "error")
             return render_template("milk/delivery_form.html", form=form, customers=customers)

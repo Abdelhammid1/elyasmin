@@ -24,18 +24,22 @@
           <div class="col-md-6">
             {{ form.customer_id.label(class="form-label fw-bold") }}
             {{ form.customer_id(class="form-select") }}
+            {% for e in form.customer_id.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-6">
             {{ form.delivery_date.label(class="form-label fw-bold") }}
             {{ form.delivery_date(class="form-control", dir="ltr", type="date") }}
+            {% for e in form.delivery_date.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-4">
             {{ form.qty_kg.label(class="form-label fw-bold") }}
             {{ form.qty_kg(class="form-control", dir="ltr", step="0.001", min="0.001", id="qty") }}
+            {% for e in form.qty_kg.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-4">
             {{ form.unit_price.label(class="form-label fw-bold") }}
             {{ form.unit_price(class="form-control", dir="ltr", step="0.001", min="0", id="unitPrice") }}
+            {% for e in form.unit_price.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-4">
             <label class="form-label fw-bold">الثمن (كمية × سعر)</label>
@@ -43,15 +47,22 @@
           </div>
         </div>
 
-        <h5 class="mb-3">التحليل (اختياري)</h5>
+        <h5 class="mb-1">التحليل</h5>
+        <p class="text-muted small mb-3">
+          اختياري لو العميل بسعر ثابت — <strong>إجباري (الاتنين مع بعض)</strong> لو تسعير العميل على أساس التحليل
+          ومش كاتب سعر يدوي.
+        </p>
         <div class="row g-3 mb-4">
           <div class="col-md-6">
             {{ form.protein_pct.label(class="form-label small") }}
-            {{ form.protein_pct(class="form-control", dir="ltr", step="0.01", min="0", max="15") }}
+            {{ form.protein_pct(class="form-control", dir="ltr", inputmode="decimal", placeholder="3.5") }}
+            {% for e in form.protein_pct.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted">تقدر تكتب الرقم لوحده أو بعلامة % — الاتنين مقبولين.</small>
           </div>
           <div class="col-md-6">
             {{ form.bacteria_count.label(class="form-label small") }}
             {{ form.bacteria_count(class="form-control", dir="ltr", step="1", min="0") }}
+            {% for e in form.bacteria_count.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
         </div>
 
@@ -60,22 +71,27 @@
           <div class="col-md-2 col-6">
             {{ form.fat_bonus.label(class="form-label small") }}
             {{ form.fat_bonus(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.fat_bonus.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-2 col-6">
             {{ form.protein_bonus.label(class="form-label small") }}
             {{ form.protein_bonus(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.protein_bonus.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-2 col-6">
             {{ form.bacteria_adj.label(class="form-label small") }}
             {{ form.bacteria_adj(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.bacteria_adj.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-2 col-6">
             {{ form.transport.label(class="form-label small") }}
             {{ form.transport(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.transport.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-2 col-6">
             {{ form.other_adj.label(class="form-label small") }}
             {{ form.other_adj(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.other_adj.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-2 col-6 border-start ps-2">
             <label class="form-label small fw-bold text-primary">الإجمالي</label>
@@ -88,14 +104,17 @@
           <div class="col-md-3 col-6">
             {{ form.qty_deduction.label(class="form-label small") }}
             {{ form.qty_deduction(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.qty_deduction.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-3 col-6">
             {{ form.cash_deduction.label(class="form-label small") }}
             {{ form.cash_deduction(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.cash_deduction.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-3 col-6">
             {{ form.rounding.label(class="form-label small") }}
             {{ form.rounding(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {% for e in form.rounding.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-3 col-6 border-start ps-2">
             <label class="form-label small fw-bold text-success">الصافي</label>
@@ -106,6 +125,7 @@
         <div class="mb-3">
           {{ form.notes.label(class="form-label fw-bold") }}
           {{ form.notes(class="form-control", rows=2) }}
+          {% for e in form.notes.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
         </div>
 
         <div class="d-flex gap-2">

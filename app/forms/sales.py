@@ -12,6 +12,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
+from app.forms.fields import LooseDecimalField
 from app.models.sales import Customer, CustomerPayment
 
 
@@ -72,10 +73,16 @@ class MilkDeliveryForm(FlaskForm):
         validators=[Optional(), NumberRange(min=0)],
     )
 
-    protein_pct = DecimalField(
+    # TICKET-3: accepts "3.5", "3.5%", "٣٫٥" — a plain DecimalField renders as
+    # <input type="number">, which silently drops all but the first of those.
+    protein_pct = LooseDecimalField(
         "نسبة البروتين %",
         places=2,
-        validators=[Optional(), NumberRange(min=0, max=15)],
+        invalid_message="اكتب رقم صحيح للبروتين (مثال: 3.5).",
+        validators=[
+            Optional(),
+            NumberRange(min=0, max=15, message="نسبة البروتين لازم تكون بين 0 و 15."),
+        ],
     )
     bacteria_count = IntegerField(
         "عدد البكتيريا (CFU/ml)",
