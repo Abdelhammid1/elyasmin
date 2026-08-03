@@ -80,6 +80,9 @@ flask --app flask_app.py db upgrade
 
 هذا الأمر سينشئ ملف `instance/farm.db` (SQLite) بكل الجداول جاهزة.
 
+> ⚠️ **لو هتكتب migration جديدة، اقرأ [قواعد الـ Migrations](#-قواعد-الـ-migrations-اقرأها-قبل-ما-تكتب-migration) الأول.**
+> الـ production بتاعنا PostgreSQL مش SQLite، وفيه أخطاء بتعدي على SQLite وتوقع السيرفر.
+
 ### 5. تجهيز البيانات الأساسية (Seed)
 
 ```bash
@@ -258,6 +261,56 @@ FLASK_ENV=production
 ```
 
 هذا يفعّل `SESSION_COOKIE_SECURE=True` (المتصفح يبعت الكوكيز فقط عبر HTTPS).
+
+---
+
+## 🗄️ قواعد الـ Migrations (اقرأها قبل ما تكتب migration)
+
+**الـ production بتاعنا PostgreSQL.** SQLite (اللي بنطوّر عليه محلياً) متساهل جداً
+وبيعمل implicit casts، و PostgreSQL بيرفضها تماماً. يعني ممكن migration تشتغل
+100% عندك وتوقع السيرفر.
+
+### 1. Boolean: استخدم `true`/`false` — مش `1`/`0`
+
+ده الخطأ اللي وقّع الـ deploy في migration `78565d24d06b`:
+
+```sql
+-- ❌ غلط — psycopg2.errors.DatatypeMismatch على PostgreSQL
+INSERT INTO purchase_invoice_charges (..., is_percentage, ...)
+SELECT ..., 0, ...
+
+-- ✅ صح
+INSERT INTO purchase_invoice_charges (..., is_percentage, ...)
+SELECT ..., false, ...
+```
+
+القاعدة: أي `INSERT` أو `UPDATE` فيه عمود `Boolean` لازم يستخدم `true`/`false`
+في الـ raw SQL، أو `sa.true()`/`sa.false()` في كود alembic.
+
+### 2. شغّل الـ checker قبل ما تعمل commit
+
+```bash
+python scripts/check_migrations.py
+```
+
+بيفحص كل الـ raw SQL في `migrations/versions/` وبيدوّر على أرقام صحيحة
+متحطوطة في أعمدة Boolean. بيرجّع exit code 1 لو لقى مشكلة.
+
+> ملاحظة: ده linter مش SQL parser — مش هيمسك قيمة boolean جاية من subquery أو
+> من `CASE`. نجاحه **مش بديل** عن الخطوة 3.
+
+### 3. جرّب على PostgreSQL مش SQLite
+
+أي migration فيها raw SQL، شغّلها على Postgres فاضية قبل ما تبعتها:
+
+```bash
+docker run --rm -d --name pgtest -e POSTGRES_PASSWORD=pg -p 5432:5432 postgres:16
+export DATABASE_URL=postgresql://postgres:pg@localhost/postgres
+flask --app flask_app.py db upgrade
+docker stop pgtest
+```
+
+لو الـ upgrade عدّى من قاعدة فاضية لحد الـ head، تبقى الـ migration سليمة.
 
 ---
 

@@ -84,14 +84,14 @@ def upgrade():
     conn.execute(sa.text("""
         INSERT INTO purchase_invoice_charges
             (invoice_id, kind, type_name, is_percentage, rate_pct, amount_egp, display_order)
-        SELECT id, 'tax', COALESCE(tax_type, 'vat'), 0, NULL, tax_amount, 0
+        SELECT id, 'tax', COALESCE(tax_type, 'vat'), false, NULL, tax_amount, 0
         FROM purchase_invoices
         WHERE tax_amount IS NOT NULL AND tax_amount > 0
     """))
     conn.execute(sa.text("""
         INSERT INTO purchase_invoice_charges
             (invoice_id, kind, type_name, is_percentage, rate_pct, amount_egp, display_order)
-        SELECT id, 'discount', COALESCE(discount_type, 'cash'), 0, NULL, discount_amount, 0
+        SELECT id, 'discount', COALESCE(discount_type, 'cash'), false, NULL, discount_amount, 0
         FROM purchase_invoices
         WHERE discount_amount IS NOT NULL AND discount_amount > 0
     """))
@@ -109,7 +109,7 @@ def upgrade():
                    WHEN 'box' THEN 'علبة'
                    ELSE i.unit
                END,
-               1, 1
+               1, true
         FROM ingredients i
         WHERE NOT EXISTS (
             SELECT 1 FROM ingredient_units u

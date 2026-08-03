@@ -33,6 +33,9 @@ python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 playwright install --with-deps chromium   # required for PDF export
 cp .env.example .env  # then set SECRET_KEY
+# .env.example points DATABASE_URL at PostgreSQL, because that is what production
+# uses. Either start a Postgres and create the DB, or comment that line out to
+# fall back to SQLite at instance/farm.db.
 flask --app flask_app.py db upgrade
 python seed.py        # creates 5 groups + admin@yasmin-farm.com / Admin@12345
 python flask_app.py   # → http://127.0.0.1:5001
@@ -42,6 +45,20 @@ python flask_app.py   # → http://127.0.0.1:5001
 > is downloaded separately via `playwright install --with-deps chromium` and is
 > required by the PDF export feature (P&L and milk-cost reports). Skip it and
 > those routes will fail with `Executable doesn't exist`.
+
+## Writing migrations
+
+Production runs **PostgreSQL**, not the SQLite used for local dev. SQLite casts
+integers to booleans silently; PostgreSQL raises `DatatypeMismatch`. So in raw
+SQL always use `true`/`false` (or `sa.true()`/`sa.false()`) for boolean columns —
+never `1`/`0`.
+
+```bash
+python scripts/check_migrations.py   # linter — must exit 0 before you commit
+```
+
+See **[قواعد الـ Migrations](DEPLOY.md#-قواعد-الـ-migrations-اقرأها-قبل-ما-تكتب-migration)**
+in DEPLOY.md for the full rule and how to test a revision against Postgres.
 
 ## Tests
 
