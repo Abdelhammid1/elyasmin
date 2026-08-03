@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>تقرير اختبار مزرعة الياسمين — 2026-08-03 18:19</title>
+  <title>تقرير اختبار مزرعة الياسمين — 2026-08-03 23:59</title>
   <style>
     :root {
       --primary: #0f2c4a;
@@ -118,15 +118,15 @@
   <header class="page-head">
     <h1>🐄 تقرير اختبار مزرعة الياسمين — Playwright E2E</h1>
     <div class="meta">
-      وقت التنفيذ: 2026-08-03 18:19 · مدة الاختبار: 16.6 ثانية
+      وقت التنفيذ: 2026-08-03 23:59 · مدة الاختبار: 14.0 ثانية
     </div>
   </header>
 
   <section class="stats">
-    <div class="stat primary"><div class="n">65</div><div>إجمالي اللقطات</div></div>
-    <div class="stat ok"><div class="n">65</div><div>ناجحة</div></div>
+    <div class="stat primary"><div class="n">67</div><div>إجمالي اللقطات</div></div>
+    <div class="stat ok"><div class="n">67</div><div>ناجحة</div></div>
     <div class="stat fail"><div class="n">0</div><div>فاشلة</div></div>
-    <div class="stat primary"><div class="n">58</div><div>لقطات سطح المكتب</div></div>
+    <div class="stat primary"><div class="n">60</div><div>لقطات سطح المكتب</div></div>
     <div class="stat primary"><div class="n">7</div><div>لقطات الموبايل (375px)</div></div>
   </section>
 
@@ -663,12 +663,36 @@
     <article class="card ok">
       <header>
         <span class="pill">OK</span>
+        <h3>TICKET-4: توريد بدون سعر</h3>
+      </header>
+      <p class="desc">التوريد اتسجل بحالة «بانتظار التسعير» — بره حساب العميل وبره الفواتير لحد ما يتسعّر.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/milk/deliveries?day=2026-08-03</div>
+      <a class="thumb" href="screenshots/44_milk_delivery_unpriced.png" target="_blank">
+        <img loading="lazy" src="screenshots/44_milk_delivery_unpriced.png" alt="TICKET-4: توريد بدون سعر">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
+        <h3>TICKET-4: تسعير التوريد بعدين</h3>
+      </header>
+      <p class="desc">نفس التوريد بعد ما اتسعّر من صفحة التعديل — دخل حساب العميل وطلع من قائمة الانتظار.</p>
+      <div class="url" dir="ltr">http://127.0.0.1:5001/milk/deliveries?day=2026-08-03</div>
+      <a class="thumb" href="screenshots/45_milk_delivery_priced_later.png" target="_blank">
+        <img loading="lazy" src="screenshots/45_milk_delivery_priced_later.png" alt="TICKET-4: تسعير التوريد بعدين">
+      </a>
+    </article>
+
+    <article class="card ok">
+      <header>
+        <span class="pill">OK</span>
         <h3>الإنتاج والفاقد</h3>
       </header>
       <p class="desc">تسجيل الإنتاج اليومي وحساب الفاقد الشهري.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/milk/production</div>
-      <a class="thumb" href="screenshots/44_milk_production.png" target="_blank">
-        <img loading="lazy" src="screenshots/44_milk_production.png" alt="الإنتاج والفاقد">
+      <a class="thumb" href="screenshots/46_milk_production.png" target="_blank">
+        <img loading="lazy" src="screenshots/46_milk_production.png" alt="الإنتاج والفاقد">
       </a>
     </article>
 
@@ -679,8 +703,8 @@
       </header>
       <p class="desc">الحساب الرئيسي — تكلفة العلف + 80% غير مباشرة ÷ الكيلوات.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/finance/milk-cost</div>
-      <a class="thumb" href="screenshots/45_milk_cost.png" target="_blank">
-        <img loading="lazy" src="screenshots/45_milk_cost.png" alt="تكلفة كيلو اللبن">
+      <a class="thumb" href="screenshots/47_milk_cost.png" target="_blank">
+        <img loading="lazy" src="screenshots/47_milk_cost.png" alt="تكلفة كيلو اللبن">
       </a>
     </article>
 
@@ -691,8 +715,8 @@
       </header>
       <p class="desc">الإيرادات والمصروفات وصافي الربح — قابل للتصدير PDF و Excel.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/finance/pnl</div>
-      <a class="thumb" href="screenshots/46_pnl.png" target="_blank">
-        <img loading="lazy" src="screenshots/46_pnl.png" alt="الأرباح والخسائر">
+      <a class="thumb" href="screenshots/48_pnl.png" target="_blank">
+        <img loading="lazy" src="screenshots/48_pnl.png" alt="الأرباح والخسائر">
       </a>
     </article>
 
@@ -703,8 +727,8 @@
       </header>
       <p class="desc">قائمة المصروفات مع فلتر تاريخ وتصدير Excel.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/finance/expenses</div>
-      <a class="thumb" href="screenshots/47_expenses.png" target="_blank">
-        <img loading="lazy" src="screenshots/47_expenses.png" alt="المصروفات">
+      <a class="thumb" href="screenshots/49_expenses.png" target="_blank">
+        <img loading="lazy" src="screenshots/49_expenses.png" alt="المصروفات">
       </a>
     </article>
 
@@ -715,8 +739,8 @@
       </header>
       <p class="desc">تسجيل مصروف عام يدوي.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/finance/expenses/new</div>
-      <a class="thumb" href="screenshots/48_expense_new.png" target="_blank">
-        <img loading="lazy" src="screenshots/48_expense_new.png" alt="إضافة مصروف">
+      <a class="thumb" href="screenshots/50_expense_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/50_expense_new.png" alt="إضافة مصروف">
       </a>
     </article>
 
@@ -727,8 +751,8 @@
       </header>
       <p class="desc">نسبة توزيع التكاليف 80/20 ومعادلة سعر التحليل — قابلة للتعديل.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/finance/settings</div>
-      <a class="thumb" href="screenshots/49_settings.png" target="_blank">
-        <img loading="lazy" src="screenshots/49_settings.png" alt="إعدادات النظام">
+      <a class="thumb" href="screenshots/51_settings.png" target="_blank">
+        <img loading="lazy" src="screenshots/51_settings.png" alt="إعدادات النظام">
       </a>
     </article>
 
@@ -739,8 +763,8 @@
       </header>
       <p class="desc">قائمة العمال مع رصيد كل عامل ومستحقات الشهر.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/labor/</div>
-      <a class="thumb" href="screenshots/50_labor_list.png" target="_blank">
-        <img loading="lazy" src="screenshots/50_labor_list.png" alt="العمالة">
+      <a class="thumb" href="screenshots/52_labor_list.png" target="_blank">
+        <img loading="lazy" src="screenshots/52_labor_list.png" alt="العمالة">
       </a>
     </article>
 
@@ -751,8 +775,8 @@
       </header>
       <p class="desc">نموذج عامل — بالحلبة أو يومي.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/labor/new</div>
-      <a class="thumb" href="screenshots/51_labor_new.png" target="_blank">
-        <img loading="lazy" src="screenshots/51_labor_new.png" alt="إضافة عامل">
+      <a class="thumb" href="screenshots/53_labor_new.png" target="_blank">
+        <img loading="lazy" src="screenshots/53_labor_new.png" alt="إضافة عامل">
       </a>
     </article>
 
@@ -763,8 +787,8 @@
       </header>
       <p class="desc">الحضور الشهري + الدفعات + نموذج دفع.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/labor/1</div>
-      <a class="thumb" href="screenshots/52_worker_detail.png" target="_blank">
-        <img loading="lazy" src="screenshots/52_worker_detail.png" alt="تفاصيل عامل">
+      <a class="thumb" href="screenshots/54_worker_detail.png" target="_blank">
+        <img loading="lazy" src="screenshots/54_worker_detail.png" alt="تفاصيل عامل">
       </a>
     </article>
 
@@ -775,8 +799,8 @@
       </header>
       <p class="desc">شبكة تسجيل حضور كل العمال في يوم واحد.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/labor/attendance</div>
-      <a class="thumb" href="screenshots/53_attendance.png" target="_blank">
-        <img loading="lazy" src="screenshots/53_attendance.png" alt="حضور اليوم">
+      <a class="thumb" href="screenshots/55_attendance.png" target="_blank">
+        <img loading="lazy" src="screenshots/55_attendance.png" alt="حضور اليوم">
       </a>
     </article>
 
@@ -787,8 +811,8 @@
       </header>
       <p class="desc">فواتير الفترة + كشف حساب — طباعة PDF + Excel.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/suppliers/report</div>
-      <a class="thumb" href="screenshots/54_suppliers_report.png" target="_blank">
-        <img loading="lazy" src="screenshots/54_suppliers_report.png" alt="تقرير الموردين">
+      <a class="thumb" href="screenshots/56_suppliers_report.png" target="_blank">
+        <img loading="lazy" src="screenshots/56_suppliers_report.png" alt="تقرير الموردين">
       </a>
     </article>
 
@@ -799,8 +823,8 @@
       </header>
       <p class="desc">دليل مختصر بالعربي لكل مواضيع النظام.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/help/</div>
-      <a class="thumb" href="screenshots/55_help.png" target="_blank">
-        <img loading="lazy" src="screenshots/55_help.png" alt="مركز المساعدة">
+      <a class="thumb" href="screenshots/57_help.png" target="_blank">
+        <img loading="lazy" src="screenshots/57_help.png" alt="مركز المساعدة">
       </a>
     </article>
 
@@ -811,8 +835,8 @@
       </header>
       <p class="desc">شرح خطوة بخطوة لتكلفة كيلو اللبن.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/help/cost</div>
-      <a class="thumb" href="screenshots/56_help_cost.png" target="_blank">
-        <img loading="lazy" src="screenshots/56_help_cost.png" alt="مساعدة — التكلفة">
+      <a class="thumb" href="screenshots/58_help_cost.png" target="_blank">
+        <img loading="lazy" src="screenshots/58_help_cost.png" alt="مساعدة — التكلفة">
       </a>
     </article>
 
@@ -823,8 +847,8 @@
       </header>
       <p class="desc">رسالة صفحة غير موجودة بالعربية.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/does-not-exist</div>
-      <a class="thumb" href="screenshots/57_error_404.png" target="_blank">
-        <img loading="lazy" src="screenshots/57_error_404.png" alt="صفحة 404">
+      <a class="thumb" href="screenshots/59_error_404.png" target="_blank">
+        <img loading="lazy" src="screenshots/59_error_404.png" alt="صفحة 404">
       </a>
     </article>
 
@@ -835,8 +859,8 @@
       </header>
       <p class="desc">التصميم متجاوب.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/</div>
-      <a class="thumb" href="screenshots/58_mobile_dashboard.png" target="_blank">
-        <img loading="lazy" src="screenshots/58_mobile_dashboard.png" alt="الداشبورد على الموبايل (375px)">
+      <a class="thumb" href="screenshots/60_mobile_dashboard.png" target="_blank">
+        <img loading="lazy" src="screenshots/60_mobile_dashboard.png" alt="الداشبورد على الموبايل (375px)">
       </a>
     </article>
 
@@ -847,8 +871,8 @@
       </header>
       <p class="desc">الشاشة الأكثر استخداماً في الحقل.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/feed/runs/new</div>
-      <a class="thumb" href="screenshots/59_mobile_feed_run.png" target="_blank">
-        <img loading="lazy" src="screenshots/59_mobile_feed_run.png" alt="تشغيل العلف على الموبايل">
+      <a class="thumb" href="screenshots/61_mobile_feed_run.png" target="_blank">
+        <img loading="lazy" src="screenshots/61_mobile_feed_run.png" alt="تشغيل العلف على الموبايل">
       </a>
     </article>
 
@@ -859,8 +883,8 @@
       </header>
       <p class="desc">جدول متجاوب مع تنبيه المواد الناقصة.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/inventory/</div>
-      <a class="thumb" href="screenshots/60_mobile_inventory.png" target="_blank">
-        <img loading="lazy" src="screenshots/60_mobile_inventory.png" alt="المخزون على الموبايل">
+      <a class="thumb" href="screenshots/62_mobile_inventory.png" target="_blank">
+        <img loading="lazy" src="screenshots/62_mobile_inventory.png" alt="المخزون على الموبايل">
       </a>
     </article>
 
@@ -871,8 +895,8 @@
       </header>
       <p class="desc">قائمة الأبقار على شاشة صغيرة.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/herd/</div>
-      <a class="thumb" href="screenshots/61_mobile_herd.png" target="_blank">
-        <img loading="lazy" src="screenshots/61_mobile_herd.png" alt="القطيع على الموبايل">
+      <a class="thumb" href="screenshots/63_mobile_herd.png" target="_blank">
+        <img loading="lazy" src="screenshots/63_mobile_herd.png" alt="القطيع على الموبايل">
       </a>
     </article>
 
@@ -883,8 +907,8 @@
       </header>
       <p class="desc">شاشة يومية تُستخدم في المزرعة.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/milk/deliveries/new</div>
-      <a class="thumb" href="screenshots/62_mobile_milk_delivery.png" target="_blank">
-        <img loading="lazy" src="screenshots/62_mobile_milk_delivery.png" alt="توريد لبن على الموبايل">
+      <a class="thumb" href="screenshots/64_mobile_milk_delivery.png" target="_blank">
+        <img loading="lazy" src="screenshots/64_mobile_milk_delivery.png" alt="توريد لبن على الموبايل">
       </a>
     </article>
 
@@ -895,8 +919,8 @@
       </header>
       <p class="desc">شبكة الحضور اليومي على شاشة صغيرة.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/labor/attendance</div>
-      <a class="thumb" href="screenshots/63_mobile_attendance.png" target="_blank">
-        <img loading="lazy" src="screenshots/63_mobile_attendance.png" alt="حضور العمال على الموبايل">
+      <a class="thumb" href="screenshots/65_mobile_attendance.png" target="_blank">
+        <img loading="lazy" src="screenshots/65_mobile_attendance.png" alt="حضور العمال على الموبايل">
       </a>
     </article>
 
@@ -907,8 +931,8 @@
       </header>
       <p class="desc">التقرير المالي الأهم على الموبايل.</p>
       <div class="url" dir="ltr">http://127.0.0.1:5001/finance/milk-cost</div>
-      <a class="thumb" href="screenshots/64_mobile_milk_cost.png" target="_blank">
-        <img loading="lazy" src="screenshots/64_mobile_milk_cost.png" alt="تكلفة الكيلو على الموبايل">
+      <a class="thumb" href="screenshots/66_mobile_milk_cost.png" target="_blank">
+        <img loading="lazy" src="screenshots/66_mobile_milk_cost.png" alt="تكلفة الكيلو على الموبايل">
       </a>
     </article>
 

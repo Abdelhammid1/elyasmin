@@ -344,6 +344,48 @@ def run_desktop(page: Page) -> None:
         fail(page, "milk_delivery_feedback", "TICKET-3: رسالة واضحة بدل الفشل الصامت",
              "رسالة الخطأ المضمّنة لم تظهر أو الخانة فقدت قيمة 3.5% — الفشل الصامت لسه موجود")
 
+    # TICKET-4: record a delivery with no price, then price it from the list.
+    # The client enters these in stages, sometimes days apart.
+    page.goto(f"{BASE}/milk/deliveries/new")
+    page.select_option('select[name="customer_id"]',
+                       label=f"{unique_customer} (على أساس التحليل)")
+    page.fill('input[name="qty_kg"]', "250")
+    page.click('button[name="save_unpriced"]')
+    # wait for the redirect to land before reading content — networkidle alone
+    # can return mid-navigation
+    page.wait_for_url(re.compile(r"/milk/deliveries"), timeout=10_000)
+    page.wait_for_selector("table, .alert", timeout=10_000)
+    if "بانتظار التسعير" in page.content():
+        snap(page, "milk_delivery_unpriced", "TICKET-4: توريد بدون سعر",
+             "التوريد اتسجل بحالة «بانتظار التسعير» — بره حساب العميل وبره الفواتير لحد ما يتسعّر.")
+    else:
+        fail(page, "milk_delivery_unpriced", "TICKET-4: توريد بدون سعر",
+             "التوريد غير المسعّر لم يظهر بحالة بانتظار التسعير")
+
+    # now price it — the edit route is the second half of the ticket.
+    # Target the edit link inside an UNPRICED row (tr.table-warning); the list
+    # may hold priced rows too, so .first over all links is not deterministic.
+    unpriced_rows_before = page.locator("tr.table-warning").count()
+    edit_link = page.locator('tr.table-warning a[href*="/edit"]').first
+    if edit_link.count() > 0:
+        edit_link.click()
+        page.wait_for_selector('input[name="protein_pct"]', timeout=10_000)
+        page.fill('input[name="protein_pct"]', "3.5")
+        page.fill('input[name="bacteria_count"]', "100000")
+        page.click('input[type="submit"]')
+        page.wait_for_url(re.compile(r"/milk/deliveries"), timeout=10_000)
+        page.wait_for_selector("table, .alert", timeout=10_000)
+        unpriced_rows_after = page.locator("tr.table-warning").count()
+        if unpriced_rows_after == unpriced_rows_before - 1:
+            snap(page, "milk_delivery_priced_later", "TICKET-4: تسعير التوريد بعدين",
+                 "نفس التوريد بعد ما اتسعّر من صفحة التعديل — دخل حساب العميل وطلع من قائمة الانتظار.")
+        else:
+            fail(page, "milk_delivery_priced_later", "TICKET-4: تسعير التوريد بعدين",
+                 f"عدد التوريدات غير المسعّرة لم ينقص: {unpriced_rows_before} -> {unpriced_rows_after}")
+    else:
+        fail(page, "milk_delivery_priced_later", "TICKET-4: تسعير التوريد بعدين",
+             "مفيش زرار تعديل في صف توريد غير مسعّر")
+
     page.goto(f"{BASE}/milk/production")
     snap(page, "milk_production", "الإنتاج والفاقد", "تسجيل الإنتاج اليومي وحساب الفاقد الشهري.")
 
