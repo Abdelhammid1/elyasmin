@@ -23,3 +23,4 @@ htmlcov/
 
 # personal ticket notes + screenshots — never pushed
 tickets/
+test_elyasmin_full.py
