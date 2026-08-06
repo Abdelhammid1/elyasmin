@@ -282,6 +282,68 @@ def run_desktop(page: Page) -> None:
         "الوزن الإجمالي، التكلفة الكلية، وتكلفة الكيلو، مع لقطة أسعار وقت التشغيل.",
     )
 
+    # FEED-TANK: build a real recipe and run it, so the tank actually holds a
+    # balance to withdraw from. A fresh seed has no ingredients at all, so the
+    # raw material has to be created first or the recipe dropdown is empty.
+    feed_ing = "ذرة اختبار " + str(int(time.time()) % 100000)
+    page.goto(f"{BASE}/inventory/new")
+    page.fill('input[name="name"]', feed_ing)
+    page.select_option('select[name="category"]', "feed")
+    page.select_option('select[name="unit"]', "kg")
+    page.fill('input[name="initial_qty"]', "5000")
+    page.fill('input[name="initial_price"]', "5")
+    page.click('input[type="submit"]')
+    page.wait_for_load_state("networkidle")
+
+    page.goto(f"{BASE}/feed/recipes")
+    first_recipe_edit = page.locator('a[href*="/recipes/"][href$="/edit"]').first
+    if first_recipe_edit.count() > 0:
+        first_recipe_edit.click()
+        page.wait_for_selector("#addLine", timeout=10_000)
+        if page.locator('select[name="line_ingredient_0"]').count() == 0:
+            page.click("#addLine")
+            page.wait_for_selector('select[name="line_ingredient_0"]', timeout=5_000)
+        page.select_option('select[name="line_ingredient_0"]', label=feed_ing)
+        page.fill('input[name="line_kg_0"]', "100")
+        page.click('input[type="submit"]')
+        page.wait_for_load_state("networkidle")
+
+        page.goto(f"{BASE}/feed/runs/new")
+        page.fill('input[name="batches_count"]', "2")
+        page.click('input[type="submit"]')
+        page.wait_for_load_state("networkidle")
+        if "اتضافت للخزان" in page.content():
+            snap(page, "feed_run_to_tank", "FEED-TANK: التشغيل بيروح للخزان",
+                 "التشغيل بقى بيضيف رصيد في الخزان بدل ما يتحسب استهلاك في نفس اليوم.")
+        else:
+            fail(page, "feed_run_to_tank", "FEED-TANK: التشغيل بيروح للخزان",
+                 "رسالة النجاح ماقالتش إن الكمية اتضافت للخزان")
+
+    page.goto(f"{BASE}/feed/tanks")
+    snap(page, "feed_tanks", "خزانات العلف",
+         "رصيد كل مجموعة من الخلطة المخزّنة، متوسط تكلفة الكيلو، وقيمة الرصيد.")
+
+    withdraw_link = page.locator('a[href*="/withdraw"]:not(.disabled)').first
+    if withdraw_link.count() > 0:
+        withdraw_link.click()
+        page.wait_for_selector('input[name="qty"]', timeout=10_000)
+        snap(page, "feed_tank_withdraw", "سحب من الخزان",
+             "شاشة السحب بتوري الرصيد المتاح وبتقبل كمية جزئية.")
+
+        # over-draw must be refused with the available balance named
+        page.fill('input[name="qty"]', "999999")
+        page.click('input[type="submit"]')
+        page.wait_for_load_state("networkidle")
+        if "مش كفاية" in page.content():
+            snap(page, "feed_tank_overdraw", "FEED-TANK: منع السحب الزيادة",
+                 "السحب أكبر من الرصيد اتمنع، والرسالة بتقول الرصيد المتاح كام.")
+        else:
+            fail(page, "feed_tank_overdraw", "FEED-TANK: منع السحب الزيادة",
+                 "السحب الزيادة عدّى من غير رسالة")
+    else:
+        snap(page, "feed_tanks_empty", "خزانات العلف — فاضية",
+             "مفيش تشغيل لسه، فكل الخزانات فاضية والسحب متقفل.")
+
     # ---- Medicine ----
     page.goto(f"{BASE}/medicine/")
     snap(page, "medicine_list", "صرف الأدوية", "سجل صرف الأدوية للبقر أو للمجموعات.")
