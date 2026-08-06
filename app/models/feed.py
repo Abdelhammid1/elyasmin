@@ -94,6 +94,106 @@ class FeedRun(db.Model):
     )
 
 
+class FeedTank(db.Model):
+    """FEED-TANK: the mixed feed sitting in storage for one group.
+
+    Production and consumption are separate events on this farm. A worker runs a
+    recipe and produces a large batch that goes into storage; the feeding worker
+    draws from it four times a day (فجر/ظهر/عصر/مغرب) over several days until it
+    runs out. So a FeedRun now *credits* this tank instead of counting as
+    consumption, and the cost reports read the withdrawals.
+
+    One tank per group — the schema keeps a single active recipe per group (see
+    feed/routes.py:_current_recipe_for_group), so there is nothing finer to split
+    on today.
+    """
+
+    __tablename__ = "feed_tanks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(
+        db.Integer, db.ForeignKey("cattle_groups.id"), nullable=False, unique=True, index=True
+    )
+    current_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
+    avg_cost_per_kg = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0"))
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    group = db.relationship("CattleGroup")
+    movements = db.relationship(
+        "FeedTankMovement",
+        back_populates="tank",
+        order_by="FeedTankMovement.moved_on, FeedTankMovement.id",
+    )
+
+    @property
+    def current_value(self) -> Decimal:
+        """What the feed sitting in the tank is worth right now."""
+        return (
+            Decimal(str(self.current_qty or 0)) * Decimal(str(self.avg_cost_per_kg or 0))
+        ).quantize(Decimal("0.01"))
+
+    @property
+    def is_empty(self) -> bool:
+        return Decimal(str(self.current_qty or 0)) <= 0
+
+
+class FeedTankMovement(db.Model):
+    """FEED-TANK: every credit and debit on a feed tank.
+
+    `unit_cost` is the cost per kg at the moment of the movement — for a
+    withdrawal that is the tank's weighted-average cost, which is what makes the
+    milk-cost report reproducible after the fact.
+
+    SIGN CONVENTION: `qty` and `total_cost` are both signed. Production is
+    positive, withdrawal negative, adjustment either way. That keeps a statement's
+    running balance a plain cumulative sum, and lets one adjustment type cover a
+    correction in either direction.
+    """
+
+    __tablename__ = "feed_tank_movements"
+
+    TYPE_PRODUCTION = "production"
+    TYPE_WITHDRAWAL = "withdrawal"
+    TYPE_ADJUSTMENT = "adjustment"
+
+    TYPE_LABELS = {
+        TYPE_PRODUCTION: "إنتاج (تشغيل وصفة)",
+        TYPE_WITHDRAWAL: "سحب (تغذية)",
+        TYPE_ADJUSTMENT: "تسوية",
+    }
+
+    id = db.Column(db.Integer, primary_key=True)
+    tank_id = db.Column(db.Integer, db.ForeignKey("feed_tanks.id"), nullable=False, index=True)
+    movement_type = db.Column(db.String(20), nullable=False, index=True)
+    qty = db.Column(db.Numeric(14, 3), nullable=False)
+    unit_cost = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0"))
+    total_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+    ref_feed_run_id = db.Column(
+        db.Integer, db.ForeignKey("feed_runs.id"), nullable=True, index=True
+    )
+    moved_on = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    tank = db.relationship("FeedTank", back_populates="movements")
+    feed_run = db.relationship("FeedRun")
+
+    @property
+    def type_label(self) -> str:
+        return self.TYPE_LABELS.get(self.movement_type, self.movement_type)
+
+    @property
+    def abs_qty(self) -> Decimal:
+        return abs(Decimal(str(self.qty or 0)))
+
+    @property
+    def abs_cost(self) -> Decimal:
+        return abs(Decimal(str(self.total_cost or 0)))
+
+
 class FeedRunLine(db.Model):
     """Snapshot of what was actually consumed at run time, at the price at that moment.
 

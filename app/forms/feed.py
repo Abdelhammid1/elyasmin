@@ -11,6 +11,8 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
+from app.forms.fields import LooseDecimalField
+
 
 class FeedRecipeForm(FlaskForm):
     """Header form for a feed recipe. Line items (ingredient + kg_per_batch) are parsed
@@ -37,6 +39,23 @@ class FeedRunForm(FlaskForm):
     )
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("تشغيل + خصم من المخزون")
+
+
+class FeedWithdrawalForm(FlaskForm):
+    """FEED-TANK: the feeding worker draws part of a stored batch."""
+
+    qty = LooseDecimalField(
+        "الكمية المسحوبة (كيلو)",
+        places=3,
+        invalid_message="اكتب رقم صحيح للكمية (مثال: 120.5).",
+        validators=[
+            DataRequired(message="الكمية مطلوبة."),
+            NumberRange(min=0.001, message="الكمية لازم تكون أكبر من صفر."),
+        ],
+    )
+    moved_on = DateField("تاريخ السحب", validators=[DataRequired()], default=date.today)
+    notes = TextAreaField("ملاحظات (مثلاً: وجبة الفجر)", validators=[Optional(), Length(max=500)])
+    submit = SubmitField("سحب من الخزان")
 
 
 class MedicineDispenseForm(FlaskForm):

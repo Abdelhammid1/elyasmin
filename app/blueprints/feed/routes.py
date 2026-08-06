@@ -5,10 +5,18 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from flask_login import current_user, login_required
 
 from app.extensions import db
-from app.forms.feed import FeedRecipeForm, FeedRunForm
-from app.models.feed import FeedRecipe, FeedRecipeLine, FeedRun, FeedRunLine
+from app.forms.feed import FeedRecipeForm, FeedRunForm, FeedWithdrawalForm
+from app.models.feed import (
+    FeedRecipe,
+    FeedRecipeLine,
+    FeedRun,
+    FeedRunLine,
+    FeedTank,
+    FeedTankMovement,
+)
 from app.models.herd import CattleGroup
 from app.models.inventory import Ingredient, StockMovement
+from app.utils import feed_tank
 from app.utils.audit import log_action
 
 bp = Blueprint("feed", __name__, template_folder="../../templates/feed")
@@ -332,15 +340,26 @@ def create_run():
             (total_cost / total_weight).quantize(Decimal("0.001")) if total_weight else Decimal("0")
         )
 
+        # FEED-TANK: the batch goes into storage, it is not eaten today. The
+        # cost reports read the withdrawals from this tank, not the run itself.
+        tank = feed_tank.get_or_create_tank(group.id)
+        feed_tank.add_production(
+            tank, run.total_weight_kg, run.cost_per_kg, run.run_date,
+            run_id=run.id, user_id=current_user.id,
+            notes=f"تشغيل علف #{run.id} — {group.name}",
+        )
+
         log_action(
             "feed_run_created",
             "FeedRun",
             run.id,
-            details=f"group={group.id} batches={batches} cost={run.total_cost}",
+            details=f"group={group.id} batches={batches} cost={run.total_cost} "
+                    f"tank_qty={tank.current_qty} tank_avg={tank.avg_cost_per_kg}",
         )
         db.session.commit()
         flash(
-            f"تم تسجيل التشغيل: {batches} خلطة، وزن {total_weight}kg، تكلفة {run.total_cost} جنيه.",
+            f"تم تسجيل التشغيل: {batches} خلطة، وزن {total_weight}kg، تكلفة {run.total_cost} جنيه. "
+            f"اتضافت للخزان — الرصيد دلوقتي {tank.current_qty} كيلو بمتوسط {tank.avg_cost_per_kg} جنيه/كيلو.",
             "success",
         )
         return redirect(url_for("feed.view_run", run_id=run.id))
@@ -355,6 +374,88 @@ def view_run(run_id: int):
     if not run or run.is_archived:
         abort(404)
     return render_template("feed/run_view.html", run=run)
+
+
+# ---------- FEED-TANK: storage tanks ----------
+@bp.route("/tanks")
+@login_required
+def list_tanks():
+    """Every group's tank — what is in storage right now and what it is worth."""
+    groups = CattleGroup.query.filter_by(is_archived=False).order_by(CattleGroup.name).all()
+    tanks_by_group = {t.group_id: t for t in FeedTank.query.all()}
+    rows = [{"group": g, "tank": tanks_by_group.get(g.id)} for g in groups]
+
+    total_qty = sum(
+        (Decimal(str(r["tank"].current_qty)) for r in rows if r["tank"]), Decimal("0")
+    )
+    total_value = sum(
+        (r["tank"].current_value for r in rows if r["tank"]), Decimal("0")
+    )
+    return render_template(
+        "feed/tanks_list.html", rows=rows, total_qty=total_qty, total_value=total_value
+    )
+
+
+@bp.route("/tanks/<int:group_id>/withdraw", methods=["GET", "POST"])
+@login_required
+def withdraw_from_tank(group_id: int):
+    """FEED-TANK: pull a partial quantity out for a feeding round."""
+    group = db.session.get(CattleGroup, group_id)
+    if not group or group.is_archived:
+        abort(404)
+
+    tank = feed_tank.get_or_create_tank(group_id)
+    db.session.commit()  # a first-touch tank shouldn't vanish if the form errors
+
+    form = FeedWithdrawalForm()
+    if form.validate_on_submit():
+        try:
+            mv = feed_tank.withdraw(
+                tank, form.qty.data, form.moved_on.data,
+                notes=form.notes.data, user_id=current_user.id,
+            )
+        except ValueError as exc:
+            form.qty.errors.append(str(exc))
+            flash(str(exc), "error")
+            return render_template("feed/tank_withdraw.html", form=form, group=group, tank=tank)
+
+        log_action(
+            "feed_tank_withdrawal", "FeedTank", tank.id,
+            details=f"group={group_id} qty={mv.abs_qty} unit_cost={mv.unit_cost} "
+                    f"cost={mv.abs_cost} remaining={tank.current_qty}",
+        )
+        db.session.commit()
+        flash(
+            f"تم سحب {mv.abs_qty} كيلو بتكلفة {mv.abs_cost} جنيه. "
+            f"الباقي في الخزان {tank.current_qty} كيلو.",
+            "success",
+        )
+        return redirect(url_for("feed.tank_statement", group_id=group_id))
+
+    return render_template("feed/tank_withdraw.html", form=form, group=group, tank=tank)
+
+
+@bp.route("/tanks/<int:group_id>/statement")
+@login_required
+def tank_statement(group_id: int):
+    """Movements in date order with a running balance — same shape as the
+    supplier statement the app already has."""
+    group = db.session.get(CattleGroup, group_id)
+    if not group or group.is_archived:
+        abort(404)
+
+    tank = FeedTank.query.filter_by(group_id=group_id).first()
+    rows = []
+    running = Decimal("0")
+    if tank:
+        for mv in tank.movements:
+            running += Decimal(str(mv.qty))
+            rows.append({"mv": mv, "balance": running})
+        rows.reverse()  # newest first for reading, balance already computed
+
+    return render_template(
+        "feed/tank_statement.html", group=group, tank=tank, rows=rows
+    )
 
 
 # ---------- US-2.2 BR1+BR2: edit feed run ----------
@@ -437,15 +538,32 @@ def edit_run(run_id: int):
             total_weight += rl.qty_used
             total_cost += rl.line_cost
 
+        # FEED-TANK: the produced weight changed, so the tank has to follow or it
+        # drifts out of sync with the runs that filled it.
+        old_weight = run.total_weight_kg
         run.total_weight_kg = total_weight
         run.total_cost = total_cost.quantize(Decimal("0.01"))
         run.cost_per_kg = (
             (total_cost / total_weight).quantize(Decimal("0.001")) if total_weight else Decimal("0")
         )
 
+        weight_diff = Decimal(str(total_weight)) - Decimal(str(old_weight or 0))
+        if weight_diff != 0:
+            tank = feed_tank.get_or_create_tank(run.group_id)
+            try:
+                feed_tank.adjust(
+                    tank, weight_diff, run.cost_per_kg, today,
+                    run_id=run.id, user_id=current_user.id,
+                    notes=f"تعديل تشغيل #{run.id} — الخلطات من {run.batches_count - diff_batches} لـ {new_batches}",
+                )
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc), "error")
+                return render_template("feed/run_edit.html", run=run)
+
         log_action("feed_run_edited", "FeedRun", run.id, details=f"batches->{new_batches}")
         db.session.commit()
-        flash("تم تعديل التشغيل.", "success")
+        flash("تم تعديل التشغيل، والخزان اتحدّث.", "success")
         return redirect(url_for("feed.view_run", run_id=run.id))
 
     return render_template("feed/run_edit.html", run=run)

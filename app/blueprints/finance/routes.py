@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.finance import ExpenseForm, ReportFilterForm, SettingsForm
-from app.models.feed import FeedRun
+from app.models.feed import FeedTank, FeedTankMovement
 from app.models.finance import Expense, Setting
 from app.models.herd import AnimalSale, CattleGroup
 from app.models.labor import Attendance, Worker, WorkerPayment
@@ -130,8 +130,12 @@ def _period_bounds():
 def _compute_milk_cost(date_from: date, date_to: date) -> dict:
     """The core Sprint 5 calculation.
 
-    direct_milk_feed_cost = Σ FeedRun.total_cost where group is TYPE_MILK
-    other_direct_feed_cost = Σ FeedRun.total_cost where group ≠ TYPE_MILK
+    FEED-TANK: feed cost is now taken from what was actually WITHDRAWN and fed,
+    not from what was mixed. A run that produces a batch stored for later moves
+    nothing here until the feeding worker draws it out.
+
+    direct_milk_feed_cost = Σ withdrawals from milk-group tanks
+    other_direct_feed_cost = Σ withdrawals from non-milk-group tanks
     indirect_total = Expenses in period (excluding those already counted via feed runs / supplier payments)
                      — we take ALL non-archived expenses in the period (mgr enters generals monthly)
     indirect_milk_share = indirect_total × milk_pct / 100
@@ -143,27 +147,33 @@ def _compute_milk_cost(date_from: date, date_to: date) -> dict:
         g.id for g in CattleGroup.query.filter_by(type=CattleGroup.TYPE_MILK, is_archived=False).all()
     ]
 
-    direct_milk = (
-        db.session.query(func.coalesce(func.sum(FeedRun.total_cost), 0))
-        .filter(
-            FeedRun.is_archived.is_(False),
-            FeedRun.run_date >= date_from,
-            FeedRun.run_date <= date_to,
-            FeedRun.group_id.in_(milk_group_ids or [0]),
-        )
-        .scalar()
-    ) or 0
+    def _withdrawn_cost(milk_groups: bool):
+        """FEED-TANK: cost of feed actually withdrawn and fed in the period.
 
-    other_direct = (
-        db.session.query(func.coalesce(func.sum(FeedRun.total_cost), 0))
-        .filter(
-            FeedRun.is_archived.is_(False),
-            FeedRun.run_date >= date_from,
-            FeedRun.run_date <= date_to,
-            ~FeedRun.group_id.in_(milk_group_ids or [0]),
+        Withdrawal rows are stored with a negative total_cost (see the sign
+        convention on FeedTankMovement), so the sum is negated to get a positive
+        cost.
+        """
+        group_filter = (
+            FeedTank.group_id.in_(milk_group_ids or [0])
+            if milk_groups
+            else ~FeedTank.group_id.in_(milk_group_ids or [0])
         )
-        .scalar()
-    ) or 0
+        total = (
+            db.session.query(func.coalesce(func.sum(FeedTankMovement.total_cost), 0))
+            .join(FeedTank, FeedTankMovement.tank_id == FeedTank.id)
+            .filter(
+                FeedTankMovement.movement_type == FeedTankMovement.TYPE_WITHDRAWAL,
+                FeedTankMovement.moved_on >= date_from,
+                FeedTankMovement.moved_on <= date_to,
+                group_filter,
+            )
+            .scalar()
+        ) or 0
+        return -Decimal(str(total))
+
+    direct_milk = _withdrawn_cost(milk_groups=True)
+    other_direct = _withdrawn_cost(milk_groups=False)
 
     indirect_total = (
         db.session.query(func.coalesce(func.sum(Expense.amount), 0))

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}كشف حركة الخزان{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-list-ul"></i> كشف حركة خزان {{ group.name }}</h1>
+    <p class="text-muted mb-0">
+      {% if tank %}
+        الرصيد الحالي: <span dir="ltr" class="fw-bold">{{ tank.current_qty }} كيلو</span>
+        بمتوسط <span dir="ltr" class="fw-bold">{{ tank.avg_cost_per_kg }}</span> جنيه/كيلو
+      {% else %}
+        الخزان ده لسه مااتفتحش.
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('feed.withdraw_from_tank', group_id=group.id) }}" class="btn btn-warning">
+      <i class="bi bi-box-arrow-up"></i> سحب
+    </a>
+    <a href="{{ url_for('feed.list_tanks') }}" class="btn btn-outline-secondary">كل الخزانات</a>
+  </div>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>الحركة</th>
+          <th>الكمية (كيلو)</th>
+          <th>التكلفة/كيلو</th>
+          <th>القيمة (جنيه)</th>
+          <th>الرصيد بعدها</th>
+          <th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td dir="ltr">{{ row.mv.moved_on }}</td>
+          <td>
+            {% if row.mv.movement_type == 'production' %}
+              <span class="badge bg-success">{{ row.mv.type_label }}</span>
+            {% elif row.mv.movement_type == 'withdrawal' %}
+              <span class="badge bg-warning text-dark">{{ row.mv.type_label }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ row.mv.type_label }}</span>
+            {% endif %}
+            {% if row.mv.ref_feed_run_id %}
+              <a href="{{ url_for('feed.view_run', run_id=row.mv.ref_feed_run_id) }}"
+                 class="small">#{{ row.mv.ref_feed_run_id }}</a>
+            {% endif %}
+          </td>
+          <td dir="ltr" class="{% if row.mv.qty > 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ row.mv.qty }}
+          </td>
+          <td dir="ltr">{{ row.mv.unit_cost }}</td>
+          <td dir="ltr">{{ row.mv.abs_cost }}</td>
+          <td dir="ltr" class="fw-bold">{{ row.balance }}</td>
+          <td class="small text-muted">{{ row.mv.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش حركة على الخزان ده لسه.</p>
+    <a href="{{ url_for('feed.create_run', group_id=group.id) }}" class="btn btn-primary">
+      <i class="bi bi-play-circle"></i> تشغيل وصفة
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

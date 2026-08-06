@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}خزانات العلف{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-database"></i> خزانات العلف</h1>
+    <p class="text-muted mb-0">
+      الخلطة اللي اتشغّلت بتتخزن هنا، والتغذية بتسحب منها على مدار اليوم.
+      إجمالي المتاح: <span dir="ltr" class="fw-bold">{{ total_qty }} كيلو</span>
+      بقيمة <span dir="ltr" class="fw-bold">{{ total_value }} جنيه</span>
+    </p>
+  </div>
+  <a href="{{ url_for('feed.create_run') }}" class="btn btn-primary">
+    <i class="bi bi-play-circle"></i> تشغيل جديد
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>المجموعة</th>
+          <th>الرصيد المتاح (كيلو)</th>
+          <th>متوسط التكلفة (جنيه/كيلو)</th>
+          <th>قيمة الرصيد (جنيه)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr {% if not row.tank or row.tank.is_empty %}class="table-light text-muted"{% endif %}>
+          <td class="fw-bold">{{ row.group.name }}</td>
+          <td dir="ltr">
+            {% if row.tank and not row.tank.is_empty %}
+              <span class="fw-bold">{{ row.tank.current_qty }}</span>
+            {% else %}
+              <span class="badge bg-secondary">فاضي</span>
+            {% endif %}
+          </td>
+          <td dir="ltr">{{ row.tank.avg_cost_per_kg if row.tank else '—' }}</td>
+          <td dir="ltr">{{ row.tank.current_value if row.tank else '—' }}</td>
+          <td class="text-start">
+            <div class="btn-group btn-group-sm">
+              <a href="{{ url_for('feed.withdraw_from_tank', group_id=row.group.id) }}"
+                 class="btn {% if row.tank and not row.tank.is_empty %}btn-warning{% else %}btn-outline-secondary disabled{% endif %}">
+                <i class="bi bi-box-arrow-up"></i> سحب
+              </a>
+              <a href="{{ url_for('feed.tank_statement', group_id=row.group.id) }}"
+                 class="btn btn-outline-secondary">
+                <i class="bi bi-list-ul"></i> كشف حركة
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
