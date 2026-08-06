@@ -407,6 +407,10 @@ def withdraw_from_tank(group_id: int):
     tank = feed_tank.get_or_create_tank(group_id)
     db.session.commit()  # a first-touch tank shouldn't vanish if the form errors
 
+    # The ticket asks for the group/tank to be selectable on this screen, not
+    # only reachable from the list.
+    groups = CattleGroup.query.filter_by(is_archived=False).order_by(CattleGroup.name).all()
+
     form = FeedWithdrawalForm()
     if form.validate_on_submit():
         try:
@@ -417,7 +421,7 @@ def withdraw_from_tank(group_id: int):
         except ValueError as exc:
             form.qty.errors.append(str(exc))
             flash(str(exc), "error")
-            return render_template("feed/tank_withdraw.html", form=form, group=group, tank=tank)
+            return render_template("feed/tank_withdraw.html", form=form, group=group, tank=tank, groups=groups)
 
         log_action(
             "feed_tank_withdrawal", "FeedTank", tank.id,
@@ -432,7 +436,7 @@ def withdraw_from_tank(group_id: int):
         )
         return redirect(url_for("feed.tank_statement", group_id=group_id))
 
-    return render_template("feed/tank_withdraw.html", form=form, group=group, tank=tank)
+    return render_template("feed/tank_withdraw.html", form=form, group=group, tank=tank, groups=groups)
 
 
 @bp.route("/tanks/<int:group_id>/statement")

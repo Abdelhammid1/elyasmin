@@ -9,6 +9,18 @@
 <div class="row justify-content-center">
   <div class="col-lg-7">
 
+    <div class="card p-3 mb-3">
+      <label for="tankPicker" class="form-label fw-bold">المجموعة / الخزان</label>
+      <select id="tankPicker" class="form-select"
+              onchange="if(this.value) window.location.href = this.value;">
+        {% for g in groups %}
+        <option value="{{ url_for('feed.withdraw_from_tank', group_id=g.id) }}"
+                {% if g.id == group.id %}selected{% endif %}>{{ g.name }}</option>
+        {% endfor %}
+      </select>
+      <small class="text-muted mt-1">غيّر المجموعة عشان تسحب من خزان تاني.</small>
+    </div>
+
     <div class="card p-3 mb-3 {% if tank.is_empty %}border-danger{% else %}border-success{% endif %}">
       <div class="row text-center g-3">
         <div class="col-4">
