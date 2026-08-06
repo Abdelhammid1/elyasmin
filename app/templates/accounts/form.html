@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == "edit" %}تعديل حساب{% else %}حساب جديد{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>
+    <i class="bi bi-safe"></i>
+    {% if mode == "edit" %}تعديل {{ account.name }}{% else %}إضافة حساب جديد{% endif %}
+  </h1>
+  <p class="text-muted mb-0">تقدر تضيف أي عدد حسابات بنكية — كل بنك حساب لوحده باسمه.</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.name.label(class="form-label fw-bold") }}
+          {{ form.name(class="form-control", placeholder="مثال: الخزنة الرئيسية / البنك الأهلي") }}
+          {% for e in form.name.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.account_type.label(class="form-label fw-bold") }}
+          {{ form.account_type(class="form-select", id="acctType") }}
+          {% for e in form.account_type.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div id="bankFields">
+          <div class="mb-3">
+            {{ form.bank_name.label(class="form-label fw-bold") }}
+            {{ form.bank_name(class="form-control", placeholder="مثال: البنك الأهلي المصري") }}
+            {% for e in form.bank_name.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            {{ form.account_number.label(class="form-label fw-bold") }}
+            {{ form.account_number(class="form-control", dir="ltr") }}
+            {% for e in form.account_number.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-4">
+          {{ form.opening_balance.label(class="form-label fw-bold") }}
+          {{ form.opening_balance(class="form-control", dir="ltr", step="0.01", min="0") }}
+          {% for e in form.opening_balance.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            الفلوس الموجودة فعلاً في الحساب دلوقتي. الحركات القديمة قبل تفعيل الحسابات
+            مش مربوطة بأي حساب، فالرقم ده هو نقطة البداية.
+          </small>
+        </div>
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('accounts.list_accounts') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleBank() {
+    const isBank = document.getElementById('acctType').value === 'bank';
+    document.getElementById('bankFields').style.display = isBank ? '' : 'none';
+  }
+  document.getElementById('acctType')?.addEventListener('change', toggleBank);
+  toggleBank();
+</script>
+{% endblock %}

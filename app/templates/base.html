@@ -76,6 +76,7 @@
             <li><a class="dropdown-item" href="{{ url_for('finance.milk_cost') }}"><i class="bi bi-droplet-half"></i> تكلفة كيلو اللبن</a></li>
             <li><a class="dropdown-item" href="{{ url_for('finance.pnl') }}"><i class="bi bi-graph-up"></i> الأرباح والخسائر</a></li>
             <li><a class="dropdown-item" href="{{ url_for('finance.list_expenses') }}"><i class="bi bi-cash-stack"></i> المصروفات</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('accounts.list_accounts') }}"><i class="bi bi-safe"></i> الخزنة والحسابات</a></li>
             <li><a class="dropdown-item" href="{{ url_for('suppliers.suppliers_report') }}"><i class="bi bi-file-earmark-text"></i> تقرير الموردين</a></li>
             {% if current_user.is_admin %}
             <li><hr class="dropdown-divider"></li>

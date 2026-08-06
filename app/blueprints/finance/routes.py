@@ -8,11 +8,12 @@ from sqlalchemy import func
 from app.extensions import db
 from app.forms.finance import ExpenseForm, ReportFilterForm, SettingsForm
 from app.models.feed import FeedTank, FeedTankMovement
-from app.models.finance import Expense, Setting
+from app.models.finance import Account, Expense, Setting
 from app.models.herd import AnimalSale, CattleGroup
 from app.models.labor import Attendance, Worker, WorkerPayment
 from app.models.sales import Customer, DailyProduction, MilkDelivery
 from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
+from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.decorators import admin_required
 from app.utils.reports import excel_response, pdf_from_current_page
@@ -90,6 +91,11 @@ def list_expenses():
 @login_required
 def create_expense():
     form = ExpenseForm()
+    form.account_id.choices = acc.active_choices()
+    if not form.account_id.choices:
+        flash("لازم تضيف حساب (خزنة أو بنك) الأول عشان تسجّل مصروف.", "error")
+        return redirect(url_for("accounts.create_account"))
+
     if form.validate_on_submit():
         # US-5.2 AC4: allow custom category
         cat = form.category.data
@@ -100,19 +106,39 @@ def create_expense():
                 return render_template("finance/expense_form.html", form=form)
             cat = "custom:" + custom
 
+        account = db.session.get(Account, form.account_id.data)
+        if not account or account.is_archived:
+            flash("الحساب غير صالح.", "error")
+            return render_template("finance/expense_form.html", form=form)
+
         e = Expense(
             category=cat,
             amount=Decimal(str(form.amount.data)),
             expense_date=form.expense_date.data,
             description=form.description.data,
             ref_type="manual",
+            account_id=account.id,
             created_by_id=current_user.id,
         )
         db.session.add(e)
         db.session.flush()
+
+        # TREASURY: a manual expense is a cash event in its own right — unlike
+        # the Expense rows that mirror a supplier or worker payment.
+        if acc.expense_moves_money(e):
+            acc.money_out(
+                account, e.amount, e.expense_date,
+                ref_type="expense", ref_id=e.id, user_id=current_user.id,
+                notes=f"مصروف: {e.category_label}",
+            )
+
         log_action("expense_manual", "Expense", e.id, details=f"cat={e.category} amt={e.amount}")
         db.session.commit()
-        flash(f"تم تسجيل مصروف {e.amount} في {e.category_label}.", "success")
+        flash(
+            f"تم تسجيل مصروف {e.amount} في {e.category_label} من {account.name}. "
+            f"رصيد {account.name} بقى {account.current_balance} جنيه.",
+            "success",
+        )
         return redirect(url_for("finance.list_expenses"))
     return render_template("finance/expense_form.html", form=form)
 

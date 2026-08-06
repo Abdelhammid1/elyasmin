@@ -7,9 +7,10 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.suppliers import SupplierForm, SupplierPaymentForm
-from app.models.finance import Expense
+from app.models.finance import Account, Expense
 from app.models.sales import Customer
 from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
+from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.reports import excel_response
 
@@ -83,6 +84,7 @@ def supplier_detail(supplier_id: int):
         .all()
     )
     payment_form = SupplierPaymentForm()
+    payment_form.account_id.choices = acc.active_choices()
 
     # TICKET-4: embed linked customer's transactions in the same page
     linked_deliveries = []
@@ -177,6 +179,10 @@ def record_payment(supplier_id: int):
         abort(404)
 
     form = SupplierPaymentForm()
+    form.account_id.choices = acc.active_choices()
+    if not form.account_id.choices:
+        flash("لازم تضيف حساب (خزنة أو بنك) الأول عشان تسجّل دفعة.", "error")
+        return redirect(url_for("accounts.create_account"))
     if not form.validate_on_submit():
         for field, errors in form.errors.items():
             for e in errors:
@@ -195,16 +201,31 @@ def record_payment(supplier_id: int):
         )
         return redirect(url_for("suppliers.supplier_detail", supplier_id=supplier.id))
 
+    account = db.session.get(Account, form.account_id.data)
+    if not account or account.is_archived:
+        flash("الحساب غير صالح.", "error")
+        return redirect(url_for("suppliers.supplier_detail", supplier_id=supplier.id))
+
     payment = SupplierPayment(
         supplier_id=supplier.id,
         amount=amount,
         payment_date=form.payment_date.data,
         method=form.method.data,
+        account_id=account.id,
         notes=form.notes.data,
         created_by_id=current_user.id,
     )
     db.session.add(payment)
     db.session.flush()
+
+    # TREASURY: this is the cash event — it posts the movement. The mirror
+    # Expense below carries the same account for reporting but posts NOTHING,
+    # or the account would be debited twice for one payment.
+    acc.money_out(
+        account, amount, payment.payment_date,
+        ref_type="supplier_payment", ref_id=payment.id, user_id=current_user.id,
+        notes=f"دفعة للمورد {supplier.name}",
+    )
 
     # US-3.3 AC3: record as expense (cash outflow)
     db.session.add(
@@ -215,6 +236,7 @@ def record_payment(supplier_id: int):
             description=f"دفعة للمورد {supplier.name}",
             ref_type="supplier_payment",
             ref_id=payment.id,
+            account_id=account.id,
             created_by_id=current_user.id,
         )
     )
@@ -223,7 +245,11 @@ def record_payment(supplier_id: int):
         "supplier_payment", "SupplierPayment", payment.id, details=f"supplier={supplier.id} amount={amount}"
     )
     db.session.commit()
-    flash(f"تم تسجيل دفعة {amount} للمورد {supplier.name}.", "success")
+    flash(
+        f"تم تسجيل دفعة {amount} للمورد {supplier.name} من {account.name}. "
+        f"رصيد {account.name} بقى {account.current_balance} جنيه.",
+        "success",
+    )
     return redirect(url_for("suppliers.supplier_detail", supplier_id=supplier.id))
 
 

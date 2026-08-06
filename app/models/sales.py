@@ -186,12 +186,15 @@ class CustomerPayment(db.Model):
     amount = db.Column(db.Numeric(14, 2), nullable=False)
     payment_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
     method = db.Column(db.String(20), nullable=False, default=METHOD_CASH)
+    # TREASURY: which account the money landed in (nullable for pre-accounts rows)
+    account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True, index=True)
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     customer = db.relationship("Customer", back_populates="payments")
+    account = db.relationship("Account")
 
     @property
     def method_label(self) -> str:

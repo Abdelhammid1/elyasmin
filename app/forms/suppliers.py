@@ -76,6 +76,8 @@ class SupplierPaymentForm(FlaskForm):
     )
     payment_date = DateField("تاريخ الدفع", validators=[DataRequired()], default=date.today)
     method = SelectField("طريقة الدفع", choices=PAYMENT_METHOD_CHOICES, validators=[DataRequired()])
+    # TREASURY: every payment names the account the money left
+    account_id = SelectField("من حساب", coerce=int, validators=[DataRequired(message="اختار الحساب اللي الفلوس هتطلع منه.")])
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     confirm_overpay = SelectField(
         "تأكيد",
@@ -114,6 +116,10 @@ class PurchaseInvoiceForm(FlaskForm):
         validators=[DataRequired()],
         default=PurchaseInvoice.PAY_CASH,
     )
+    # TREASURY: a CASH invoice pays out immediately, so it needs an account.
+    # A credit invoice moves no money — the account is ignored there, so the
+    # field is Optional here and required in the route only for cash.
+    account_id = SelectField("يتدفع من حساب (للفاتورة النقدي)", coerce=int, validators=[Optional()])
     original_invoice_no = StringField(
         "رقم الفاتورة الأصلي من المورد (اختياري)",
         validators=[Optional(), Length(max=80)],

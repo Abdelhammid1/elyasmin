@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}كشف حساب {{ account.name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-list-ul"></i> كشف حساب {{ account.display_name }}</h1>
+    <p class="text-muted mb-0">
+      رصيد افتتاحي <span dir="ltr" class="fw-bold">{{ account.opening_balance }}</span> ·
+      الرصيد الحالي <span dir="ltr" class="fw-bold">{{ account.current_balance }}</span> جنيه
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('accounts.transfer') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left-right"></i> تحويل</a>
+    <a href="{{ url_for('accounts.list_accounts') }}" class="btn btn-outline-secondary">كل الحسابات</a>
+  </div>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>الحركة</th>
+          <th>وارد</th>
+          <th>منصرف</th>
+          <th>الرصيد بعدها</th>
+          <th>البيان</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td dir="ltr">{{ row.mv.moved_on }}</td>
+          <td>
+            {% if row.mv.is_inflow %}
+              <span class="badge bg-success">{{ row.mv.type_label }}</span>
+            {% else %}
+              <span class="badge bg-danger">{{ row.mv.type_label }}</span>
+            {% endif %}
+          </td>
+          <td dir="ltr" class="text-success fw-bold">{% if row.mv.is_inflow %}{{ row.mv.abs_amount }}{% else %}—{% endif %}</td>
+          <td dir="ltr" class="text-danger fw-bold">{% if not row.mv.is_inflow %}{{ row.mv.abs_amount }}{% else %}—{% endif %}</td>
+          <td dir="ltr" class="fw-bold">{{ row.balance }}</td>
+          <td class="small text-muted">{{ row.mv.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-light">
+          <th colspan="4">الرصيد الختامي</th>
+          <th dir="ltr">{{ closing }}</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-3">مفيش حركة على الحساب ده لسه — الرصيد لسه هو الافتتاحي.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

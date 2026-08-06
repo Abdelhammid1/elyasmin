@@ -35,6 +35,11 @@
         {{ form.payment_type.label(class="form-label fw-bold") }}
         {{ form.payment_type(class="form-select") }}
       </div>
+      <div class="col-md-4">
+        {{ form.account_id.label(class="form-label fw-bold") }}
+        {{ form.account_id(class="form-select") }}
+        {% for e in form.account_id.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      </div>
       <div class="col-md-6">
         {{ form.original_invoice_no.label(class="form-label fw-bold") }}
         {{ form.original_invoice_no(class="form-control", dir="ltr") }}

@@ -7,8 +7,10 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.sales import CustomerForm, CustomerPaymentForm
+from app.models.finance import Account
 from app.models.sales import Customer, CustomerPayment, MilkDelivery
 from app.models.suppliers import Supplier
+from app.utils import accounts as acc
 from app.utils.audit import log_action
 
 bp = Blueprint("customers", __name__, template_folder="../../templates/customers")
@@ -99,6 +101,7 @@ def customer_detail(customer_id: int):
     )
     period_paid = sum((p.amount for p in payments), Decimal("0"))
     payment_form = CustomerPaymentForm()
+    payment_form.account_id.choices = acc.active_choices()
 
     # TICKET-4: embed linked supplier's transactions in the same page
     linked_invoices = []
@@ -187,10 +190,19 @@ def record_payment(customer_id: int):
     if not customer or customer.is_archived:
         abort(404)
     form = CustomerPaymentForm()
+    form.account_id.choices = acc.active_choices()
+    if not form.account_id.choices:
+        flash("لازم تضيف حساب (خزنة أو بنك) الأول عشان تسجّل تحصيل.", "error")
+        return redirect(url_for("accounts.create_account"))
     if not form.validate_on_submit():
         for _, errors in form.errors.items():
             for e in errors:
                 flash(e, "error")
+        return redirect(url_for("customers.customer_detail", customer_id=customer.id))
+
+    account = db.session.get(Account, form.account_id.data)
+    if not account or account.is_archived:
+        flash("الحساب غير صالح.", "error")
         return redirect(url_for("customers.customer_detail", customer_id=customer.id))
 
     payment = CustomerPayment(
@@ -198,17 +210,30 @@ def record_payment(customer_id: int):
         amount=Decimal(str(form.amount.data)),
         payment_date=form.payment_date.data,
         method=form.method.data,
+        account_id=account.id,
         notes=form.notes.data,
         created_by_id=current_user.id,
     )
     db.session.add(payment)
     db.session.flush()
+
+    # TREASURY: a collection is the one inflow in the app — no mirror Expense
+    acc.money_in(
+        account, payment.amount, payment.payment_date,
+        ref_type="customer_payment", ref_id=payment.id, user_id=current_user.id,
+        notes=f"تحصيل من العميل {customer.name}",
+    )
+
     log_action(
         "customer_payment", "CustomerPayment", payment.id,
-        details=f"customer={customer.id} amount={payment.amount}",
+        details=f"customer={customer.id} amount={payment.amount} account={account.id}",
     )
     db.session.commit()
-    flash(f"تم تسجيل دفعة {payment.amount} من {customer.name}.", "success")
+    flash(
+        f"تم تسجيل دفعة {payment.amount} من {customer.name} في {account.name}. "
+        f"رصيد {account.name} بقى {account.current_balance} جنيه.",
+        "success",
+    )
     return redirect(url_for("customers.customer_detail", customer_id=customer.id))
 
 

@@ -7,8 +7,9 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.labor import WorkerForm, WorkerPaymentForm
-from app.models.finance import Expense
+from app.models.finance import Account, Expense
 from app.models.labor import Attendance, Worker, WorkerPayment
+from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.reports import excel_response
 
@@ -68,6 +69,7 @@ def worker_detail(worker_id: int):
         .all()
     )
     payment_form = WorkerPaymentForm()
+    payment_form.account_id.choices = acc.active_choices()
     return render_template(
         "labor/detail.html",
         worker=worker,
@@ -231,10 +233,16 @@ def record_payment(worker_id: int):
     if not worker or worker.is_archived:
         abort(404)
     form = WorkerPaymentForm()
+    form.account_id.choices = acc.active_choices()
     if not form.validate_on_submit():
         for _, errors in form.errors.items():
             for e in errors:
                 flash(e, "error")
+        return redirect(url_for("labor.worker_detail", worker_id=worker.id))
+
+    account = db.session.get(Account, form.account_id.data)
+    if not account or account.is_archived:
+        flash("الحساب غير صالح.", "error")
         return redirect(url_for("labor.worker_detail", worker_id=worker.id))
 
     payment = WorkerPayment(
@@ -242,11 +250,20 @@ def record_payment(worker_id: int):
         amount=Decimal(str(form.amount.data)),
         payment_date=form.payment_date.data,
         reason=form.reason.data,
+        account_id=account.id,
         notes=form.notes.data,
         created_by_id=current_user.id,
     )
     db.session.add(payment)
     db.session.flush()
+
+    # TREASURY: this is the cash event — the mirror Expense below posts nothing,
+    # or the account would be debited twice for one wage payment.
+    acc.money_out(
+        account, payment.amount, payment.payment_date,
+        ref_type="worker_payment", ref_id=payment.id, user_id=current_user.id,
+        notes=f"دفعة للعامل {worker.name}",
+    )
 
     # US-6.2 BR: auto-record as expense
     db.session.add(
@@ -257,6 +274,7 @@ def record_payment(worker_id: int):
             description=f"دفعة للعامل {worker.name} ({payment.reason_label})",
             ref_type="worker_payment",
             ref_id=payment.id,
+            account_id=account.id,
             created_by_id=current_user.id,
         )
     )

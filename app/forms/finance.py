@@ -28,6 +28,8 @@ class ExpenseForm(FlaskForm):
         validators=[DataRequired(message="المبلغ مطلوب."), NumberRange(min=0.01)],
     )
     expense_date = DateField("التاريخ", validators=[DataRequired()], default=date.today)
+    # TREASURY: every expense names the account the money left
+    account_id = SelectField("من حساب", coerce=int, validators=[DataRequired(message="اختار الحساب اللي الفلوس هتطلع منه.")])
     description = StringField("الوصف", validators=[Optional(), Length(max=255)])
     submit = SubmitField("حفظ")
 
@@ -68,3 +70,42 @@ class ReportFilterForm(FlaskForm):
 
     class Meta:
         csrf = False
+
+
+ACCOUNT_TYPE_CHOICES = [
+    ("cash", "خزنة نقدية"),
+    ("bank", "حساب بنكي"),
+]
+
+
+class AccountForm(FlaskForm):
+    """TREASURY: any number of accounts — add a new bank whenever you need one."""
+
+    name = StringField(
+        "اسم الحساب",
+        validators=[DataRequired(message="الاسم مطلوب."), Length(max=120)],
+    )
+    account_type = SelectField("النوع", choices=ACCOUNT_TYPE_CHOICES, validators=[DataRequired()])
+    bank_name = StringField(
+        "اسم البنك (للحساب البنكي)", validators=[Optional(), Length(max=120)]
+    )
+    account_number = StringField("رقم الحساب", validators=[Optional(), Length(max=60)])
+    opening_balance = DecimalField(
+        "الرصيد الافتتاحي",
+        places=2, default=0,
+        validators=[Optional(), NumberRange(min=0, message="الرصيد الافتتاحي لازم يكون صفر أو أكبر.")],
+    )
+    submit = SubmitField("حفظ")
+
+
+class AccountTransferForm(FlaskForm):
+    from_account_id = SelectField("من حساب", coerce=int, validators=[DataRequired()])
+    to_account_id = SelectField("إلى حساب", coerce=int, validators=[DataRequired()])
+    amount = DecimalField(
+        "المبلغ",
+        places=2,
+        validators=[DataRequired(message="المبلغ مطلوب."), NumberRange(min=0.01)],
+    )
+    transfer_date = DateField("تاريخ التحويل", validators=[DataRequired()], default=date.today)
+    notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
+    submit = SubmitField("تنفيذ التحويل")

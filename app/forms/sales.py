@@ -113,6 +113,8 @@ class CustomerPaymentForm(FlaskForm):
     )
     payment_date = DateField("تاريخ الدفع", validators=[DataRequired()], default=date.today)
     method = SelectField("طريقة الدفع", choices=PAYMENT_METHOD_CHOICES, validators=[DataRequired()])
+    # TREASURY: every collection names the account the money landed in
+    account_id = SelectField("إلى حساب", coerce=int, validators=[DataRequired(message="اختار الحساب اللي الفلوس هتدخل فيه.")])
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("تسجيل الدفعة")
 

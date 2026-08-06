@@ -33,7 +33,13 @@ from app.models.sales import (
     MilkDelivery,
     MilkInvoice,
 )
-from app.models.finance import Expense, Setting
+from app.models.finance import (
+    Account,
+    AccountMovement,
+    AccountTransfer,
+    Expense,
+    Setting,
+)
 from app.models.labor import Attendance, Worker, WorkerPayment
 
 __all__ = [
@@ -47,5 +53,6 @@ __all__ = [
     "FeedTank", "FeedTankMovement",
     "Customer", "MilkDelivery", "MilkInvoice", "CustomerPayment", "DailyProduction",
     "Setting", "Expense",
+    "Account", "AccountMovement", "AccountTransfer",
     "Worker", "Attendance", "WorkerPayment",
 ]

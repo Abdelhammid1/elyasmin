@@ -171,6 +171,11 @@
           {{ payment_form.method(class="form-select") }}
         </div>
         <div class="mb-3">
+          {{ payment_form.account_id.label(class="form-label fw-bold") }}
+          {{ payment_form.account_id(class="form-select") }}
+          {% for e in payment_form.account_id.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
           {{ payment_form.notes.label(class="form-label fw-bold") }}
           {{ payment_form.notes(class="form-control", rows=2) }}
         </div>

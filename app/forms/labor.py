@@ -46,5 +46,7 @@ class WorkerPaymentForm(FlaskForm):
     )
     payment_date = DateField("التاريخ", validators=[DataRequired()], default=date.today)
     reason = SelectField("السبب", choices=REASON_CHOICES, validators=[DataRequired()])
+    # TREASURY: every payment names the account the money left
+    account_id = SelectField("من حساب", coerce=int, validators=[DataRequired(message="اختار الحساب اللي الفلوس هتطلع منه.")])
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("تسجيل الدفعة")

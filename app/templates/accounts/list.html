@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}الحسابات والخزنة{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-safe"></i> الخزنة والحسابات البنكية</h1>
+    <p class="text-muted mb-0">رصيدك في كل حساب لحظة بلحظة.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('accounts.transfer') }}" class="btn btn-outline-primary">
+      <i class="bi bi-arrow-left-right"></i> تحويل بين حسابين
+    </a>
+    <a href="{{ url_for('accounts.create_account') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> حساب جديد
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الخزنة النقدية</div>
+      <div class="stat-value" dir="ltr">{{ cash_total }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الحسابات البنكية</div>
+      <div class="stat-value" dir="ltr">{{ bank_total }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الإجمالي المتاح</div>
+      <div class="stat-value text-primary" dir="ltr">{{ total }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  {% if accounts %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>الحساب</th>
+          <th>النوع</th>
+          <th>رقم الحساب</th>
+          <th>الرصيد الافتتاحي</th>
+          <th>الرصيد الحالي</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in accounts %}
+        <tr>
+          <td class="fw-bold">
+            {{ a.name }}
+            {% if a.bank_name %}<div class="small text-muted">{{ a.bank_name }}</div>{% endif %}
+          </td>
+          <td>
+            <span class="badge bg-{{ 'success' if a.account_type == 'cash' else 'info' }}">{{ a.type_label }}</span>
+          </td>
+          <td dir="ltr" class="small text-muted">{{ a.account_number or '—' }}</td>
+          <td dir="ltr">{{ a.opening_balance }}</td>
+          <td dir="ltr" class="fw-bold {% if a.current_balance < 0 %}text-danger{% endif %}">{{ a.current_balance }}</td>
+          <td class="text-start">
+            <div class="btn-group btn-group-sm">
+              <a href="{{ url_for('accounts.statement', account_id=a.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-list-ul"></i> كشف حساب
+              </a>
+              <a href="{{ url_for('accounts.edit_account', account_id=a.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </div>
+            {% if a.current_balance == 0 %}
+            <form method="post" action="{{ url_for('accounts.archive_account', account_id=a.id) }}"
+                  class="d-inline" onsubmit="return confirm('تأرشف الحساب {{ a.name }}؟');">
+              <button class="btn btn-sm btn-outline-danger" title="أرشفة (الرصيد صفر)">
+                <i class="bi bi-archive"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-safe display-4"></i>
+    <p class="mt-3">مفيش حسابات لسه. ابدأ بإضافة الخزنة النقدية.</p>
+    <a href="{{ url_for('accounts.create_account') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> حساب جديد
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

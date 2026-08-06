@@ -5,9 +5,10 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.forms.suppliers import PurchaseInvoiceForm
-from app.models.finance import Expense
+from app.models.finance import Account, Expense
 from app.models.inventory import Ingredient, StockMovement
 from app.models.suppliers import PurchaseInvoice, PurchaseInvoiceCharge, PurchaseLine, Supplier
+from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.units import per_base_price, to_base
 
@@ -38,6 +39,7 @@ def list_invoices():
 @login_required
 def create_invoice():
     form = PurchaseInvoiceForm()
+    form.account_id.choices = [(0, "— اختار الحساب —")] + acc.active_choices()
     suppliers = (
         Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
     )
@@ -56,6 +58,15 @@ def create_invoice():
         supplier = db.session.get(Supplier, form.supplier_id.data)
         if not supplier or supplier.is_archived:
             flash("المورد غير صالح.", "error")
+            return render_template(
+                "purchases/form.html", form=form, ingredients=ingredients, suppliers=suppliers
+            )
+
+        # TREASURY: a cash invoice pays out on the spot, so it must name the
+        # account. A credit invoice moves no money and needs none.
+        if form.payment_type.data == PurchaseInvoice.PAY_CASH and not form.account_id.data:
+            form.account_id.errors.append("اختار الحساب اللي هيتدفع منه — الفاتورة نقدي.")
+            flash("الفاتورة نقدي — لازم تحدد الحساب اللي الفلوس هتطلع منه.", "error")
             return render_template(
                 "purchases/form.html", form=form, ingredients=ingredients, suppliers=suppliers
             )
@@ -269,17 +280,28 @@ def create_invoice():
                 cat = Expense.CAT_MEDICINE_PURCHASE
             else:
                 cat = Expense.CAT_OTHER
-            db.session.add(
-                Expense(
-                    category=cat,
-                    amount=total,
-                    expense_date=invoice.invoice_date,
-                    description=f"فاتورة نقدي من {supplier.name} (#{invoice.id})",
-                    ref_type="purchase_invoice_cash",
-                    ref_id=invoice.id,
-                    created_by_id=current_user.id,
-                )
+            # TREASURY: a cash invoice is a real outflow with no payment model
+            # behind it, so its Expense IS the cash event and posts the movement.
+            cash_account = db.session.get(Account, form.account_id.data or 0)
+            cash_expense = Expense(
+                category=cat,
+                amount=total,
+                expense_date=invoice.invoice_date,
+                description=f"فاتورة نقدي من {supplier.name} (#{invoice.id})",
+                ref_type="purchase_invoice_cash",
+                ref_id=invoice.id,
+                account_id=cash_account.id if cash_account else None,
+                created_by_id=current_user.id,
             )
+            db.session.add(cash_expense)
+            db.session.flush()
+            if cash_account and not cash_account.is_archived:
+                acc.money_out(
+                    cash_account, total, invoice.invoice_date,
+                    ref_type="purchase_invoice_cash", ref_id=invoice.id,
+                    user_id=current_user.id,
+                    notes=f"فاتورة نقدي من {supplier.name} (#{invoice.id})",
+                )
 
         log_action(
             "purchase_invoice_created",
