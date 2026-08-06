@@ -1,0 +1,27 @@
+{# ASSISTANT: floating drawer, included once in base.html so it is available on
+   every page — the point of the ticket is help where you are stuck. #}
+<div id="assistantPanel" class="assistant-panel no-print" hidden>
+  <div class="assistant-header">
+    <span class="fw-bold"><i class="bi bi-robot"></i> المساعد الذكي</span>
+    <div class="d-flex gap-1">
+      <button type="button" id="assistant-reset" class="btn btn-sm btn-outline-light" title="محادثة جديدة">
+        <i class="bi bi-arrow-clockwise"></i> محادثة جديدة
+      </button>
+      <button type="button" id="assistantClose" class="btn btn-sm btn-outline-light" title="إغلاق">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="assistant-messages" class="assistant-messages">
+    <div class="assistant-msg assistant-msg-assistant">
+      اسألني عن أي خطوة في النظام وأنا أشرحهالك. لو المشكلة تقنية كلّم الدعم مباشرة.
+    </div>
+  </div>
+
+  <form id="assistant-form" class="assistant-form">
+    <input type="text" id="assistant-input" class="form-control"
+           placeholder="اكتب سؤالك..." maxlength="1000" autocomplete="off">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button>
+  </form>
+</div>

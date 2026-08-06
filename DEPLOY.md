@@ -314,6 +314,51 @@ docker stop pgtest
 
 ---
 
+## 🤖 المساعد الذكي — التشغيل والتحديث
+
+### أول تشغيل
+
+1. اعمل API key منفصل لمشروع الياسمين من [platform.deepseek.com](https://platform.deepseek.com)
+   وسمّيه `elyasmin-assistant` (مش نفس مفتاح أي مشروع تاني — عشان لو اتسرب نلغيه لوحده).
+2. حطّه في `.env`:
+   ```ini
+   DEEPSEEK_API_KEY=sk-xxxxxxxx
+   DEEPSEEK_MODEL=deepseek-v4-flash
+   AI_MONTHLY_BUDGET_USD=5.00
+   ```
+3. `systemctl restart elyasmin`
+
+> ⚠️ **اسم الموديل**: `deepseek-chat` القديم **اتوقف يوم 2026-07-24**. الموديلات
+> المتاحة دلوقتي `deepseek-v4-flash` (الرخيص، وهو اللي بنستخدمه) و `deepseek-v4-pro`.
+>
+> ⚠️ **الأسعار**: DeepSeek معلنين إنهم ناويين يرفعوا الأسعار. الأسعار بتتقرا من
+> `.env`، فلو اتغيرت لازم تحدّث `AI_PRICE_INPUT_PER_M` و `AI_PRICE_OUTPUT_PER_M`
+> — لأن لو الأرقام قديمة، حساب التكلفة هيطلع غلط وقفل الميزانية هيقف في وقت غلط.
+
+### حدود التكلفة
+
+- كل مستخدم `AI_MAX_QUESTIONS_PER_USER_PER_DAY` سؤال في اليوم (30 افتراضيًا).
+- لو تكلفة الشهر عدّت `AI_MONTHLY_BUDGET_USD`، المساعد **بيوقف نفسه** لحد ما ترفع الرقم يدوي.
+- تتابع الاستهلاك من `/help/assistant/usage` (أدمن بس)، أو من رابط في `/finance/settings`.
+
+### تحديث معرفة المساعد
+
+بعد أي تعديل على blueprint أو form بيغيّر سلوك حقيقي للمستخدم:
+
+1. `python scripts/generate_assistant_knowledge.py`
+2. **راجع `app/assistant_knowledge.md` يدويًا** — ده الملف الوحيد اللي الموديل
+   بيشوفه، فأي كلام حساس فيه بيروح للموديل.
+3. القسم اللي بين `<!-- BEGIN MANUAL SECTION -->` و `<!-- END MANUAL SECTION -->`
+   مكتوب باليد والسكريبت مش بيمسّه — حدّثه بنفسك لو فيه ميزة جديدة.
+4. commit + push، وبعدين `systemctl restart elyasmin` — الملف بيتقرا مرة واحدة
+   عند تشغيل السيرفر.
+
+> السكريبت بيقف بـ error لو لقى أي كلمة ممنوعة (`.env`، `SECRET_KEY`،
+> `password_hash`، …) في الناتج. ده هو الحاجز الحقيقي — التعليمات اللي في
+> الـ system prompt مفيدة بس مش ضمان أمني لوحدها.
+
+---
+
 ## 🧪 اختبار النظام (E2E)
 
 قبل التسليم للعميل، شغّل الاختبار الشامل:

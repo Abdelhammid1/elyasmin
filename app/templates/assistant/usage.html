@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}استهلاك المساعد الذكي{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-robot"></i> استهلاك المساعد الذكي</h1>
+  <p class="text-muted mb-0">
+    الموديل: <code dir="ltr">{{ model }}</code> ·
+    {% if key_configured %}
+      <span class="text-success">المفتاح متظبط ✔</span>
+    {% else %}
+      <span class="text-danger">مفيش DEEPSEEK_API_KEY — المساعد مش هيرد</span>
+    {% endif %}
+  </p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">أسئلة النهاردة</div>
+    <div class="stat-value" dir="ltr">{{ today_stats[3] }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">تكلفة النهاردة ($)</div>
+    <div class="stat-value" dir="ltr">{{ '%.4f'|format(today_stats[2]|float) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">أسئلة الشهر</div>
+    <div class="stat-value" dir="ltr">{{ month_stats[3] }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">تكلفة الشهر ($)</div>
+    <div class="stat-value text-primary" dir="ltr">{{ '%.4f'|format(month_stats[2]|float) }}</div>
+  </div></div>
+</div>
+
+<div class="card p-3 mb-3">
+  <div class="d-flex justify-content-between mb-1">
+    <span class="fw-bold">الميزانية الشهرية</span>
+    <span dir="ltr">{{ '%.4f'|format(month_stats[2]|float) }} / {{ '%.2f'|format(budget) }} $</span>
+  </div>
+  <div class="progress" style="height: 1.4rem;">
+    <div class="progress-bar {% if budget_used_pct >= 100 %}bg-danger{% elif budget_used_pct >= 75 %}bg-warning{% else %}bg-success{% endif %}"
+         role="progressbar" style="width: {{ [budget_used_pct, 100]|min }}%;">
+      {{ budget_used_pct }}%
+    </div>
+  </div>
+  {% if budget_used_pct >= 100 %}
+  <div class="alert alert-danger mt-3 mb-0">
+    <i class="bi bi-exclamation-octagon"></i>
+    المساعد <strong>متوقف</strong> — الميزانية الشهرية خلصت. ارفع
+    <code dir="ltr">AI_MONTHLY_BUDGET_USD</code> في <code dir="ltr">.env</code> وأعد تشغيل الخدمة.
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6"><div class="card p-3">
+    <h6 class="mb-2">توكنز الشهر</h6>
+    <p class="mb-0 small text-muted">
+      إدخال: <span dir="ltr" class="fw-bold">{{ month_stats[0] }}</span> ·
+      إخراج: <span dir="ltr" class="fw-bold">{{ month_stats[1] }}</span>
+    </p>
+  </div></div>
+  <div class="col-md-6"><div class="card p-3">
+    <h6 class="mb-2">محاولات فاشلة الشهر ده</h6>
+    <p class="mb-0 small {% if failures %}text-danger{% else %}text-muted{% endif %}">
+      <span dir="ltr" class="fw-bold">{{ failures }}</span>
+      {% if failures %} — راجع الـ logs أو المفتاح.{% endif %}
+    </p>
+  </div></div>
+</div>
+{% endblock %}

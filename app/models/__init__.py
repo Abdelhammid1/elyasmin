@@ -8,6 +8,7 @@ from app.models.herd import (
     CowMovement,
     Death,
 )
+from app.models.assistant import AIUsageLog
 from app.models.audit import AuditLog
 from app.models.inventory import Ingredient, IngredientUnit, StockMovement
 from app.models.suppliers import (
@@ -46,7 +47,7 @@ __all__ = [
     "User", "LoginAttempt",
     "CattleGroup", "Cow", "CowMovement",
     "Birth", "Calf", "Death", "AnimalSale",
-    "AuditLog",
+    "AuditLog", "AIUsageLog",
     "Ingredient", "IngredientUnit", "StockMovement",
     "Supplier", "PurchaseInvoice", "PurchaseInvoiceCharge", "PurchaseLine", "SupplierPayment",
     "FeedRecipe", "FeedRecipeLine", "FeedRun", "FeedRunLine", "MedicineDispense",

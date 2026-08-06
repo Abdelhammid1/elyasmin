@@ -50,6 +50,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.blueprints.labor.routes import bp as labor_bp
     from app.blueprints.help.routes import bp as help_bp
     from app.blueprints.accounts.routes import bp as accounts_bp
+    from app.blueprints.assistant.routes import bp as assistant_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(users_bp, url_prefix="/users")
@@ -64,6 +65,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(milk_bp, url_prefix="/milk")
     app.register_blueprint(finance_bp, url_prefix="/finance")
     app.register_blueprint(accounts_bp, url_prefix="/accounts")
+    app.register_blueprint(assistant_bp, url_prefix="/help/assistant")
     app.register_blueprint(labor_bp, url_prefix="/labor")
     app.register_blueprint(help_bp, url_prefix="/help")
 

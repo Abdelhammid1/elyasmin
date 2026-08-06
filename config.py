@@ -29,6 +29,27 @@ class Config:
     LANGUAGE = "ar"
     TIMEZONE = "Africa/Cairo"
 
+    # ---------- In-app AI assistant (DeepSeek) ----------
+    DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+    # NOTE: the old "deepseek-chat" alias was deprecated on 2026-07-24. The API
+    # now accepts only deepseek-v4-flash and deepseek-v4-pro; flash is the cheap
+    # non-thinking one and is what this narrow assistant needs.
+    DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+
+    # USD per million tokens. DeepSeek have announced a price rise — re-check
+    # these after any change, or the monthly kill-switch trips at the wrong time.
+    AI_PRICE_INPUT_PER_M = float(os.getenv("AI_PRICE_INPUT_PER_M", "0.14"))
+    AI_PRICE_OUTPUT_PER_M = float(os.getenv("AI_PRICE_OUTPUT_PER_M", "0.28"))
+
+    AI_MAX_QUESTIONS_PER_USER_PER_DAY = int(os.getenv("AI_MAX_QUESTIONS_PER_USER_PER_DAY", "30"))
+    AI_MAX_RESPONSE_TOKENS = int(os.getenv("AI_MAX_RESPONSE_TOKENS", "500"))
+    AI_MAX_HISTORY_MESSAGES = int(os.getenv("AI_MAX_HISTORY_MESSAGES", "10"))
+
+    # Kill-switch: once the month's spend passes this, the assistant stops
+    # answering until someone raises it deliberately.
+    AI_MONTHLY_BUDGET_USD = float(os.getenv("AI_MONTHLY_BUDGET_USD", "5.00"))
+
 
 class DevConfig(Config):
     DEBUG = True
