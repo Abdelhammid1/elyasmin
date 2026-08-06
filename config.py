@@ -31,9 +31,12 @@ class Config:
 
     # ---------- In-app AI assistant (DeepSeek) ----------
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-    # NOTE: the old "deepseek-chat" alias was deprecated on 2026-07-24. The API
-    # now accepts only deepseek-v4-flash and deepseek-v4-pro; flash is the cheap
-    # non-thinking one and is what this narrow assistant needs.
+    # NOTE: "deepseek-chat" was deprecated on 2026-07-24 and is gone from the
+    # API's model list, though it still responds today as a legacy alias — so it
+    # is living on borrowed time, not broken. models.list() returns only
+    # deepseek-v4-flash and deepseek-v4-pro, so we name flash directly.
+    # Correction to the ticket: flash IS a thinking model (it returns
+    # reasoning_content), not the "non-thinking" one the ticket described.
     DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
     DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
@@ -43,7 +46,11 @@ class Config:
     AI_PRICE_OUTPUT_PER_M = float(os.getenv("AI_PRICE_OUTPUT_PER_M", "0.28"))
 
     AI_MAX_QUESTIONS_PER_USER_PER_DAY = int(os.getenv("AI_MAX_QUESTIONS_PER_USER_PER_DAY", "30"))
-    AI_MAX_RESPONSE_TOKENS = int(os.getenv("AI_MAX_RESPONSE_TOKENS", "500"))
+    # deepseek-v4-flash is a THINKING model: its reasoning tokens are billed and
+    # counted as output. Measured on real questions, answers used 178–441 of the
+    # ticket's 500 — too close to the ceiling, and hitting it truncates the Arabic
+    # answer mid-sentence. At ~$0.65 per 1000 questions the headroom is cheap.
+    AI_MAX_RESPONSE_TOKENS = int(os.getenv("AI_MAX_RESPONSE_TOKENS", "900"))
     AI_MAX_HISTORY_MESSAGES = int(os.getenv("AI_MAX_HISTORY_MESSAGES", "10"))
 
     # Kill-switch: once the month's spend passes this, the assistant stops

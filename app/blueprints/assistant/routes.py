@@ -24,7 +24,11 @@ from app.utils.decorators import admin_required
 
 bp = Blueprint("assistant", __name__, template_folder="../../templates/assistant")
 
-KNOWLEDGE_PATH = Path(__file__).resolve().parents[2] / "app" / "assistant_knowledge.md"
+# parents[2] is already the `app` package (app/blueprints/assistant/routes.py),
+# so appending "app" again pointed at app/app/... and silently fell back to the
+# "no knowledge" string — the assistant answered every question with "I don't
+# know". Only a live call exposed it, because the fallback is a valid string.
+KNOWLEDGE_PATH = Path(__file__).resolve().parents[2] / "assistant_knowledge.md"
 _KNOWLEDGE_CACHE = None
 
 MAX_MESSAGE_CHARS = 1000
@@ -38,6 +42,12 @@ def _load_knowledge() -> str:
         if KNOWLEDGE_PATH.exists():
             _KNOWLEDGE_CACHE = KNOWLEDGE_PATH.read_text(encoding="utf-8")
         else:
+            # Loud, because a silent fallback here makes the assistant answer
+            # "I don't know" to everything while looking perfectly healthy.
+            current_app.logger.error(
+                "assistant: knowledge file missing at %s — answers will be useless",
+                KNOWLEDGE_PATH,
+            )
             _KNOWLEDGE_CACHE = "لا توجد معرفة متاحة حاليًا."
     return _KNOWLEDGE_CACHE
 
