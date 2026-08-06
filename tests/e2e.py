@@ -507,6 +507,22 @@ def run_desktop(page: Page) -> None:
     page.goto(f"{BASE}/finance/settings")
     snap(page, "settings", "إعدادات النظام", "نسبة توزيع التكاليف 80/20 ومعادلة سعر التحليل — قابلة للتعديل.")
 
+    # ASSISTANT: the floating helper is on every page, not just /help.
+    page.goto(f"{BASE}/help/assistant/usage")
+    snap(page, "assistant_usage", "استهلاك المساعد الذكي",
+         "توكنز وتكلفة اليوم والشهر مع شريط الميزانية وقفل الأمان.")
+
+    page.goto(f"{BASE}/herd/")
+    page.wait_for_selector("#assistantOpen", timeout=10_000)
+    page.click("#assistantOpen")
+    page.wait_for_selector("#assistant-input", state="visible", timeout=10_000)
+    if page.locator("#assistant-reset").is_visible():
+        snap(page, "assistant_panel", "المساعد الذكي جوه الصفحة",
+             "اللوحة بتفتح من أي صفحة في النظام، وفيها زرار «محادثة جديدة» عشان التكلفة ماتكبرش.")
+    else:
+        fail(page, "assistant_panel", "المساعد الذكي جوه الصفحة",
+             "اللوحة اتفتحت من غير زرار محادثة جديدة")
+
     # ---- Sprint 6: Labor + Help ----
     page.goto(f"{BASE}/labor/")
     snap(page, "labor_list", "العمالة", "قائمة العمال مع رصيد كل عامل ومستحقات الشهر.")
