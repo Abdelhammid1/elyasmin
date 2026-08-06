@@ -144,6 +144,12 @@ def ask():
         response = client.chat.completions.create(
             model=current_app.config["DEEPSEEK_MODEL"],
             max_tokens=current_app.config["AI_MAX_RESPONSE_TOKENS"],
+            # deepseek-v4-flash reasons by default, and its reasoning is billed as
+            # output. On a broad question it burns the whole budget thinking and
+            # returns an EMPTY answer — measured: 2500 tokens, 6911 chars of
+            # reasoning, 0 chars of answer. Disabling it is the "non-thinking"
+            # mode the ticket asked for, and it is what a short how-to needs.
+            extra_body={"thinking": {"type": current_app.config["AI_THINKING_MODE"]}},
             messages=[
                 {"role": "system", "content": system_prompt},
                 *clean_history,
@@ -154,8 +160,23 @@ def ask():
         _log(False, error=exc)
         return jsonify({"error": "المساعد مش متاح دلوقتي، جرب تاني بعد شوية."}), 502
 
-    answer = response.choices[0].message.content
+    choice = response.choices[0]
+    answer = (choice.message.content or "").strip()
     usage = response.usage
+
+    # A blank answer is possible whenever the token budget runs out. Returning it
+    # as a success would show the user an empty bubble, so say something useful.
+    if not answer:
+        cost = AIUsageLog.cost_for(
+            usage.prompt_tokens, usage.completion_tokens,
+            current_app.config["AI_PRICE_INPUT_PER_M"],
+            current_app.config["AI_PRICE_OUTPUT_PER_M"],
+        )
+        _log(False, tokens_in=usage.prompt_tokens, tokens_out=usage.completion_tokens,
+             cost=cost, error=f"empty answer (finish_reason={choice.finish_reason})")
+        return jsonify(
+            {"error": "السؤال كبير شوية والرد اتقطع. جرّب تسأل عن خطوة واحدة بس."}
+        ), 200
     cost = AIUsageLog.cost_for(
         usage.prompt_tokens, usage.completion_tokens,
         current_app.config["AI_PRICE_INPUT_PER_M"],

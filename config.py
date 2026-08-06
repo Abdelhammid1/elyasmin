@@ -46,10 +46,12 @@ class Config:
     AI_PRICE_OUTPUT_PER_M = float(os.getenv("AI_PRICE_OUTPUT_PER_M", "0.28"))
 
     AI_MAX_QUESTIONS_PER_USER_PER_DAY = int(os.getenv("AI_MAX_QUESTIONS_PER_USER_PER_DAY", "30"))
-    # deepseek-v4-flash is a THINKING model: its reasoning tokens are billed and
-    # counted as output. Measured on real questions, answers used 178–441 of the
-    # ticket's 500 — too close to the ceiling, and hitting it truncates the Arabic
-    # answer mid-sentence. At ~$0.65 per 1000 questions the headroom is cheap.
+    # deepseek-v4-flash reasons by default and bills that reasoning as output.
+    # Left on, a broad question spends the ENTIRE budget thinking and returns an
+    # empty answer (measured: 2500 tokens, 6911 chars of reasoning, 0 of answer).
+    # "disabled" is the non-thinking mode the ticket asked for. Set to "enabled"
+    # only if you want reasoning and are ready to pay for it.
+    AI_THINKING_MODE = os.getenv("AI_THINKING_MODE", "disabled")
     AI_MAX_RESPONSE_TOKENS = int(os.getenv("AI_MAX_RESPONSE_TOKENS", "900"))
     AI_MAX_HISTORY_MESSAGES = int(os.getenv("AI_MAX_HISTORY_MESSAGES", "10"))
 
