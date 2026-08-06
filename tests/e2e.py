@@ -464,6 +464,46 @@ def run_desktop(page: Page) -> None:
     page.goto(f"{BASE}/finance/expenses/new")
     snap(page, "expense_new", "إضافة مصروف", "تسجيل مصروف عام يدوي.")
 
+    # TREASURY: cash drawer + any number of bank accounts, with live balances.
+    page.goto(f"{BASE}/accounts/new")
+    page.fill('input[name="name"]', "الخزنة الرئيسية")
+    page.select_option('select[name="account_type"]', "cash")
+    page.fill('input[name="opening_balance"]', "10000")
+    page.click('input[type="submit"]')
+    page.wait_for_load_state("networkidle")
+
+    page.goto(f"{BASE}/accounts/new")
+    page.fill('input[name="name"]', "البنك الأهلي")
+    page.select_option('select[name="account_type"]', "bank")
+    page.fill('input[name="bank_name"]', "البنك الأهلي المصري")
+    page.fill('input[name="opening_balance"]', "50000")
+    page.click('input[type="submit"]')
+    page.wait_for_url(re.compile(r"/accounts"), timeout=10_000)
+    page.wait_for_selector("table, .alert", timeout=10_000)
+    if "10000" in page.content() and "50000" in page.content():
+        snap(page, "accounts_list", "الخزنة والحسابات",
+             "TREASURY: خزنة نقدية + أي عدد حسابات بنكية، وكل واحد برصيده الحالي.")
+    else:
+        fail(page, "accounts_list", "الخزنة والحسابات", "أرصدة الحسابات لم تظهر")
+
+    # transfer moves both sides
+    page.goto(f"{BASE}/accounts/transfer")
+    page.select_option('select[name="from_account_id"]', index=0)
+    page.select_option('select[name="to_account_id"]', index=1)
+    page.fill('input[name="amount"]', "1000")
+    page.click('input[type="submit"]')
+    page.wait_for_load_state("networkidle")
+    if "تم تحويل" in page.content():
+        snap(page, "accounts_transfer", "TREASURY: تحويل بين حسابين",
+             "التحويل بيخصم من حساب ويضيف للتاني، والرصيدين بيتحدثوا مع بعض.")
+    else:
+        fail(page, "accounts_transfer", "TREASURY: تحويل بين حسابين",
+             "التحويل لم يتم أو لم تظهر رسالة نجاح")
+
+    page.goto(f"{BASE}/accounts/1/statement")
+    snap(page, "account_statement", "كشف حساب",
+         "كل الحركات بالترتيب مع رصيد جاري ينتهي عند الرصيد الحالي بالظبط.")
+
     page.goto(f"{BASE}/finance/settings")
     snap(page, "settings", "إعدادات النظام", "نسبة توزيع التكاليف 80/20 ومعادلة سعر التحليل — قابلة للتعديل.")
 
