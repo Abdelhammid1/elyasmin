@@ -32,7 +32,9 @@
       if (!Array.isArray(parsed)) return [];
       return parsed.filter(function (m) {
         return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string';
-      });
+      // Capped on the way in as well as out: sessionStorage is editable by hand,
+      // and without this a stuffed key would render thousands of bubbles.
+      }).slice(-MAX_STORED);
     } catch (err) {
       return [];
     }
