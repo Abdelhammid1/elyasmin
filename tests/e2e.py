@@ -523,6 +523,41 @@ def run_desktop(page: Page) -> None:
         fail(page, "assistant_panel", "المساعد الذكي جوه الصفحة",
              "اللوحة اتفتحت من غير زرار محادثة جديدة")
 
+    # ASSISTANT FIX: the history used to live in a plain JS variable, so every
+    # navigation wiped it and the chat felt like it kept closing. It now lives in
+    # sessionStorage. Seeded directly here because a real exchange needs an API key.
+    uid = page.evaluate("document.body.dataset.userId")
+    page.evaluate(
+        """(uid) => sessionStorage.setItem('assistant_history_' + uid, JSON.stringify([
+            {role: 'user', content: 'سؤال محفوظ قبل التنقل'},
+            {role: 'assistant', content: 'إجابة محفوظة قبل التنقل'}
+        ]))""",
+        uid,
+    )
+    # navigate to a DIFFERENT page — this is the exact reported bug
+    page.goto(f"{BASE}/inventory/")
+    page.wait_for_selector("#assistantOpen", timeout=10_000)
+    page.click("#assistantOpen")
+    page.wait_for_selector("#assistant-input", state="visible", timeout=10_000)
+    body = page.content()
+    if "سؤال محفوظ قبل التنقل" in body and "إجابة محفوظة قبل التنقل" in body:
+        snap(page, "assistant_history_kept", "المحادثة بتفضل بعد التنقل",
+             "الهيستوري اتخزن في sessionStorage، فالمحادثة بتفضل زي ما هي لما تنتقل لصفحة تانية.")
+    else:
+        fail(page, "assistant_history_kept", "المحادثة بتفضل بعد التنقل",
+             "المحادثة اتمسحت بعد الانتقال لصفحة تانية")
+
+    # "محادثة جديدة" must clear the stored key too, not just the screen
+    page.click("#assistant-reset")
+    left = page.evaluate("(uid) => sessionStorage.getItem('assistant_history_' + uid)", uid)
+    still_shown = "سؤال محفوظ قبل التنقل" in page.content()
+    if left is None and not still_shown:
+        snap(page, "assistant_history_reset", "«محادثة جديدة» بتمسح فعلاً",
+             "الزرار بيمسح المحادثة من الشاشة ومن الـ sessionStorage مع بعض.")
+    else:
+        fail(page, "assistant_history_reset", "«محادثة جديدة» بتمسح فعلاً",
+             f"الهيستوري لسه موجود (storage={left!r}, على الشاشة={still_shown})")
+
     # ---- Sprint 6: Labor + Help ----
     page.goto(f"{BASE}/labor/")
     snap(page, "labor_list", "العمالة", "قائمة العمال مع رصيد كل عامل ومستحقات الشهر.")
