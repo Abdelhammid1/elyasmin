@@ -23,4 +23,7 @@ htmlcov/
 
 # personal ticket notes + screenshots — never pushed
 tickets/
+# ticket docs get dropped in the repo root, not only in tickets/
+*.docx
+*.doc
 test_elyasmin_full.py
