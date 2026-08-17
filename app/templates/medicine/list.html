@@ -6,7 +6,28 @@
     <h1><i class="bi bi-capsule"></i> صرف الأدوية والمستلزمات</h1>
     <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span> · إجمالي التكلفة: <span class="fw-bold" dir="ltr">{{ total_cost }}</span> جنيه</p>
   </div>
-  <a href="{{ url_for('medicine.create_dispense') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> صرف جديد</a>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('inventory.create_ingredient', category='medicine') }}" class="btn btn-outline-primary">
+      <i class="bi bi-plus-square"></i> إضافة صنف دواء
+    </a>
+    <a href="{{ url_for('medicine.create_dispense') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> صرف جديد</a>
+  </div>
+</div>
+
+{# TICKET-4: the client asked whether adding a medicine item puts it in the
+   general inventory. It does — but there is no "add item" screen here, which is
+   what made it unclear. Say so plainly and give him the button. #}
+<div class="alert alert-info d-flex align-items-start gap-2">
+  <i class="bi bi-info-circle-fill mt-1"></i>
+  <div>
+    <strong>الشاشة دي للصرف بس.</strong>
+    إضافة <u>صنف دواء جديد</u> بتحصل في <a href="{{ url_for('inventory.list_ingredients') }}" class="alert-link">المخزون</a> —
+    الصنف بيتسجل كمادة في المخزون العام (نوعه «دواء بيطري»)، وبعد كده بيظهر هنا في قايمة الصرف
+    وبيتخصم من رصيده كل ما تصرف منه.
+    <div class="mt-1 small text-muted">
+      يعني: إضافة الصنف = المخزون · صرفه على بقرة أو مجموعة = الشاشة دي.
+    </div>
+  </div>
 </div>
 
 <div class="card p-3 mb-3">
