@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}تقرير أعمار القطيع{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-heart-pulse"></i> أعمار القطيع</h1>
+    <p class="text-muted mb-0">
+      {{ rows|length }} رأس نشط
+      {% if avg_months is not none %} · متوسط العمر <span dir="ltr">{{ avg_months }}</span> شهر{% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2 no-print">
+    <a href="{{ url_for('reports.herd_ages_excel', group_id=selected_group) }}" class="btn btn-outline-success">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+    <a href="{{ url_for('reports.herd_ages_pdf', group_id=selected_group) }}" class="btn btn-outline-danger">
+      <i class="bi bi-file-earmark-pdf"></i> PDF
+    </a>
+  </div>
+</div>
+
+<div class="card p-3 mb-3 no-print">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-6">
+      <label class="form-label small fw-bold">المجموعة</label>
+      <select name="group_id" class="form-select">
+        <option value="">كل المجموعات</option>
+        {% for g in groups %}
+        <option value="{{ g.id }}" {% if selected_group == g.id %}selected{% endif %}>{{ g.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 d-grid"><button class="btn btn-primary">عرض</button></div>
+  </form>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr>
+        <th>رقم الأذن</th><th>الاسم</th><th>الجنس</th><th>المجموعة</th>
+        <th>تاريخ الميلاد</th><th>العمر (شهور)</th><th>العمر</th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="fw-bold">{{ r.cow.ear_tag }}</td>
+          <td>{{ r.cow.name or '—' }}</td>
+          <td>{{ r.cow.gender_label }}</td>
+          <td>{{ r.cow.group.name if r.cow.group else '—' }}</td>
+          <td dir="ltr">{{ r.cow.date_of_birth or '—' }}</td>
+          <td dir="ltr">{{ r.months if r.months is not none else '—' }}</td>
+          <td>{{ r.age_label }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted"><i class="bi bi-inbox display-4"></i><p class="mt-3">مفيش رؤوس مطابقة.</p></div>
+  {% endif %}
+</div>
+{% endblock %}
