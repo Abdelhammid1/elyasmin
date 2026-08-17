@@ -238,3 +238,19 @@ body, input, textarea, select, table {
 .assistant-form { display: flex; gap: .4rem; padding: .6rem; border-top: 1px solid #dee2e6; }
 
 @media print { .assistant-fab, .assistant-panel { display: none !important; } }
+
+/* ---------- TICKET-6: numeric columns must sit under their own header ----------
+   The page is RTL, so a table header aligns right. A data cell marked
+   dir="ltr" (needed so numbers, dates and signs render correctly) flips its
+   default alignment to the left, which parks the value at the opposite edge
+   from its header — what the client circled in every screenshot.
+
+   Bootstrap's RTL build also resolves .text-end to LEFT, so cells that already
+   carried that class were misaligned too; hence !important here.
+
+   One rule instead of editing 154 cells across 35 templates, and it covers any
+   table added later without anyone having to remember. */
+table td[dir="ltr"],
+table th[dir="ltr"] {
+  text-align: right !important;
+}
