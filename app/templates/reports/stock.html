@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}تقرير المخزون{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-boxes"></i> تقرير المخزون</h1>
+    <p class="text-muted mb-0">
+      {{ items|length }} مادة · قيمة المخزون <span dir="ltr" class="fw-bold">{{ total_value }}</span> جنيه
+      {% if low_count %} · <span class="text-danger">{{ low_count }} تحت الحد الأدنى</span>{% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2 no-print">
+    <a href="{{ url_for('reports.stock_excel', category=selected_category) }}" class="btn btn-outline-success">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+    <a href="{{ url_for('reports.stock_pdf', category=selected_category) }}" class="btn btn-outline-danger">
+      <i class="bi bi-file-earmark-pdf"></i> PDF
+    </a>
+  </div>
+</div>
+
+<div class="card p-3 mb-3 no-print">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-6">
+      <label class="form-label small fw-bold">النوع</label>
+      <select name="category" class="form-select">
+        <option value="">الكل</option>
+        <option value="feed" {% if selected_category == 'feed' %}selected{% endif %}>علف / مادة خام</option>
+        <option value="medicine" {% if selected_category == 'medicine' %}selected{% endif %}>دواء بيطري</option>
+        <option value="custom" {% if selected_category == 'custom' %}selected{% endif %}>أنواع مخصصة</option>
+      </select>
+    </div>
+    <div class="col-md-3 d-grid"><button class="btn btn-primary">عرض</button></div>
+  </form>
+</div>
+
+<div class="card">
+  {% if items %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr>
+        <th>المادة</th><th>النوع</th><th>الوحدة</th>
+        <th>الرصيد الحالي</th><th>الحد الأدنى</th><th>آخر سعر</th><th>قيمة المخزون</th>
+      </tr></thead>
+      <tbody>
+        {% for i in items %}
+        <tr {% if i.is_low_stock %}class="table-warning"{% endif %}>
+          <td class="fw-bold">{{ i.name }}</td>
+          <td><span class="badge bg-secondary">{{ i.category_label }}</span></td>
+          <td>{{ i.unit_label }}</td>
+          <td dir="ltr" class="fw-bold">{{ i.current_qty }}</td>
+          <td dir="ltr">{{ i.min_qty }}</td>
+          <td dir="ltr">{{ i.last_price or 0 }}</td>
+          <td dir="ltr">{{ i.stock_value }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted"><i class="bi bi-inbox display-4"></i><p class="mt-3">مفيش مواد مطابقة.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

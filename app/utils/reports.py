@@ -60,7 +60,12 @@ def pdf_from_current_page(target_url: str, filename: str) -> Response:
             ctx.add_cookies(cookies)
 
         page = ctx.new_page()
-        page.goto(target_url, wait_until="networkidle", timeout=15_000)
+        # 15s was too tight: the FIRST export after a server restart has to pay
+        # for a cold Chromium launch on top of the page's CDN assets (Bootstrap,
+        # icons, fonts) all settling for "networkidle" — and it timed out, so the
+        # user's first PDF of the day failed and the second worked. Pre-existing;
+        # it affects the P&L and milk-cost exports the same way.
+        page.goto(target_url, wait_until="networkidle", timeout=45_000)
         pdf_bytes = page.pdf(
             format="A4",
             print_background=True,
