@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}تسجيل تغذية{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-basket2"></i> تسجيل تغذية — {{ group.name }}</h1>
+  <p class="text-muted mb-0">
+    العلف من خزان المجموعة، والإضافات من المخزن العام. الاتنين بيتحسبوا في تكلفة الوجبة.
+  </p>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label fw-bold">المجموعة</label>
+            <select class="form-select" onchange="if(this.value) window.location.href=this.value;">
+              {% for g in groups %}
+              <option value="{{ url_for('feed.create_feeding', group_id=g.id) }}"
+                      {% if g.id == group.id %}selected{% endif %}>{{ g.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            {{ form.session_date.label(class="form-label fw-bold") }}
+            {{ form.session_date(class="form-control", dir="ltr", type="date") }}
+            {% for e in form.session_date.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            {{ form.meal.label(class="form-label fw-bold") }}
+            {{ form.meal(class="form-select") }}
+            {% for e in form.meal.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted">{{ form.meal.choices|length }} وجبات في اليوم للمجموعة دي</small>
+          </div>
+        </div>
+
+        <h5 class="mb-2">١) العلف من الوصفة</h5>
+        <div class="alert {% if tank.is_empty %}alert-warning{% else %}alert-light border{% endif %} py-2 small">
+          <i class="bi bi-database"></i>
+          رصيد الخزان: <span dir="ltr" class="fw-bold">{{ tank.current_qty }}</span> كيلو
+          بمتوسط <span dir="ltr" class="fw-bold">{{ tank.avg_cost_per_kg }}</span> جنيه/كيلو.
+          {% if tank.is_empty %}
+            الخزان فاضي — <a href="{{ url_for('feed.create_run', group_id=group.id) }}" class="alert-link">شغّل الوصفة الأول</a>
+            أو سجّل الإضافات بس.
+          {% endif %}
+        </div>
+        <div class="mb-4">
+          {{ form.feed_qty.label(class="form-label fw-bold") }}
+          {{ form.feed_qty(class="form-control", dir="ltr", inputmode="decimal", placeholder="400", id="feedQty") }}
+          {% for e in form.feed_qty.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          <small class="text-muted">من خزان المجموعة بس — مفيش مادة تانية بتتسحب من هنا.</small>
+        </div>
+
+        <h5 class="mb-2">٢) الإضافات من المخزن العام</h5>
+        <p class="text-muted small">
+          {% if has_whitelist %}
+            المواد المسموح إضافتها لمجموعة {{ group.name }}.
+          {% else %}
+            لسه ماحددتش المواد المسموحة للمجموعة دي، فكل المواد الخام ظاهرة.
+          {% endif %}
+          <a href="{{ url_for('feed.group_allowances', group_id=group.id) }}">تعديل القائمة</a>
+        </p>
+
+        <div id="additionsBox"></div>
+        <button type="button" class="btn btn-outline-primary btn-sm mb-4" id="addRow">
+          <i class="bi bi-plus"></i> إضافة مادة
+        </button>
+
+        <div class="mb-3">
+          {{ form.notes.label(class="form-label fw-bold") }}
+          {{ form.notes(class="form-control", rows=2) }}
+        </div>
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary btn-lg") }}
+          <a href="{{ url_for('feed.list_feedings') }}" class="btn btn-outline-secondary btn-lg">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card p-3">
+      <h6 class="mb-3"><i class="bi bi-calculator"></i> تكلفة الوجبة</h6>
+      <div class="d-flex justify-content-between mb-2">
+        <span>العلف</span><span dir="ltr" class="fw-bold" id="sumFeed">0.00</span>
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span>الإضافات</span><span dir="ltr" class="fw-bold" id="sumAdd">0.00</span>
+      </div>
+      <hr class="my-2">
+      <div class="d-flex justify-content-between">
+        <span class="fw-bold">الإجمالي</span>
+        <span dir="ltr" class="fw-bold fs-5 text-primary" id="sumTotal">0.00</span>
+      </div>
+      <small class="text-muted mt-2">تقديري — الحساب النهائي وقت الحفظ بأسعار المخزون.</small>
+    </div>
+  </div>
+</div>
+
+<script>
+  const MATERIALS = [
+    {% for m in allowed %}
+    { id: {{ m.id }}, name: "{{ m.name }}", price: "{{ m.last_price or 0 }}",
+      unit: "{{ m.unit_label }}", stock: "{{ m.current_qty }}" },
+    {% endfor %}
+  ];
+  const TANK_COST = parseFloat("{{ tank.avg_cost_per_kg or 0 }}") || 0;
+  const box = document.getElementById('additionsBox');
+  let idx = 0;
+
+  function addRow() {
+    if (!MATERIALS.length) {
+      box.insertAdjacentHTML('beforeend',
+        '<div class="alert alert-warning py-2 small">مفيش مواد متاحة للإضافة.</div>');
+      return;
+    }
+    const i = idx++;
+    const opts = MATERIALS.map(m =>
+      `<option value="${m.id}" data-price="${m.price}">${m.name} — متاح ${m.stock} ${m.unit}</option>`
+    ).join('');
+    box.insertAdjacentHTML('beforeend', `
+      <div class="row g-2 mb-2 addition-row">
+        <div class="col-md-6">
+          <select name="addition_ingredient_${i}" class="form-select add-ing">${opts}</select>
+        </div>
+        <div class="col-md-4">
+          <input type="number" step="0.001" min="0" name="addition_qty_${i}"
+                 class="form-control add-qty" dir="ltr" placeholder="الكمية">
+        </div>
+        <div class="col-md-2 d-grid">
+          <button type="button" class="btn btn-outline-danger btn-sm remove-row">حذف</button>
+        </div>
+      </div>`);
+    recompute();
+  }
+
+  function recompute() {
+    const feed = (parseFloat(document.getElementById('feedQty').value) || 0) * TANK_COST;
+    let add = 0;
+    box.querySelectorAll('.addition-row').forEach(r => {
+      const sel = r.querySelector('.add-ing');
+      const qty = parseFloat(r.querySelector('.add-qty').value) || 0;
+      const price = parseFloat(sel.selectedOptions[0]?.dataset.price || 0) || 0;
+      add += qty * price;
+    });
+    document.getElementById('sumFeed').textContent = feed.toFixed(2);
+    document.getElementById('sumAdd').textContent = add.toFixed(2);
+    document.getElementById('sumTotal').textContent = (feed + add).toFixed(2);
+  }
+
+  document.getElementById('addRow').addEventListener('click', addRow);
+  box.addEventListener('input', recompute);
+  box.addEventListener('change', recompute);
+  box.addEventListener('click', e => {
+    if (e.target.classList.contains('remove-row')) {
+      e.target.closest('.addition-row').remove();
+      recompute();
+    }
+  });
+  document.getElementById('feedQty').addEventListener('input', recompute);
+  addRow();
+</script>
+{% endblock %}

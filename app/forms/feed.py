@@ -41,21 +41,24 @@ class FeedRunForm(FlaskForm):
     submit = SubmitField("تشغيل + خصم من المخزون")
 
 
-class FeedWithdrawalForm(FlaskForm):
-    """FEED-TANK: the feeding worker draws part of a stored batch."""
+class FeedingSessionForm(FlaskForm):
+    """TICKET-3: one feeding of one group.
 
-    qty = LooseDecimalField(
-        "الكمية المسحوبة (كيلو)",
+    Only the feed quantity lives on the form; the additions are dynamic rows
+    parsed from request.form, the same pattern the recipe and invoice screens
+    already use.
+    """
+
+    session_date = DateField("التاريخ", validators=[DataRequired()], default=date.today)
+    meal = SelectField("الوجبة", validators=[DataRequired()])
+    feed_qty = LooseDecimalField(
+        "كمية العلف من الخزان (كيلو)",
         places=3,
-        invalid_message="اكتب رقم صحيح للكمية (مثال: 120.5).",
-        validators=[
-            DataRequired(message="الكمية مطلوبة."),
-            NumberRange(min=0.001, message="الكمية لازم تكون أكبر من صفر."),
-        ],
+        invalid_message="اكتب رقم صحيح للكمية (مثال: 400).",
+        validators=[Optional(), NumberRange(min=0)],
     )
-    moved_on = DateField("تاريخ السحب", validators=[DataRequired()], default=date.today)
-    notes = TextAreaField("ملاحظات (مثلاً: وجبة الفجر)", validators=[Optional(), Length(max=500)])
-    submit = SubmitField("سحب من الخزان")
+    notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
+    submit = SubmitField("تسجيل التغذية")
 
 
 class MedicineDispenseForm(FlaskForm):
