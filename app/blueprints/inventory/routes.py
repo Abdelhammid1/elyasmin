@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.extensions import db
-from app.forms.inventory import IngredientForm, StockAdjustForm
+from app.forms.inventory import CATEGORY_CHOICES, IngredientForm, StockAdjustForm
 from app.models.inventory import Ingredient, IngredientUnit, StockMovement
 from app.utils.audit import log_action
 
@@ -36,6 +36,58 @@ def _parse_alt_units(form_data):
 bp = Blueprint("inventory", __name__, template_folder="../../templates/inventory")
 
 
+# ---------- TICKET-2: custom types must survive into the dropdown ----------
+# A custom type is stored as the string "custom:<name>" on each Ingredient;
+# there is no type table. The form's choices were a fixed list, so a type the
+# user created yesterday was not offered today and he retyped it every time —
+# which is also how the same type ends up spelled three different ways.
+
+def _existing_custom_categories() -> list[str]:
+    """Every custom type already in use, as stored ("custom:<name>")."""
+    rows = (
+        db.session.query(Ingredient.category)
+        .filter(Ingredient.category.like("custom:%"))
+        .distinct()
+        .all()
+    )
+    return sorted({r[0] for r in rows if r[0]})
+
+
+def _category_choices() -> list[tuple[str, str]]:
+    """Fixed types + every custom type already created + "add a new one"."""
+    choices = list(CATEGORY_CHOICES[:-1])  # the two fixed types
+    for cat in _existing_custom_categories():
+        choices.append((cat, cat[len("custom:"):]))
+    choices.append(CATEGORY_CHOICES[-1])  # keep "➕ نوع جديد" last
+    return choices
+
+
+def _normalise_type_name(raw: str) -> str:
+    """Trim and collapse inner whitespace so 'اعلاف  جافه ' == 'اعلاف جافه'."""
+    return " ".join((raw or "").split())
+
+
+def _resolve_category(form) -> str | None:
+    """The category to store, or None if the user asked for a new type and left
+    the name blank (the caller flashes and re-renders).
+
+    A new name that matches an existing type case-insensitively reuses that
+    type's exact stored value, so the same type never exists twice.
+    """
+    cat = form.category.data
+    if cat != "__custom__":
+        return cat
+
+    name = _normalise_type_name(form.custom_category.data)
+    if not name:
+        return None
+
+    for existing in _existing_custom_categories():
+        if existing[len("custom:"):].casefold() == name.casefold():
+            return existing
+    return "custom:" + name
+
+
 @bp.route("/")
 @login_required
 def list_ingredients():
@@ -61,17 +113,14 @@ def list_ingredients():
 @login_required
 def create_ingredient():
     form = IngredientForm()
+    form.category.choices = _category_choices()  # TICKET-2
     if form.validate_on_submit():
         name = form.name.data.strip()
 
-        # TICKET-3: resolve custom category if user picked "__custom__"
-        cat = form.category.data
-        if cat == "__custom__":
-            custom = (form.custom_category.data or "").strip()
-            if not custom:
-                flash("لازم تكتب اسم النوع الجديد.", "error")
-                return render_template("inventory/form.html", form=form, mode="create")
-            cat = "custom:" + custom
+        cat = _resolve_category(form)
+        if cat is None:
+            flash("لازم تكتب اسم النوع الجديد.", "error")
+            return render_template("inventory/form.html", form=form, mode="create")
 
         existing = Ingredient.query.filter(
             func.lower(Ingredient.name) == name.lower(),
@@ -153,15 +202,12 @@ def edit_ingredient(ingredient_id: int):
     if not ing or ing.is_archived:
         abort(404)
     form = IngredientForm(obj=ing)
+    form.category.choices = _category_choices()  # TICKET-2
     if form.validate_on_submit():
-        # TICKET-3: resolve custom category
-        cat = form.category.data
-        if cat == "__custom__":
-            custom = (form.custom_category.data or "").strip()
-            if not custom:
-                flash("لازم تكتب اسم النوع الجديد.", "error")
-                return render_template("inventory/form.html", form=form, mode="edit", ingredient=ing)
-            cat = "custom:" + custom
+        cat = _resolve_category(form)
+        if cat is None:
+            flash("لازم تكتب اسم النوع الجديد.", "error")
+            return render_template("inventory/form.html", form=form, mode="edit", ingredient=ing)
 
         # Name change: ensure uniqueness within category
         new_name = form.name.data.strip()
