@@ -2,6 +2,7 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from wtforms import (
+    BooleanField,
     DateField,
     DecimalField,
     IntegerField,
@@ -73,6 +74,12 @@ class CowForm(FlaskForm):
     )
     gender = SelectField("الجنس", choices=GENDER_CHOICES, validators=[DataRequired()])
     group_id = SelectField("المجموعة", coerce=int, validators=[DataRequired()])
+    # TICKET-1: the "خنثة" case — a female twinned with a male. She counts as a
+    # female in the herd records (not in breeding or milk figures) but is fed and
+    # costed with التسمين, so she needs a deliberate way into that group.
+    allow_fattening_override = BooleanField(
+        "حالة خاصة (خنثة) — اسمح بوضعها في التسمين رغم إنها أنثى"
+    )
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=1000)])
     submit = SubmitField("حفظ")
 
