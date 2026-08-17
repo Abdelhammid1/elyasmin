@@ -38,6 +38,17 @@
             {{ form.group_id.label(class="form-label fw-bold") }}
             {{ form.group_id(class="form-select", id="groupSel") }}
             <small class="text-muted" id="groupHint"></small>
+            {% for e in form.group_id.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+          </div>
+
+          {# TICKET-1: a female twinned with a male ("خنثة") counts as female in
+             the records but is fed and costed with التسمين, so she needs a
+             deliberate way in. Unchecked, التسمين stays out of her list. #}
+          <div class="col-12" id="overrideBox">
+            <div class="form-check">
+              {{ form.allow_fattening_override(class="form-check-input", id="overrideChk") }}
+              {{ form.allow_fattening_override.label(class="form-check-label") }}
+            </div>
           </div>
 
           <div class="col-12">
@@ -56,39 +67,51 @@
 </div>
 
 <script>
-  // US-1.3 BR2: gender affects available groups.
-  // Male cows can only go to fattening groups. Female cows go anywhere EXCEPT fattening.
+  // TICKET-1: the group list is a SUGGESTION filter, never a lock.
+  //   male   -> every group (he goes رضيع -> فطام -> تسمين by age, not by sex)
+  //   female -> every group except التسمين, unless the "خنثة" box is ticked
+  // Previously males were restricted to التسمين only, which is what pushed every
+  // newborn male straight there and skipped the stages entirely.
   const allGroups = {{ groups_json|tojson }};
   const genderSel = document.getElementById('genderSel');
   const groupSel  = document.getElementById('groupSel');
   const groupHint = document.getElementById('groupHint');
+  const overrideChk = document.getElementById('overrideChk');
+  const overrideBox = document.getElementById('overrideBox');
 
   function filterGroupsByGender() {
-    const gender = genderSel.value;
-    const currentValue = groupSel.value;
-    let filtered;
-    if (gender === 'male') {
-      filtered = allGroups.filter(g => g.type === 'fattening');
-      groupHint.textContent = 'الذكور تظهر لهم مجموعات التسمين فقط.';
-    } else {
+    const isFemale = genderSel.value === 'female';
+    const override = overrideChk && overrideChk.checked;
+    const previous = groupSel.value;
+
+    // The checkbox only means anything for a female.
+    if (overrideBox) overrideBox.style.display = isFemale ? '' : 'none';
+
+    let filtered = allGroups;
+    if (isFemale && !override) {
       filtered = allGroups.filter(g => g.type !== 'fattening');
-      groupHint.textContent = 'الإناث تظهر لهن كل المجموعات ما عدا التسمين.';
+      groupHint.textContent = 'الإناث كل المجموعات ما عدا التسمين — علّم على الحالة الخاصة لو محتاجها.';
+    } else if (isFemale) {
+      groupHint.textContent = 'حالة خاصة: التسمين متاح للأنثى دي.';
+    } else {
+      groupHint.textContent = 'الذكر يبدأ رضيع، وينتقل للفطام فالتسمين مع العمر — اختار المرحلة الحالية.';
     }
+
     groupSel.innerHTML = '';
     filtered.forEach(g => {
       const opt = document.createElement('option');
       opt.value = g.id;
       opt.textContent = g.name;
-      if (String(g.id) === String(currentValue)) opt.selected = true;
+      if (String(g.id) === String(previous)) opt.selected = true;
       groupSel.appendChild(opt);
     });
-    // If none match, warn
     if (filtered.length === 0) {
-      groupHint.innerHTML = '<span class="text-danger">⚠️ مافيش مجموعة مناسبة للنوع ده. أضف مجموعة الأول.</span>';
+      groupHint.innerHTML = '<span class="text-danger">⚠️ مافيش مجموعة مناسبة. أضف مجموعة الأول.</span>';
     }
   }
 
   genderSel.addEventListener('change', filterGroupsByGender);
+  overrideChk && overrideChk.addEventListener('change', filterGroupsByGender);
   filterGroupsByGender();
 </script>
 {% endblock %}

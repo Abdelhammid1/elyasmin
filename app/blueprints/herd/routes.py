@@ -54,6 +54,21 @@ def _fattening_group_id():
     return grp.id if grp else None
 
 
+def _fattening_blocked(form) -> bool:
+    """TICKET-1: a female must not land in التسمين by accident.
+
+    The dropdown already hides it for females, but a filtered <select> is a
+    convenience, not a rule — it can be bypassed by a stale page or a crafted
+    post. The explicit "خنثة" checkbox is what makes it allowed.
+    """
+    if form.gender.data != Cow.GENDER_FEMALE:
+        return False
+    if form.allow_fattening_override.data:
+        return False
+    fattening_id = _fattening_group_id()
+    return bool(fattening_id) and form.group_id.data == fattening_id
+
+
 # ---------- Groups CRUD ----------
 @bp.route("/groups")
 @login_required
@@ -217,6 +232,16 @@ def create_cow():
     form.group_id.choices = _group_choices()
 
     if form.validate_on_submit():
+        if _fattening_blocked(form):
+            form.group_id.errors.append(
+                "الأنثى مابتدخلش التسمين. لو دي حالة خنثة، علّم على الخانة تحت."
+            )
+            flash("الأنثى مابتدخلش مجموعة التسمين إلا لو علّمت إنها حالة خاصة (خنثة).", "error")
+            return render_template(
+                "herd/form.html", form=form, mode="create",
+                groups_json=_groups_with_types(),
+            )
+
         ear_tag = form.ear_tag.data.strip()
         existing = Cow.query.filter_by(ear_tag=ear_tag).first()
         if existing:
@@ -266,6 +291,16 @@ def edit_cow(cow_id: int):
     form.group_id.choices = _group_choices()
 
     if form.validate_on_submit():
+        if _fattening_blocked(form):
+            form.group_id.errors.append(
+                "الأنثى مابتدخلش التسمين. لو دي حالة خنثة، علّم على الخانة تحت."
+            )
+            flash("الأنثى مابتدخلش مجموعة التسمين إلا لو علّمت إنها حالة خاصة (خنثة).", "error")
+            return render_template(
+                "herd/form.html", form=form, mode="edit", cow=cow,
+                groups_json=_groups_with_types(),
+            )
+
         # Ear tag change requires uniqueness check
         new_tag = form.ear_tag.data.strip()
         if new_tag != cow.ear_tag:
@@ -428,14 +463,15 @@ def create_birth():
             )
             mother.group_id = nursing_id
 
-        # Register calves (US-1.5 BR: males → fattening, females → nursing)
-        fattening_id = _fattening_group_id()
+        # TICKET-1: a newborn male used to jump straight to التسمين, skipping the
+        # age stages he actually goes through: مولود → رضيع → فطام → تسمين.
+        # Both sexes now start in الرضاعة; promotion onward stays manual.
         for rec in calf_records:
             calf_cow_id = None
             if rec["is_alive"]:
-                target_group = fattening_id if rec["gender"] == Cow.GENDER_MALE else nursing_id
+                target_group = nursing_id
                 if not target_group:
-                    flash("مجموعات التسمين/الرضاعة غير مضبوطة. من فضلك راجع الإعدادات.", "error")
+                    flash("مجموعة الرضاعة غير مضبوطة. من فضلك راجع الإعدادات.", "error")
                     db.session.rollback()
                     return render_template("herd/birth_form.html", form=form)
 
