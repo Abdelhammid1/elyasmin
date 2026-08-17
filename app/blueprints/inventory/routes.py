@@ -61,6 +61,13 @@ def list_ingredients():
 @login_required
 def create_ingredient():
     form = IngredientForm()
+    # TICKET-4: the medicine screen links here with ?category=medicine so adding
+    # a medicine item lands on the right type without hunting for it.
+    if request.method == "GET":
+        preset = request.args.get("category")
+        if preset in dict(form.category.choices):
+            form.category.data = preset
+
     if form.validate_on_submit():
         name = form.name.data.strip()
 

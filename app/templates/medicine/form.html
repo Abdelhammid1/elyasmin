@@ -14,6 +14,13 @@
         <div class="mb-3">
           {{ form.ingredient_id.label(class="form-label fw-bold") }}
           {{ form.ingredient_id(class="form-select", id="medSel") }}
+          {# TICKET-4: make the inventory link discoverable at the exact moment
+             he notices the drug he wants is not in the list. #}
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            القايمة دي بتيجي من المخزون. الدواء مش موجود؟
+            <a href="{{ url_for('inventory.create_ingredient', category='medicine') }}">أضفه كصنف في المخزون الأول</a>.
+          </small>
         </div>
 
         <div class="row g-3">
