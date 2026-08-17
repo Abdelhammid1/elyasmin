@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}المواد المسموح إضافتها{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-check2-square"></i> المواد المسموح إضافتها — {{ group.name }}</h1>
+  <p class="text-muted mb-0">
+    اختار المواد اللي ممكن تتضاف للمجموعة دي وقت التغذية (زي دريس حجازى، سيلاج، قش، تبن قمح).
+    ده بيمنع أخطاء الإدخال وبيسرّع الشغل على العامل.
+  </p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card p-3 mb-3">
+      <label class="form-label fw-bold">المجموعة</label>
+      <select class="form-select" onchange="if(this.value) window.location.href=this.value;">
+        {% for g in groups %}
+        <option value="{{ url_for('feed.group_allowances', group_id=g.id) }}"
+                {% if g.id == group.id %}selected{% endif %}>{{ g.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="card p-4">
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if materials %}
+        <div class="row g-2 mb-4">
+          {% for m in materials %}
+          <div class="col-md-6">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="ingredient_ids"
+                     value="{{ m.id }}" id="ing{{ m.id }}"
+                     {% if m.id in current %}checked{% endif %}>
+              <label class="form-check-label" for="ing{{ m.id }}">
+                {{ m.name }}
+                <small class="text-muted">— {{ m.category_label }} · متاح <span dir="ltr">{{ m.current_qty }}</span> {{ m.unit_label }}</small>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="alert alert-light border small">
+          <i class="bi bi-info-circle"></i>
+          لو مااخترتش أي مادة، شاشة التغذية هتعرض كل المواد الخام — عشان الشاشة تفضل شغالة قبل ما تظبط القائمة.
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary">حفظ</button>
+          <a href="{{ url_for('feed.list_tanks') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">مفيش مواد خام في المخزون لسه.</p>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

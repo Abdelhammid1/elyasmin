@@ -23,8 +23,11 @@ from app.models.feed import (
     FeedRecipeLine,
     FeedRun,
     FeedRunLine,
+    FeedingAddition,
+    FeedingSession,
     FeedTank,
     FeedTankMovement,
+    GroupFeedAllowance,
     MedicineDispense,
 )
 from app.models.sales import (
@@ -52,6 +55,7 @@ __all__ = [
     "Supplier", "PurchaseInvoice", "PurchaseInvoiceCharge", "PurchaseLine", "SupplierPayment",
     "FeedRecipe", "FeedRecipeLine", "FeedRun", "FeedRunLine", "MedicineDispense",
     "FeedTank", "FeedTankMovement",
+    "FeedingSession", "FeedingAddition", "GroupFeedAllowance",
     "Customer", "MilkDelivery", "MilkInvoice", "CustomerPayment", "DailyProduction",
     "Setting", "Expense",
     "Account", "AccountMovement", "AccountTransfer",

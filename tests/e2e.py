@@ -323,26 +323,52 @@ def run_desktop(page: Page) -> None:
     snap(page, "feed_tanks", "خزانات العلف",
          "رصيد كل مجموعة من الخلطة المخزّنة، متوسط تكلفة الكيلو، وقيمة الرصيد.")
 
-    withdraw_link = page.locator('a[href*="/withdraw"]:not(.disabled)').first
-    if withdraw_link.count() > 0:
-        withdraw_link.click()
-        page.wait_for_selector('input[name="qty"]', timeout=10_000)
-        snap(page, "feed_tank_withdraw", "سحب من الخزان",
-             "شاشة السحب بتوري الرصيد المتاح وبتقبل كمية جزئية.")
+    # TICKET-3: feeding replaced the bare withdrawal screen. The old steps kept
+    # "passing" by falling through to an else-branch once the button changed, so
+    # they were testing nothing — these drive the real flow instead.
+    # scoped to the table: the same href also sits in the collapsed العلف nav
+    # dropdown, which is not visible, so an unscoped .first waits forever
+    feeding_link = page.locator('table a[href*="/feeding/new"]').first
+    if feeding_link.count() > 0:
+        feeding_link.click()
+        page.wait_for_selector('input[name="feed_qty"]', timeout=10_000)
+        snap(page, "feeding_form", "TICKET-3: تسجيل تغذية",
+             "علف من خزان المجموعة + إضافات من المخزن العام، والتكلفة بتتحسب للاتنين.")
 
-        # over-draw must be refused with the available balance named
-        page.fill('input[name="qty"]', "999999")
+        # feed from the tank AND an addition from general stores, in one meal
+        page.fill('input[name="feed_qty"]', "100")
+        if page.locator('select[name="addition_ingredient_0"]').count() > 0:
+            page.select_option('select[name="addition_ingredient_0"]', index=0)
+            page.fill('input[name="addition_qty_0"]', "50")
+        page.click('input[type="submit"]')
+        page.wait_for_load_state("networkidle")
+        body = page.content()
+        if "تم تسجيل تغذية" in body and "إضافات" in body:
+            snap(page, "feeding_recorded", "TICKET-3: الوجبة اتسجلت بتكلفتها",
+                 "الرسالة بتفصل تكلفة العلف عن تكلفة الإضافات وبتجمعهم.")
+        else:
+            fail(page, "feeding_recorded", "TICKET-3: الوجبة اتسجلت بتكلفتها",
+                 "مفيش رسالة نجاح فيها تفصيل العلف والإضافات")
+
+        # over-drawing the tank must still be refused, with the balance named
+        page.goto(f"{BASE}/feed/feeding/new")
+        page.wait_for_selector('input[name="feed_qty"]', timeout=10_000)
+        page.fill('input[name="feed_qty"]', "999999")
         page.click('input[type="submit"]')
         page.wait_for_load_state("networkidle")
         if "مش كفاية" in page.content():
-            snap(page, "feed_tank_overdraw", "FEED-TANK: منع السحب الزيادة",
-                 "السحب أكبر من الرصيد اتمنع، والرسالة بتقول الرصيد المتاح كام.")
+            snap(page, "feeding_overdraw", "TICKET-3: منع السحب الزيادة",
+                 "السحب أكبر من رصيد الخزان اتمنع، والرسالة بتقول المتاح كام.")
         else:
-            fail(page, "feed_tank_overdraw", "FEED-TANK: منع السحب الزيادة",
+            fail(page, "feeding_overdraw", "TICKET-3: منع السحب الزيادة",
                  "السحب الزيادة عدّى من غير رسالة")
     else:
-        snap(page, "feed_tanks_empty", "خزانات العلف — فاضية",
-             "مفيش تشغيل لسه، فكل الخزانات فاضية والسحب متقفل.")
+        fail(page, "feeding_form", "TICKET-3: تسجيل تغذية",
+             "مفيش زرار تغذية في شاشة الخزانات")
+
+    page.goto(f"{BASE}/feed/feeding")
+    snap(page, "feedings_list", "TICKET-3: سجل التغذية اليومي",
+         "كل مجموعة بوجباتها وتكلفة اليوم — علف + إضافات.")
 
     # ---- Medicine ----
     page.goto(f"{BASE}/medicine/")

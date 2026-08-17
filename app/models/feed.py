@@ -253,3 +253,108 @@ class MedicineDispense(db.Model):
         if self.group_id:
             return f"مجموعة {self.group.name}"
         return "—"
+
+
+class GroupFeedAllowance(db.Model):
+    """TICKET-3: which raw materials may be added to a group at feeding time.
+
+    The client wants each group pre-set with what is allowed (e.g. مجموعة الحليب
+    → دريس حجازى، سيلاج، قش، تبن قمح). It stops a worker adding the wrong thing
+    at 5am and saves him scrolling the whole inventory.
+    """
+
+    __tablename__ = "group_feed_allowances"
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("cattle_groups.id"), nullable=False, index=True)
+    ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), nullable=False, index=True)
+
+    group = db.relationship("CattleGroup")
+    ingredient = db.relationship("Ingredient")
+
+    __table_args__ = (
+        db.UniqueConstraint("group_id", "ingredient_id", name="uq_group_allowance"),
+    )
+
+
+class FeedingSession(db.Model):
+    """TICKET-3: one actual feeding of one group — the event that costs money.
+
+    The distinction the whole ticket turns on:
+
+      * `feed_qty` comes out of the group's FeedTank — the recipe the vet set,
+        already mixed and stored. Nothing else may be drawn from there.
+      * `additions` come straight out of general inventory (سيلاج، تبن، دريس،
+        قش). They are mixed in at the trough, are NOT part of the recipe's
+        composition, and must never be written back into it.
+
+    They meet in one place only: the cost of this meal.
+    """
+
+    __tablename__ = "feeding_sessions"
+
+    MEAL_FAJR = "fajr"
+    MEAL_DHUHR = "dhuhr"
+    MEAL_ASR = "asr"
+    MEAL_MAGHRIB = "maghrib"
+
+    MEAL_LABELS = {
+        MEAL_FAJR: "الفجر",
+        MEAL_DHUHR: "الظهر",
+        MEAL_ASR: "العصر",
+        MEAL_MAGHRIB: "المغرب",
+    }
+    # The client: milk group eats 3 times a day, the rest twice.
+    MEALS_MILK = [MEAL_FAJR, MEAL_DHUHR, MEAL_MAGHRIB]
+    MEALS_OTHER = [MEAL_FAJR, MEAL_MAGHRIB]
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("cattle_groups.id"), nullable=False, index=True)
+    session_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    meal = db.Column(db.String(20), nullable=False)
+
+    feed_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
+    feed_unit_cost = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0"))
+    feed_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+    additions_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+    total_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    group = db.relationship("CattleGroup")
+    additions = db.relationship(
+        "FeedingAddition", back_populates="session", cascade="all, delete-orphan"
+    )
+
+    @staticmethod
+    def meals_for(group) -> list[str]:
+        from app.models.herd import CattleGroup
+        return (FeedingSession.MEALS_MILK if group.type == CattleGroup.TYPE_MILK
+                else FeedingSession.MEALS_OTHER)
+
+    @property
+    def meal_label(self) -> str:
+        return self.MEAL_LABELS.get(self.meal, self.meal)
+
+
+class FeedingAddition(db.Model):
+    """TICKET-3: one raw material added at the trough, priced at that moment.
+
+    Deducted from general inventory. Never touches recipe composition.
+    """
+
+    __tablename__ = "feeding_additions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(
+        db.Integer, db.ForeignKey("feeding_sessions.id"), nullable=False, index=True
+    )
+    ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), nullable=False)
+    qty = db.Column(db.Numeric(14, 3), nullable=False)
+    unit_cost = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0"))
+    total_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
+
+    session = db.relationship("FeedingSession", back_populates="additions")
+    ingredient = db.relationship("Ingredient")

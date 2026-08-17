@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.finance import ExpenseForm, ReportFilterForm, SettingsForm
-from app.models.feed import FeedTank, FeedTankMovement
+from app.models.feed import FeedingSession, FeedTank, FeedTankMovement
 from app.models.finance import Account, Expense, Setting
 from app.models.herd import AnimalSale, CattleGroup
 from app.models.labor import Attendance, Worker, WorkerPayment
@@ -160,8 +160,12 @@ def _compute_milk_cost(date_from: date, date_to: date) -> dict:
     not from what was mixed. A run that produces a batch stored for later moves
     nothing here until the feeding worker draws it out.
 
-    direct_milk_feed_cost = Σ withdrawals from milk-group tanks
-    other_direct_feed_cost = Σ withdrawals from non-milk-group tanks
+    TICKET-3: feed cost = what came out of the tank (the recipe) PLUS the
+    additions tipped in from general stores at feeding time. Both are eaten;
+    only their sources differ.
+
+    direct_milk_feed_cost = Σ (milk-group tank withdrawals + milk-group additions)
+    other_direct_feed_cost = Σ (other-group tank withdrawals + other-group additions)
     indirect_total = Expenses in period (excluding those already counted via feed runs / supplier payments)
                      — we take ALL non-archived expenses in the period (mgr enters generals monthly)
     indirect_milk_share = indirect_total × milk_pct / 100
@@ -198,8 +202,32 @@ def _compute_milk_cost(date_from: date, date_to: date) -> dict:
         ) or 0
         return -Decimal(str(total))
 
-    direct_milk = _withdrawn_cost(milk_groups=True)
-    other_direct = _withdrawn_cost(milk_groups=False)
+    def _additions_cost(milk_groups: bool):
+        """TICKET-3: cost of materials tipped in at the trough from general
+        stores (سيلاج، تبن، دريس، قش).
+
+        These are real feed the animals ate — on the client's own numbers a milk
+        meal is 400kg of recipe against 800kg of additions. Leaving them out
+        would report barely a third of what the milk actually cost.
+        """
+        group_filter = (
+            FeedingSession.group_id.in_(milk_group_ids or [0])
+            if milk_groups
+            else ~FeedingSession.group_id.in_(milk_group_ids or [0])
+        )
+        total = (
+            db.session.query(func.coalesce(func.sum(FeedingSession.additions_cost), 0))
+            .filter(
+                FeedingSession.session_date >= date_from,
+                FeedingSession.session_date <= date_to,
+                group_filter,
+            )
+            .scalar()
+        ) or 0
+        return Decimal(str(total))
+
+    direct_milk = _withdrawn_cost(milk_groups=True) + _additions_cost(milk_groups=True)
+    other_direct = _withdrawn_cost(milk_groups=False) + _additions_cost(milk_groups=False)
 
     indirect_total = (
         db.session.query(func.coalesce(func.sum(Expense.amount), 0))

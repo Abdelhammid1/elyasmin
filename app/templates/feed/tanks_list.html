@@ -42,9 +42,13 @@
           <td dir="ltr">{{ row.tank.current_value if row.tank else '—' }}</td>
           <td class="text-start">
             <div class="btn-group btn-group-sm">
-              <a href="{{ url_for('feed.withdraw_from_tank', group_id=row.group.id) }}"
-                 class="btn {% if row.tank and not row.tank.is_empty %}btn-warning{% else %}btn-outline-secondary disabled{% endif %}">
-                <i class="bi bi-box-arrow-up"></i> سحب
+              <a href="{{ url_for('feed.create_feeding', group_id=row.group.id) }}"
+                 class="btn btn-warning">
+                <i class="bi bi-basket2"></i> تغذية
+              </a>
+              <a href="{{ url_for('feed.group_allowances', group_id=row.group.id) }}"
+                 class="btn btn-outline-secondary" title="المواد المسموح إضافتها">
+                <i class="bi bi-check2-square"></i>
               </a>
               <a href="{{ url_for('feed.tank_statement', group_id=row.group.id) }}"
                  class="btn btn-outline-secondary">

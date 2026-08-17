@@ -53,6 +53,9 @@
             <li><a class="dropdown-item" href="{{ url_for('feed.create_run') }}"><i class="bi bi-play-circle"></i> تشغيل يومي</a></li>
             <li><a class="dropdown-item" href="{{ url_for('feed.list_runs') }}"><i class="bi bi-clock-history"></i> سجل التشغيلات</a></li>
             <li><a class="dropdown-item" href="{{ url_for('feed.list_tanks') }}"><i class="bi bi-database"></i> خزانات العلف</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('feed.create_feeding') }}"><i class="bi bi-basket2"></i> تسجيل تغذية</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('feed.list_feedings') }}"><i class="bi bi-journal-check"></i> سجل التغذية اليومي</a></li>
           </ul>
         </li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('medicine') %}active{% endif %}" href="{{ url_for('medicine.list_dispenses') }}"><i class="bi bi-capsule"></i> الأدوية</a></li>
