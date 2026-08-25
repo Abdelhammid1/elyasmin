@@ -84,18 +84,24 @@ class MilkDelivery(db.Model):
 
     protein_pct = db.Column(db.Numeric(5, 2), nullable=True)  # only for quality-based
     bacteria_count = db.Column(db.Integer, nullable=True)  # only for quality-based
+    # TICKET-A: fat sits in the analysis the price is derived from. Optional —
+    # the lab figure is not always back when the delivery is recorded.
+    fat_pct = db.Column(db.Numeric(5, 2), nullable=True)
 
     # TICKET-4: nullable — the client records a delivery first and prices it
     # later, sometimes days later. NULL total_value means "not priced yet".
     unit_price = db.Column(db.Numeric(10, 3), nullable=True)  # السعر
     base_value = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # الثمن = qty × price
 
-    # Client's Excel columns (all adjustments to the base value)
-    fat_bonus = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))       # الدهن
-    protein_bonus = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))   # البروتين
-    bacteria_adj = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))    # البكتيريا
-    transport = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))       # النقل
-    other_adj = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))       # أخرى
+    # Client's Excel columns. TICKET-A: these are RATES PER KILO, not amounts —
+    # the client enters جنيه/كيلو and the invoice multiplies by the quantity.
+    # Wide scale because converting a legacy amount on a 24,450 kg delivery
+    # gives 0.0000229…, which rounds to zero at two places and loses the value.
+    fat_bonus = db.Column(db.Numeric(18, 10), nullable=False, default=Decimal("0"))       # الدهن
+    protein_bonus = db.Column(db.Numeric(18, 10), nullable=False, default=Decimal("0"))   # البروتين
+    bacteria_adj = db.Column(db.Numeric(18, 10), nullable=False, default=Decimal("0"))    # البكتيريا
+    transport = db.Column(db.Numeric(18, 10), nullable=False, default=Decimal("0"))       # النقل
+    other_adj = db.Column(db.Numeric(18, 10), nullable=False, default=Decimal("0"))       # أخرى
 
     subtotal = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))        # الإجمالي
 
@@ -114,6 +120,40 @@ class MilkDelivery(db.Model):
 
     customer = db.relationship("Customer", back_populates="deliveries")
     invoice = db.relationship("MilkInvoice", back_populates="deliveries")
+
+    # TICKET-A: the adjustment columns hold rates, but the invoice the customer
+    # receives is a money document — it prints these amounts, not the rates.
+    def _adj_amount(self, rate) -> Decimal:
+        qty = Decimal(str(self.qty_kg or 0))
+        return (Decimal(str(rate or 0)) * qty).quantize(Decimal("0.01"))
+
+    @property
+    def fat_amount(self) -> Decimal:
+        return self._adj_amount(self.fat_bonus)
+
+    @property
+    def protein_amount(self) -> Decimal:
+        return self._adj_amount(self.protein_bonus)
+
+    @property
+    def bacteria_amount(self) -> Decimal:
+        return self._adj_amount(self.bacteria_adj)
+
+    @property
+    def transport_amount(self) -> Decimal:
+        return self._adj_amount(self.transport)
+
+    @property
+    def other_amount(self) -> Decimal:
+        return self._adj_amount(self.other_adj)
+
+    @property
+    def additions_total(self) -> Decimal:
+        """All التعديلات together, in EGP."""
+        rates = (self.fat_bonus, self.protein_bonus, self.bacteria_adj,
+                 self.transport, self.other_adj)
+        total = sum((Decimal(str(r or 0)) for r in rates), Decimal("0"))
+        return (total * Decimal(str(self.qty_kg or 0))).quantize(Decimal("0.01"))
 
     @property
     def is_priced(self) -> bool:

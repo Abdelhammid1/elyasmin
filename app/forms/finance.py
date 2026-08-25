@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from flask_wtf import FlaskForm
 from wtforms import DateField, DecimalField, SelectField, StringField, SubmitField, TextAreaField
@@ -59,6 +60,21 @@ class SettingsForm(FlaskForm):
         "خصم لكل +100 ألف بكتيريا/مل فوق 100 ألف",
         places=3,
         validators=[DataRequired(), NumberRange(min=0)],
+    )
+    # TICKET-A: fat joins the formula. Ships at 0 so nothing reprices until the
+    # client puts his own rate in — DataRequired would reject that 0, so the
+    # validator has to be Optional with the zero supplied as the default.
+    quality_fat_ref = DecimalField(
+        "نسبة الدهن اللي الزيادة بتبدأ فوقها (%)",
+        places=2,
+        default=Decimal("3.0"),
+        validators=[Optional(), NumberRange(min=0, max=15)],
+    )
+    quality_fat_adj = DecimalField(
+        "زيادة السعر لكل +1% دهن فوق النسبة دي (0 = الدهن مش بيأثر على السعر)",
+        places=3,
+        default=Decimal("0"),
+        validators=[Optional(), NumberRange(min=0)],
     )
     submit = SubmitField("حفظ الإعدادات")
 
