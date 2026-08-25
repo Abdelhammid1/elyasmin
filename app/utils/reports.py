@@ -60,7 +60,9 @@ def pdf_from_current_page(target_url: str, filename: str) -> Response:
             ctx.add_cookies(cookies)
 
         page = ctx.new_page()
-        page.goto(target_url, wait_until="networkidle", timeout=15_000)
+        # a cold Chromium plus the CDN assets loses the 15s race, so the first
+        # PDF after a restart used to fail
+        page.goto(target_url, wait_until="networkidle", timeout=45_000)
         pdf_bytes = page.pdf(
             format="A4",
             print_background=True,

@@ -275,13 +275,20 @@ def suppliers_report():
 
     total_period_invoiced = sum((i.total for i in invoices), Decimal("0"))
 
-    suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
-    total_owed_now = sum((s.balance_due for s in suppliers), Decimal("0"))
+    # The dropdown and the statement table used to share one list, so picking a
+    # supplier filtered the invoices but left the statement — and the المستحق
+    # total — showing every supplier. They are two different questions now.
+    all_suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
+    statement_suppliers = (
+        [s for s in all_suppliers if s.id == supplier_id] if supplier_id else all_suppliers
+    )
+    total_owed_now = sum((s.balance_due for s in statement_suppliers), Decimal("0"))
 
     return render_template(
         "suppliers/report.html",
         invoices=invoices,
-        suppliers=suppliers,
+        suppliers=all_suppliers,
+        statement_suppliers=statement_suppliers,
         selected_supplier_id=supplier_id,
         date_from=d_from, date_to=d_to,
         total_period_invoiced=total_period_invoiced,
@@ -297,15 +304,17 @@ def suppliers_report_excel():
     to = request.args.get("date_to")
     d_from = date.fromisoformat(fm) if fm else today.replace(day=1)
     d_to = date.fromisoformat(to) if to else today
-    invoices = (
-        PurchaseInvoice.query.filter(
-            PurchaseInvoice.is_archived.is_(False),
-            PurchaseInvoice.invoice_date >= d_from,
-            PurchaseInvoice.invoice_date <= d_to,
-        )
-        .order_by(PurchaseInvoice.invoice_date.desc())
-        .all()
+    # the export has to answer the same question the screen is showing, so it
+    # takes the supplier filter too
+    supplier_id = request.args.get("supplier_id", type=int)
+    invoice_q = PurchaseInvoice.query.filter(
+        PurchaseInvoice.is_archived.is_(False),
+        PurchaseInvoice.invoice_date >= d_from,
+        PurchaseInvoice.invoice_date <= d_to,
     )
+    if supplier_id:
+        invoice_q = invoice_q.filter_by(supplier_id=supplier_id)
+    invoices = invoice_q.order_by(PurchaseInvoice.invoice_date.desc()).all()
     rows = [
         [
             i.invoice_date.isoformat(),

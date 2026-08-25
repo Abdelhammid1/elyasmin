@@ -8,10 +8,11 @@ from sqlalchemy import func
 from app.extensions import db
 from app.forms.sales import CustomerForm, CustomerPaymentForm
 from app.models.finance import Account
-from app.models.sales import Customer, CustomerPayment, MilkDelivery
+from app.models.sales import Customer, CustomerPayment, MilkDelivery, MilkInvoice
 from app.models.suppliers import Supplier
 from app.utils import accounts as acc
 from app.utils.audit import log_action
+from app.utils.reports import excel_response, pdf_from_current_page
 
 bp = Blueprint("customers", __name__, template_folder="../../templates/customers")
 
@@ -270,3 +271,113 @@ def weekly_settlement():
     return render_template(
         "customers/settlement.html", rows=rows, start=start, end=end,
     )
+
+
+# ---------- Customers report ----------
+def _report_args():
+    """Shared filter parsing so the screen and both exports can't drift apart."""
+    today = date.today()
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    d_from = date.fromisoformat(fm) if fm else today.replace(day=1)
+    d_to = date.fromisoformat(to) if to else today
+    return d_from, d_to, request.args.get("customer_id", type=int)
+
+
+def _report_data(d_from, d_to, customer_id):
+    """Everything about a customer over a period: what he took, what he paid,
+    what he still owes, and the invoices behind it."""
+    def scope(q):
+        return q.filter_by(customer_id=customer_id) if customer_id else q
+
+    deliveries = scope(
+        MilkDelivery.query.filter(
+            MilkDelivery.is_archived.is_(False),
+            MilkDelivery.delivery_date >= d_from,
+            MilkDelivery.delivery_date <= d_to,
+        )
+    ).order_by(MilkDelivery.delivery_date.desc(), MilkDelivery.id.desc()).all()
+
+    invoices = scope(
+        MilkInvoice.query.filter(
+            MilkInvoice.is_archived.is_(False),
+            MilkInvoice.issue_date >= d_from,
+            MilkInvoice.issue_date <= d_to,
+        )
+    ).order_by(MilkInvoice.issue_date.desc()).all()
+
+    payments = scope(
+        CustomerPayment.query.filter(
+            CustomerPayment.is_archived.is_(False),
+            CustomerPayment.payment_date >= d_from,
+            CustomerPayment.payment_date <= d_to,
+        )
+    ).order_by(CustomerPayment.payment_date.desc()).all()
+
+    all_customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    statement = [c for c in all_customers if c.id == customer_id] if customer_id else all_customers
+
+    return {
+        "deliveries": deliveries,
+        "invoices": invoices,
+        "payments": payments,
+        "all_customers": all_customers,
+        "statement": statement,
+        # an unpriced delivery has total_value = None and must not be counted
+        "period_qty": sum((d.qty_kg for d in deliveries), Decimal("0")),
+        "period_value": sum(
+            (d.total_value for d in deliveries if d.total_value is not None), Decimal("0")
+        ),
+        "period_paid": sum((p.amount for p in payments), Decimal("0")),
+        "balance_now": sum((c.balance for c in statement), Decimal("0")),
+        "unpriced_count": sum(1 for d in deliveries if d.total_value is None),
+    }
+
+
+@bp.route("/report")
+@login_required
+def customers_report():
+    d_from, d_to, customer_id = _report_args()
+    data = _report_data(d_from, d_to, customer_id)
+    return render_template(
+        "customers/report.html",
+        date_from=d_from, date_to=d_to,
+        selected_customer_id=customer_id,
+        **data,
+    )
+
+
+@bp.route("/report/excel")
+@login_required
+def customers_report_excel():
+    d_from, d_to, customer_id = _report_args()
+    data = _report_data(d_from, d_to, customer_id)
+    rows = [
+        [
+            d.delivery_date.isoformat(),
+            d.customer.name,
+            float(d.qty_kg),
+            float(d.unit_price) if d.unit_price is not None else "",
+            float(d.base_value),
+            float(d.subtotal),
+            float(d.total_value) if d.total_value is not None else "بانتظار التسعير",
+        ]
+        for d in data["deliveries"]
+    ]
+    return excel_response(
+        "Customers",
+        ["التاريخ", "العميل", "الكمية (كيلو)", "السعر", "الثمن", "الإجمالي", "الصافي"],
+        rows,
+        f"customers_report_{d_from}_{d_to}.xlsx",
+    )
+
+
+@bp.route("/report/pdf")
+@login_required
+def customers_report_pdf():
+    d_from, d_to, customer_id = _report_args()
+    target = url_for(
+        "customers.customers_report", date_from=d_from.isoformat(),
+        date_to=d_to.isoformat(), customer_id=customer_id, _external=True,
+    )
+    return pdf_from_current_page(target, f"customers_report_{d_from}_{d_to}.pdf")

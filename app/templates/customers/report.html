@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}تقرير العملاء{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-people"></i> تقرير المبيعات والعملاء</h1>
+    <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span></p>
+  </div>
+  <div class="d-flex gap-2 no-print">
+    <a href="{{ url_for('customers.customers_report_pdf', date_from=date_from.isoformat(), date_to=date_to.isoformat(), customer_id=selected_customer_id) }}" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / PDF</a>
+    <a href="{{ url_for('customers.customers_report_excel', date_from=date_from.isoformat(), date_to=date_to.isoformat(), customer_id=selected_customer_id) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+  </div>
+</div>
+
+<div class="card p-3 mb-3 no-print">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">من تاريخ</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">عميل معين (اختياري)</label>
+      <select name="customer_id" class="form-select">
+        <option value="">— كل العملاء —</option>
+        {% for c in all_customers %}
+          <option value="{{ c.id }}" {% if selected_customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">تحديث</button>
+    </div>
+  </form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">كمية الفترة (كيلو)</div>
+      <div class="stat-value" dir="ltr">{{ period_qty }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">قيمة توريدات الفترة</div>
+      <div class="stat-value" dir="ltr">{{ period_value }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">المحصّل في الفترة</div>
+      <div class="stat-value text-success" dir="ltr">{{ period_paid }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">الرصيد الحالي على العملاء</div>
+      <div class="stat-value text-danger" dir="ltr">{{ balance_now }}</div>
+    </div>
+  </div>
+</div>
+
+{% if unpriced_count %}
+<div class="alert alert-warning py-2 small">
+  <i class="bi bi-exclamation-triangle"></i>
+  فيه <span dir="ltr" class="fw-bold">{{ unpriced_count }}</span> توريد لسه بانتظار التسعير —
+  مش داخل في قيمة الفترة ولا في الرصيد.
+</div>
+{% endif %}
+
+<div class="card p-3">
+  <h5>كشف حساب العملاء (الرصيد الحالي)</h5>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>العميل</th><th>التسعير</th><th>قيمة التوريدات</th>
+          <th>المدفوع</th><th>الرصيد</th><th>الصافي (مع التوريد)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in statement %}
+        <tr>
+          <td>{{ c.name }}</td>
+          <td>{{ c.pricing_label }}</td>
+          <td dir="ltr">{{ c.total_delivered_value }}</td>
+          <td dir="ltr" class="text-success">{{ c.total_paid }}</td>
+          <td dir="ltr" class="{% if c.balance > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">{{ c.balance }}</td>
+          <td dir="ltr" class="{% if c.net_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+            {% if c.linked_supplier %}{{ c.net_balance }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <small class="text-muted mt-2">
+    عمود "الصافي" بيظهر بس للعميل اللي هو كمان مورد — بيقاصّ اللي عليه باللي ليه.
+  </small>
+</div>
+
+<div class="card p-3 mt-3">
+  <h5>الفواتير</h5>
+  {% if invoices %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>تاريخ الإصدار</th><th>العميل</th><th>رقم الفاتورة</th><th>الفترة</th><th>الحالة</th><th>الإجمالي</th></tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td dir="ltr">{{ inv.issue_date }}</td>
+          <td>{{ inv.customer.name }}</td>
+          <td dir="ltr">{{ inv.invoice_number or "—" }}</td>
+          <td dir="ltr">{{ inv.period_from }} → {{ inv.period_to }}</td>
+          <td>{{ inv.status_label }}</td>
+          <td dir="ltr" class="fw-bold">{{ inv.grand_total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="text-muted mb-0">مفيش فواتير في الفترة دي.</p>{% endif %}
+</div>
+
+<div class="card p-3 mt-3">
+  <h5>التوريدات بالتفصيل</h5>
+  {% if deliveries %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>التاريخ</th><th>العميل</th><th>الكمية (كيلو)</th><th>السعر</th>
+          <th>الثمن</th><th>الإجمالي</th><th>الصافي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in deliveries %}
+        <tr>
+          <td dir="ltr">{{ d.delivery_date }}</td>
+          <td>{{ d.customer.name }}</td>
+          <td dir="ltr">{{ d.qty_kg }}</td>
+          <td dir="ltr">{{ d.unit_price if d.unit_price is not none else "—" }}</td>
+          <td dir="ltr">{{ d.base_value }}</td>
+          <td dir="ltr">{{ d.subtotal }}</td>
+          <td dir="ltr" class="fw-bold {% if d.total_value is none %}text-warning{% else %}text-success{% endif %}">
+            {{ d.total_value if d.total_value is not none else "بانتظار التسعير" }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="text-muted mb-0">مفيش توريدات في الفترة دي.</p>{% endif %}
+</div>
+
+<div class="card p-3 mt-3">
+  <h5>الدفعات</h5>
+  {% if payments %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>التاريخ</th><th>العميل</th><th>الطريقة</th><th>الحساب</th><th>المبلغ</th></tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td dir="ltr">{{ p.payment_date }}</td>
+          <td>{{ p.customer.name }}</td>
+          <td>{{ p.method_label }}</td>
+          <td>{{ p.account.name if p.account else "—" }}</td>
+          <td dir="ltr" class="text-success fw-bold">{{ p.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="text-muted mb-0">مفيش دفعات في الفترة دي.</p>{% endif %}
+</div>
+{% endblock %}
