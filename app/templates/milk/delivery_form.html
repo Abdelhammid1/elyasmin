@@ -75,45 +75,65 @@
           ومش كاتب سعر يدوي.
         </p>
         <div class="row g-3 mb-4">
-          <div class="col-md-6">
+          <div class="col-md-4">
             {{ form.protein_pct.label(class="form-label small") }}
             {{ form.protein_pct(class="form-control", dir="ltr", inputmode="decimal", placeholder="3.5") }}
             {% for e in form.protein_pct.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
             <small class="text-muted">تقدر تكتب الرقم لوحده أو بعلامة % — الاتنين مقبولين.</small>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-4">
+            {{ form.fat_pct.label(class="form-label small") }}
+            {{ form.fat_pct(class="form-control", dir="ltr", inputmode="decimal", placeholder="3.5", id="fatPct") }}
+            {% for e in form.fat_pct.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted">اختياري — بيدخل في حساب السعر لو حددت نسبته في الإعدادات.</small>
+          </div>
+          <div class="col-md-4">
             {{ form.bacteria_count.label(class="form-label small") }}
             {{ form.bacteria_count(class="form-control", dir="ltr", step="1", min="0") }}
             {% for e in form.bacteria_count.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
           </div>
         </div>
 
-        <h5 class="mb-3">التعديلات (+)</h5>
+        <h5 class="mb-1">التعديلات (+)</h5>
+        <p class="text-muted small mb-3">
+          دي أسعار <strong>بالجنيه لكل كيلو</strong> — بتتضرب في الكمية وتتضاف على الفاتورة.
+          تحت كل خانة هتلاقي المبلغ الناتج.
+        </p>
         <div class="row g-2 mb-4">
           <div class="col-md-2 col-6">
             {{ form.fat_bonus.label(class="form-label small") }}
-            {{ form.fat_bonus(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {{ form.fat_bonus(class="form-control form-control-sm adj-rate", dir="ltr", step="0.0001") }}
             {% for e in form.fat_bonus.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted d-block">جنيه/كيلو</small>
+            <small class="text-primary d-block" dir="ltr" data-amount-for="{{ form.fat_bonus.id }}">0.00</small>
           </div>
           <div class="col-md-2 col-6">
             {{ form.protein_bonus.label(class="form-label small") }}
-            {{ form.protein_bonus(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {{ form.protein_bonus(class="form-control form-control-sm adj-rate", dir="ltr", step="0.0001") }}
             {% for e in form.protein_bonus.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted d-block">جنيه/كيلو</small>
+            <small class="text-primary d-block" dir="ltr" data-amount-for="{{ form.protein_bonus.id }}">0.00</small>
           </div>
           <div class="col-md-2 col-6">
             {{ form.bacteria_adj.label(class="form-label small") }}
-            {{ form.bacteria_adj(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {{ form.bacteria_adj(class="form-control form-control-sm adj-rate", dir="ltr", step="0.0001") }}
             {% for e in form.bacteria_adj.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted d-block">جنيه/كيلو</small>
+            <small class="text-primary d-block" dir="ltr" data-amount-for="{{ form.bacteria_adj.id }}">0.00</small>
           </div>
           <div class="col-md-2 col-6">
             {{ form.transport.label(class="form-label small") }}
-            {{ form.transport(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {{ form.transport(class="form-control form-control-sm adj-rate", dir="ltr", step="0.0001") }}
             {% for e in form.transport.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted d-block">جنيه/كيلو</small>
+            <small class="text-primary d-block" dir="ltr" data-amount-for="{{ form.transport.id }}">0.00</small>
           </div>
           <div class="col-md-2 col-6">
             {{ form.other_adj.label(class="form-label small") }}
-            {{ form.other_adj(class="form-control form-control-sm", dir="ltr", step="0.01") }}
+            {{ form.other_adj(class="form-control form-control-sm adj-rate", dir="ltr", step="0.0001") }}
             {% for e in form.other_adj.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            <small class="text-muted d-block">جنيه/كيلو</small>
+            <small class="text-primary d-block" dir="ltr" data-amount-for="{{ form.other_adj.id }}">0.00</small>
           </div>
           <div class="col-md-2 col-6 border-start ps-2">
             <label class="form-label small fw-bold text-primary">الإجمالي</label>
@@ -176,11 +196,19 @@
     '{{ form.qty_deduction.id }}', '{{ form.cash_deduction.id }}', '{{ form.rounding.id }}'];
 
   function recompute() {
-    const base = num('qty') * num('unitPrice');
+    const qty = num('qty');
+    const base = qty * num('unitPrice');
     set('baseValue', base);
-    const additions = num('{{ form.fat_bonus.id }}') + num('{{ form.protein_bonus.id }}')
-                    + num('{{ form.bacteria_adj.id }}') + num('{{ form.transport.id }}')
-                    + num('{{ form.other_adj.id }}');
+    // TICKET-A: التعديلات are rates per kilo, so the preview has to multiply by
+    // the quantity — the same thing the server does on save.
+    const rateSum = num('{{ form.fat_bonus.id }}') + num('{{ form.protein_bonus.id }}')
+                  + num('{{ form.bacteria_adj.id }}') + num('{{ form.transport.id }}')
+                  + num('{{ form.other_adj.id }}');
+    const additions = rateSum * qty;
+    // show each box's own money value, so 0.15 reads as 3,667.50 while he types
+    document.querySelectorAll('[data-amount-for]').forEach(el => {
+      el.textContent = (num(el.dataset.amountFor) * qty).toFixed(2);
+    });
     const subtotal = base + additions;
     set('subtotal', subtotal);
     const net = subtotal - num('{{ form.qty_deduction.id }}') - num('{{ form.cash_deduction.id }}')

@@ -15,22 +15,36 @@ from app.utils.audit import log_action
 bp = Blueprint("milk", __name__, template_folder="../../templates/milk")
 
 
-def price_for_quality(protein_pct: Decimal, bacteria_cfu: Decimal) -> Decimal:
+def price_for_quality(
+    protein_pct: Decimal, bacteria_cfu: Decimal, fat_pct: Decimal | None = None
+) -> Decimal:
     """Configurable quality-based price formula.
 
     price = base + max(0, (protein − 3.0)) × protein_adj
+                + max(0, (fat − fat_ref)) × fat_adj
                 − max(0, (bacteria − 100k) / 100k) × bacteria_penalty
     All coefficients editable in Settings without code change.
+
+    TICKET-A: fat is optional. It is skipped entirely when not measured, and
+    fat_adj ships at 0 so adding the term reprices nothing until the client
+    enters his own rate.
     """
     base = Setting.get_decimal(Setting.KEY_QUALITY_PRICE_BASE, Decimal("6"))
     p_adj = Setting.get_decimal(Setting.KEY_QUALITY_PROTEIN_ADJ, Decimal("0.5"))
     b_pen = Setting.get_decimal(Setting.KEY_QUALITY_BACTERIA_PENALTY, Decimal("0.25"))
+    f_ref = Setting.get_decimal(Setting.KEY_QUALITY_FAT_REF, Decimal("3.0"))
+    f_adj = Setting.get_decimal(Setting.KEY_QUALITY_FAT_ADJ, Decimal("0"))
 
     p_bonus = max(Decimal("0"), Decimal(str(protein_pct)) - Decimal("3.0")) * p_adj
     b_units_over = max(Decimal("0"), (Decimal(str(bacteria_cfu)) - Decimal("100000")) / Decimal("100000"))
     b_penalty = b_units_over * b_pen
+    f_bonus = (
+        max(Decimal("0"), Decimal(str(fat_pct)) - f_ref) * f_adj
+        if fat_pct is not None
+        else Decimal("0")
+    )
 
-    price = base + p_bonus - b_penalty
+    price = base + p_bonus + f_bonus - b_penalty
     return max(Decimal("0"), price).quantize(Decimal("0.001"))
 
 
@@ -85,8 +99,13 @@ def _resolve_unit_price(form, customer):
 
     protein = form.protein_pct.data
     bacteria = form.bacteria_count.data
+    fat = form.fat_pct.data
     if protein is not None and bacteria is not None:
-        return price_for_quality(Decimal(str(protein)), Decimal(str(bacteria)))
+        return price_for_quality(
+            Decimal(str(protein)),
+            Decimal(str(bacteria)),
+            Decimal(str(fat)) if fat is not None else None,
+        )
 
     if customer.pricing_type == Customer.PRICING_QUALITY:
         # TICKET-3: quality pricing needs BOTH readings — say which one is missing
@@ -124,6 +143,7 @@ def _apply_form(delivery, form, customer, *, unpriced: bool) -> bool:
     qty = Decimal(str(form.qty_kg.data))
     protein = Decimal(str(form.protein_pct.data)) if form.protein_pct.data is not None else None
     bacteria = Decimal(str(form.bacteria_count.data)) if form.bacteria_count.data is not None else None
+    fat = Decimal(str(form.fat_pct.data)) if form.fat_pct.data is not None else None
 
     fat_b = _dec(form.fat_bonus.data)
     prot_b = _dec(form.protein_bonus.data)
@@ -135,7 +155,11 @@ def _apply_form(delivery, form, customer, *, unpriced: bool) -> bool:
     rnd = _dec(form.rounding.data)
 
     base = (qty * unit_price).quantize(Decimal("0.01")) if unit_price is not None else Decimal("0")
-    subtotal = (base + fat_b + prot_b + bact_a + trans + other).quantize(Decimal("0.01"))
+    # TICKET-A: التعديلات are rates per kilo, so they scale with the delivery.
+    # They used to be added as flat amounts, which made every quality adjustment
+    # the client entered wrong by a factor of the quantity.
+    additions = ((fat_b + prot_b + bact_a + trans + other) * qty).quantize(Decimal("0.01"))
+    subtotal = (base + additions).quantize(Decimal("0.01"))
     # An unpriced delivery has no net value at all — that NULL is what keeps it
     # out of balances, invoices and the settlement report until it is priced.
     total = (subtotal - qty_d - cash_d + rnd).quantize(Decimal("0.01")) if unit_price is not None else None
@@ -145,6 +169,7 @@ def _apply_form(delivery, form, customer, *, unpriced: bool) -> bool:
     delivery.qty_kg = qty
     delivery.protein_pct = protein
     delivery.bacteria_count = int(bacteria) if bacteria is not None else None
+    delivery.fat_pct = fat
     delivery.base_value = base
     delivery.fat_bonus, delivery.protein_bonus, delivery.bacteria_adj = fat_b, prot_b, bact_a
     delivery.transport, delivery.other_adj = trans, other
@@ -486,11 +511,13 @@ def invoice_excel(invoice_id: int):
             "كيلوجرام",
             float(d.unit_price),
             float(d.base_value),
-            float(d.fat_bonus),
-            float(d.protein_bonus),
-            float(d.bacteria_adj),
-            float(d.transport),
-            float(d.other_adj),
+            # TICKET-A: the columns hold rates now, but the invoice is a
+            # money document — it keeps printing EGP.
+            float(d.fat_amount),
+            float(d.protein_amount),
+            float(d.bacteria_amount),
+            float(d.transport_amount),
+            float(d.other_amount),
             float(d.subtotal),
             float(d.qty_deduction),
             float(d.cash_deduction),
