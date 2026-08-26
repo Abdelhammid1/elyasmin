@@ -39,6 +39,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.blueprints.users.routes import bp as users_bp
     from app.blueprints.herd.routes import bp as herd_bp
     from app.blueprints.dashboard.routes import bp as dashboard_bp
+    from app.blueprints.landing.routes import bp as landing_bp
     from app.blueprints.suppliers.routes import bp as suppliers_bp
     from app.blueprints.inventory.routes import bp as inventory_bp
     from app.blueprints.purchases.routes import bp as purchases_bp
@@ -56,6 +57,9 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(users_bp, url_prefix="/users")
     app.register_blueprint(herd_bp, url_prefix="/herd")
     app.register_blueprint(dashboard_bp)
+    # The public marketing page at `/`. Must be registered AFTER dashboard so it
+    # is clear at a glance the two don't collide on the same URL any more.
+    app.register_blueprint(landing_bp)
     app.register_blueprint(suppliers_bp, url_prefix="/suppliers")
     app.register_blueprint(inventory_bp, url_prefix="/inventory")
     app.register_blueprint(purchases_bp, url_prefix="/purchases")
