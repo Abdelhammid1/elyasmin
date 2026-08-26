@@ -8,7 +8,7 @@
   </div>
   <div class="d-flex gap-2 no-print">
     <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / PDF</button>
-    <a href="{{ url_for('suppliers.suppliers_report_excel', date_from=date_from.isoformat(), date_to=date_to.isoformat()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    <a href="{{ url_for('suppliers.suppliers_report_excel', date_from=date_from.isoformat(), date_to=date_to.isoformat(), supplier_id=selected_supplier_id) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
   </div>
 </div>
 
@@ -83,7 +83,7 @@
   <table class="table table-sm mb-0">
     <thead><tr><th>المورد</th><th>الفواتير</th><th>المدفوع</th><th>الرصيد</th></tr></thead>
     <tbody>
-      {% for s in suppliers %}
+      {% for s in statement_suppliers %}
       <tr>
         <td>{{ s.name }}</td>
         <td dir="ltr">{{ s.total_invoiced }}</td>

@@ -12,6 +12,10 @@ class Setting(db.Model):
     KEY_QUALITY_PRICE_BASE = "quality_price_base"           # base price EGP/kg
     KEY_QUALITY_PROTEIN_ADJ = "quality_protein_adj"         # + EGP per +1% protein above 3
     KEY_QUALITY_BACTERIA_PENALTY = "quality_bacteria_penalty"  # − EGP per 100k CFU above 100k
+    # TICKET-A: fat joins the analysis the price is built from. Ships with
+    # fat_adj = 0 so no existing price moves until the client sets his rate.
+    KEY_QUALITY_FAT_REF = "quality_fat_ref"                 # fat % the bonus starts above
+    KEY_QUALITY_FAT_ADJ = "quality_fat_adj"                 # + EGP per +1% fat above the ref
 
     key = db.Column(db.String(80), primary_key=True)
     value = db.Column(db.String(255), nullable=False)

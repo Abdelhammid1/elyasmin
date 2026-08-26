@@ -88,13 +88,26 @@ class MilkDeliveryForm(FlaskForm):
         "عدد البكتيريا (CFU/ml)",
         validators=[Optional(), NumberRange(min=0)],
     )
+    # TICKET-A: fat belongs with the rest of the analysis. Optional — the lab
+    # figure is not always back when the delivery is recorded.
+    fat_pct = LooseDecimalField(
+        "نسبة الدهن %",
+        places=2,
+        invalid_message="اكتب رقم صحيح للدهن (مثال: 3.5).",
+        validators=[
+            Optional(),
+            NumberRange(min=0, max=15, message="نسبة الدهن لازم تكون بين 0 و 15."),
+        ],
+    )
 
-    # Bonuses / adjustments (positive numbers)
-    fat_bonus = DecimalField("الدهن", places=2, default=0, validators=[Optional()])
-    protein_bonus = DecimalField("البروتين", places=2, default=0, validators=[Optional()])
-    bacteria_adj = DecimalField("البكتيريا (تعديل)", places=2, default=0, validators=[Optional()])
-    transport = DecimalField("النقل", places=2, default=0, validators=[Optional()])
-    other_adj = DecimalField("أخرى", places=2, default=0, validators=[Optional()])
+    # TICKET-A: التعديلات are RATES PER KILO (جنيه/كيلو), multiplied by the
+    # quantity on the invoice — not flat amounts added to the total.
+    # 4 places because a rate like 0.0125 جنيه/كيلو is a real thing to type.
+    fat_bonus = DecimalField("الدهن", places=4, default=0, validators=[Optional()])
+    protein_bonus = DecimalField("البروتين", places=4, default=0, validators=[Optional()])
+    bacteria_adj = DecimalField("البكتيريا (تعديل)", places=4, default=0, validators=[Optional()])
+    transport = DecimalField("النقل", places=4, default=0, validators=[Optional()])
+    other_adj = DecimalField("أخرى", places=4, default=0, validators=[Optional()])
 
     # Deductions (positive numbers, subtracted)
     qty_deduction = DecimalField("خصم كمية", places=2, default=0, validators=[Optional()])

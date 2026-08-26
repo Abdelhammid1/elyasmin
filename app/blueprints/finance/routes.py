@@ -33,6 +33,8 @@ def settings():
         form.quality_price_base.data = Setting.get_decimal(Setting.KEY_QUALITY_PRICE_BASE, Decimal("6"))
         form.quality_protein_adj.data = Setting.get_decimal(Setting.KEY_QUALITY_PROTEIN_ADJ, Decimal("0.5"))
         form.quality_bacteria_penalty.data = Setting.get_decimal(Setting.KEY_QUALITY_BACTERIA_PENALTY, Decimal("0.25"))
+        form.quality_fat_ref.data = Setting.get_decimal(Setting.KEY_QUALITY_FAT_REF, Decimal("3.0"))
+        form.quality_fat_adj.data = Setting.get_decimal(Setting.KEY_QUALITY_FAT_ADJ, Decimal("0"))
 
     if form.validate_on_submit():
         milk_pct = Decimal(str(form.cost_split_milk_pct.data))
@@ -45,6 +47,14 @@ def settings():
             Setting.set(Setting.KEY_QUALITY_PRICE_BASE, str(form.quality_price_base.data), "سعر أساس اللبن بالتحليل")
             Setting.set(Setting.KEY_QUALITY_PROTEIN_ADJ, str(form.quality_protein_adj.data), "زيادة السعر لكل +1% بروتين")
             Setting.set(Setting.KEY_QUALITY_BACTERIA_PENALTY, str(form.quality_bacteria_penalty.data), "خصم لكل +100k بكتيريا")
+            # TICKET-A: default to 0/3.0 rather than None if the box was cleared,
+            # so a blank field can never turn into a NULL the formula must guess at
+            Setting.set(Setting.KEY_QUALITY_FAT_REF,
+                        str(form.quality_fat_ref.data if form.quality_fat_ref.data is not None else Decimal("3.0")),
+                        "نسبة الدهن اللي الزيادة بتبدأ فوقها")
+            Setting.set(Setting.KEY_QUALITY_FAT_ADJ,
+                        str(form.quality_fat_adj.data if form.quality_fat_adj.data is not None else Decimal("0")),
+                        "زيادة السعر لكل +1% دهن")
             log_action("settings_updated", "Setting", 0)
             db.session.commit()
             flash("تم حفظ الإعدادات.", "success")

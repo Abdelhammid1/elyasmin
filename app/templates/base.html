@@ -71,6 +71,7 @@
             <li><a class="dropdown-item" href="{{ url_for('milk.daily_production') }}"><i class="bi bi-clipboard-data"></i> الإنتاج والفاقد</a></li>
             <li><a class="dropdown-item" href="{{ url_for('customers.list_customers') }}"><i class="bi bi-person-lines-fill"></i> العملاء</a></li>
             <li><a class="dropdown-item" href="{{ url_for('customers.weekly_settlement') }}"><i class="bi bi-calendar-week"></i> التسوية الأسبوعية</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('customers.customers_report') }}"><i class="bi bi-file-earmark-text"></i> تقرير العملاء</a></li>
           </ul>
         </li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('labor') %}active{% endif %}" href="{{ url_for('labor.list_workers') }}"><i class="bi bi-people-fill"></i> العمالة</a></li>
