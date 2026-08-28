@@ -27,3 +27,6 @@ tickets/
 *.docx
 *.doc
 test_elyasmin_full.py
+*.sql
+backups/
+db_backups/
