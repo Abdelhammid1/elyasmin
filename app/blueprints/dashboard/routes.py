@@ -19,7 +19,7 @@ def _month_start() -> date:
     return today.replace(day=1)
 
 
-@bp.route("/")
+@bp.route("/dashboard")
 @login_required
 def index():
     month_start = _month_start()

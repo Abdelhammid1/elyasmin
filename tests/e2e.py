@@ -105,7 +105,8 @@ def run_desktop(page: Page) -> None:
     page.fill('input[name="email"]', ADMIN_EMAIL)
     page.fill('input[name="password"]', ADMIN_PASS)
     page.click('input[type="submit"]')
-    page.wait_for_url(re.compile(r"/$"), timeout=10_000)
+    # LANDING: `/` is now a public marketing page, so login lands on /dashboard
+    page.wait_for_url(re.compile(r"/dashboard$"), timeout=10_000)
     assert_arabic(page, "لوحة التحكم")
     snap(page, "dashboard", "لوحة التحكم", "KPIs، توزيع المجموعات، آخر الأنشطة، مواد تحت الحد الأدنى، موردون.")
 
