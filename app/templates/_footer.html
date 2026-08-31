@@ -1,0 +1,12 @@
+{# BRAND: shared footer partial. One place so base.html and the landing page
+   never drift apart. The whole thing disappears when BRAND_SHOW=0 in the env. #}
+{% if brand and brand.show %}
+<footer class="site-footer">
+  <div class="container-fluid text-center py-3">
+    <span class="text-muted">© {{ now().year }} {{ app_name }} — {{ brand.text }}</span>
+    {# rel=noopener stops the opened tab from navigating this window via window.opener #}
+    <a href="{{ brand.url }}" target="_blank" rel="noopener noreferrer"
+       class="brand-link fw-bold">{{ brand.name }}</a>
+  </div>
+</footer>
+{% endif %}

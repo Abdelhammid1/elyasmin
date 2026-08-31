@@ -254,3 +254,20 @@ table td[dir="ltr"],
 table th[dir="ltr"] {
   text-align: right !important;
 }
+/* BRAND: small, unobtrusive attribution at the foot of every page. The layout
+   is written to be additive so the landing page's own footer style keeps
+   working when this partial is included inside it. */
+.site-footer {
+  border-top: 1px solid var(--brand-border);
+  background: #fff;
+  color: #6c757d;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+.site-footer .brand-link {
+  color: var(--brand-accent);
+  text-decoration: none;
+  margin-inline-start: 0.25rem;
+}
+.site-footer .brand-link:hover { text-decoration: underline; color: #d6870a; }
+@media print { .site-footer { display: none; } }

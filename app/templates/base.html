@@ -145,6 +145,9 @@
   {% block content %}{% endblock %}
 </main>
 
+{# BRAND: one include, every screen behind or in front of login gets the footer. #}
+{% include "_footer.html" ignore missing %}
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 {% if current_user.is_authenticated %}<script src="{{ url_for('static', filename='js/assistant.js') }}"></script>{% endif %}
 {% block scripts %}{% endblock %}

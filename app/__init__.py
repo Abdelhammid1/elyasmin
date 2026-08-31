@@ -89,7 +89,19 @@ def create_app(config_name: str | None = None) -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"now": datetime.utcnow, "app_name": "مزرعة الياسمين", "timedelta": timedelta}
+        # BRAND: the four values are env-driven so a deployment can rebrand or hide
+        # the attribution without a code change. BRAND_SHOW=0 removes it everywhere.
+        return {
+            "now": datetime.utcnow,
+            "app_name": "مزرعة الياسمين",
+            "timedelta": timedelta,
+            "brand": {
+                "text": os.getenv("BRAND_TEXT", "Developed by"),
+                "name": os.getenv("BRAND_NAME", "Manasety"),
+                "url":  os.getenv("BRAND_URL",  "https://manasety.ai"),
+                "show": os.getenv("BRAND_SHOW", "1") != "0",
+            },
+        }
 
     @app.before_request
     def track_activity_and_timeout():
