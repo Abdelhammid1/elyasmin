@@ -3,7 +3,12 @@
 {% block content %}
 <div class="login-wrap">
   <div class="login-card">
-    <h2 class="login-title"><i class="bi bi-flower3"></i><br>{{ app_name }}</h2>
+    <div class="text-center mb-3">
+      <img src="{{ url_for('static', filename='img/logo-256.png') }}"
+           alt="{{ app_name }}"
+           style="width: 96px; height: 96px; object-fit: contain;">
+    </div>
+    <h2 class="login-title">{{ app_name }}</h2>
     <p class="text-center text-muted small mb-4">نظام الإدارة المتكامل</p>
 
     <form method="post" novalidate>

@@ -1,14 +1,13 @@
-:root {
-  --brand-primary: #0f2c4a;
-  --brand-accent: #f39c12;
-  --brand-soft: #f4f6fa;
-  --brand-border: #e5e9f0;
-}
+/* UI-REFACTOR: application styles. Everything below consumes the design
+   tokens from tokens.css — hardcoded colours are avoided so a rebrand is
+   one edit at the source, not fifty across the file. */
 
 body {
-  font-family: "Tajawal", "Cairo", "Segoe UI", sans-serif;
-  background: var(--brand-soft);
-  color: #1f2937;
+  font-family: "Tajawal", "Cairo", system-ui, sans-serif;
+  background: var(--neutral-bg);
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 /* Force Latin digits everywhere (per NFR: numbers must be 0-9) */
@@ -17,119 +16,286 @@ body, input, textarea, select, table {
   unicode-bidi: plaintext;
 }
 
-.brand-nav {
-  background: var(--brand-primary);
+h1, h2, h3, h4, h5, h6 { color: var(--ink-1); }
+a { color: var(--brand-dark); text-decoration: none; }
+a:hover { color: var(--brand); text-decoration: underline; }
+
+/* ============ SHELL ============ */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ---- Sidebar (fixed, right, RTL) ---- */
+.app-sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-inline-end: 1px solid var(--neutral);   /* boundary with content (left edge in RTL) */
+  position: fixed;
+  inset: 0 0 0 auto;                              /* top:0 right:0 bottom:0 left:auto */
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid var(--neutral-soft);
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+.sidebar-brand:hover { text-decoration: none; }
+.sidebar-brand img { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; }
+.sidebar-brand .brand-title { font-size: 1.05rem; font-weight: 800; color: var(--ink-1); line-height: 1.1; }
+.sidebar-brand .brand-sub   { font-size: 0.7rem;  color: var(--ink-3); margin-top: 3px; }
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0 1.5rem;
+}
+
+.sidebar-section-title {
+  padding: 0.85rem 1.25rem 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink-4);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 1.25rem;
+  color: var(--ink-2);
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-inline-end: 3px solid transparent;   /* accent stripe sits on the outer edge (left in RTL) */
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+}
+.sidebar-item i { font-size: 1.05rem; color: var(--ink-3); width: 20px; text-align: center; }
+.sidebar-item:hover { background: var(--brand-tint); color: var(--ink-1); text-decoration: none; }
+.sidebar-item:hover i { color: var(--brand-dark); }
+.sidebar-item.active {
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  border-inline-end-color: var(--brand);
+  font-weight: 700;
+}
+.sidebar-item.active i { color: var(--brand-dark); }
+
+/* Sidebar footer (Manasety partial) sits inside .app-sidebar as .site-footer */
+.app-sidebar .site-footer {
+  border-top: 1px solid var(--neutral-soft);
+  padding: 0.75rem 1rem;
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--ink-4);
+  background: transparent;
+}
+.app-sidebar .site-footer .brand-link { color: var(--brand-dark); font-weight: 700; }
+
+/* ---- Main region ---- */
+.app-main {
+  flex: 1;
+  margin-inline-start: var(--sidebar-w);   /* reserve the right strip for the sidebar */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Sticky top bar ---- */
+.app-topbar {
+  position: sticky;
+  top: 0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--neutral);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  z-index: 30;
+  min-height: var(--topbar-h);
+}
+.topbar-start, .topbar-end { display: flex; align-items: center; gap: 0.5rem; }
+.page-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--ink-1);
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--neutral);
+  background: var(--surface);
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+.icon-btn:hover {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  text-decoration: none;
+}
+
+.user-chip .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand);
   color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.user-chip button { color: var(--ink-2); font-weight: 500; font-size: 0.9rem; }
+
+/* ---- Content region ---- */
+.app-content {
+  padding: 1.5rem 1.75rem 2rem;
+  flex: 1;
 }
 
-/* BUG-1 fix: only apply white color to direct nav items,
-   NOT to dropdown items (which live on a white background). */
-.brand-nav .navbar-brand,
-.brand-nav > .container-fluid > .navbar-collapse .nav-link {
-  color: rgba(255, 255, 255, 0.9);
-}
-.brand-nav .nav-link:hover,
-.brand-nav .nav-link.active,
-.brand-nav .nav-link.show {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+.flash-stack { margin-bottom: 1rem; }
+.flash-stack-floating {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1080;
+  min-width: 300px;
 }
 
-/* Dropdown items keep the default dark text on white background so they
-   are readable before hover. */
-.brand-nav .dropdown-menu {
-  border: 1px solid var(--brand-border);
-}
-.brand-nav .dropdown-menu .dropdown-item {
-  color: #1f2937;
-}
-.brand-nav .dropdown-menu .dropdown-item:hover,
-.brand-nav .dropdown-menu .dropdown-item:focus {
-  background: var(--brand-soft);
-  color: var(--brand-primary);
-}
-.brand-nav .dropdown-menu .dropdown-item-text {
-  color: #6b7280;
-}
-
+/* ============ PAGE PRIMITIVES — same class names as before ============ */
 .page-header {
-  border-bottom: 3px solid var(--brand-accent);
-  padding-bottom: .5rem;
   margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--neutral);
 }
+.page-header h1 { font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--ink-1); }
+.page-header p  { color: var(--ink-3); margin: 4px 0 0; font-size: 0.9rem; }
 
 .card {
-  border: 1px solid var(--brand-border);
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  border: 1px solid var(--neutral);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  background: var(--surface);
 }
 
 .stat-card {
-  padding: 1.25rem;
-  background: #fff;
+  padding: 1.15rem 1.25rem;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.stat-card .stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--brand-primary);
-}
-.stat-card .stat-label {
-  color: #6b7280;
-  font-size: 0.9rem;
-}
+.stat-card:hover { border-color: var(--brand); transform: translateY(-2px); box-shadow: var(--shadow); }
+.stat-card .stat-label { color: var(--ink-3); font-size: 0.85rem; font-weight: 500; margin-bottom: 0.35rem; }
+.stat-card .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--ink-1); line-height: 1.15; }
 
-.badge-active { background: #10b981; }
-.badge-sold   { background: #6366f1; }
-.badge-dead   { background: #64748b; }
-
+/* Bootstrap tables — repaint header and hover to the new palette. */
+.table {
+  --bs-table-bg: var(--surface);
+  --bs-table-hover-bg: var(--brand-tint);
+  color: var(--ink-2);
+}
 .table thead {
-  background: var(--brand-primary);
-  color: #fff;
+  background: var(--surface-soft);
+  color: var(--ink-3);
 }
+.table thead th {
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ink-4);
+  border-color: var(--neutral) !important;
+  padding: 0.7rem 0.85rem;
+}
+.table td { padding: 0.75rem 0.85rem; border-color: var(--neutral-soft) !important; }
 
-.btn-primary {
-  background: var(--brand-primary);
-  border-color: var(--brand-primary);
-}
-.btn-primary:hover {
-  background: #0b2039;
-  border-color: #0b2039;
-}
+/* Alerts */
+.alert-warning, .alert-yellow { background: var(--warning-soft); border-color: var(--warning-soft); color: #7a5a0a; }
+.alert-info    { background: var(--info-soft);    border-color: var(--info-soft);    color: #1e3a8a; }
+.alert-success { background: var(--success-soft); border-color: var(--success-soft); color: var(--brand-dark); }
+.alert-danger  { background: var(--danger-soft);  border-color: var(--danger-soft);  color: #9c1c1c; }
+
+/* Badges — keep the semantic status trio used by the herd list/detail */
+.badge-active { background: var(--brand); color: #fff; }
+.badge-sold   { background: var(--info);  color: #fff; }
+.badge-dead   { background: var(--ink-3); color: #fff; }
+
+/* Buttons that were project-specific — kept for backward compat */
 .btn-accent {
-  background: var(--brand-accent);
-  border-color: var(--brand-accent);
+  background: var(--warning);
+  border-color: var(--warning);
   color: #fff;
 }
-.btn-accent:hover {
-  background: #d98a10;
-  border-color: #d98a10;
-  color: #fff;
-}
+.btn-accent:hover { background: #c78911; border-color: #c78911; color: #fff; }
 
-.login-wrap {
+/* Form controls — restyled to match the shell */
+.form-control, .form-select {
+  border-color: var(--neutral);
+  border-radius: var(--radius-sm);
+  color: var(--ink-1);
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(0, 191, 99, 0.12);
+}
+.form-label { color: var(--ink-2); font-weight: 600; font-size: 0.85rem; }
+
+/* ============ LOGIN CARD ============ */
+.auth-main {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f2c4a 0%, #1e4a7a 100%);
+  padding: 2rem 1rem;
+  background: var(--neutral-bg);
+}
+.login-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .login-card {
   width: 100%;
   max-width: 420px;
   padding: 2.5rem;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  background: var(--surface);
+  border: 1px solid var(--neutral);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 .login-title {
-  color: var(--brand-primary);
-  font-weight: 700;
+  color: var(--ink-1);
+  font-weight: 800;
   text-align: center;
   margin-bottom: 1.5rem;
+  font-size: 1.4rem;
 }
+.login-title i { display: none; }   /* current template still uses bi-flower3 — swap for a logo <img> template-side */
 
-/* Contextual per-page help button (US-6.3 AC1) */
+/* ============ CONTEXTUAL HELP + ASSISTANT ============ */
 .contextual-help-btn {
   position: fixed;
   bottom: 24px;
@@ -137,42 +303,19 @@ body, input, textarea, select, table {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--brand-accent);
+  background: var(--warning);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   text-decoration: none;
-  box-shadow: 0 6px 18px rgba(243, 156, 18, 0.4);
+  box-shadow: 0 6px 18px rgba(232, 163, 23, 0.4);
   z-index: 1030;
   transition: transform 0.15s;
 }
-.contextual-help-btn:hover {
-  color: #fff;
-  background: #d98a10;
-  transform: scale(1.06);
-}
+.contextual-help-btn:hover { color: #fff; background: #c78911; transform: scale(1.06); }
 
-/* Mobile at 375px */
-@media (max-width: 576px) {
-  .stat-card .stat-value { font-size: 1.5rem; }
-  .page-header h1 { font-size: 1.25rem; }
-  .table { font-size: 0.85rem; }
-  .contextual-help-btn { width: 44px; height: 44px; font-size: 1.2rem; bottom: 16px; left: 16px; }
-}
-
-/* Print → Save as PDF */
-@media print {
-  .navbar, .btn, .alert-dismissible .btn-close, form, .no-print { display: none !important; }
-  body { background: #fff; }
-  .card { border: 1px solid #999 !important; box-shadow: none; }
-  .page-header { border-bottom: 2px solid #333; }
-  main { padding: 0 !important; }
-  a { color: #000 !important; text-decoration: none !important; }
-}
-
-/* ---------- ASSISTANT: floating button + drawer ---------- */
 .assistant-fab {
   position: fixed;
   bottom: 1.25rem;
@@ -182,12 +325,12 @@ body, input, textarea, select, table {
   height: 3.25rem;
   border-radius: 50%;
   border: none;
-  background: #0d6efd;
+  background: var(--brand);
   color: #fff;
   font-size: 1.35rem;
   box-shadow: 0 .35rem .9rem rgba(0, 0, 0, .25);
 }
-.assistant-fab:hover { background: #0b5ed7; }
+.assistant-fab:hover { background: var(--brand-dark); }
 
 .assistant-panel {
   position: fixed;
@@ -198,10 +341,11 @@ body, input, textarea, select, table {
   height: min(520px, calc(100vh - 4rem));
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: .75rem;
+  background: var(--surface);
+  border: 1px solid var(--neutral);
+  border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .3);
+  box-shadow: var(--shadow-lg);
 }
 .assistant-panel[hidden] { display: none; }
 
@@ -210,47 +354,71 @@ body, input, textarea, select, table {
   justify-content: space-between;
   align-items: center;
   gap: .5rem;
-  padding: .6rem .75rem;
-  background: #17324d;
+  padding: .65rem .85rem;
+  background: var(--ink-1);
   color: #fff;
 }
 
 .assistant-messages {
   flex: 1;
   overflow-y: auto;
-  padding: .75rem;
-  background: #f6f8fa;
+  padding: .85rem;
+  background: var(--neutral-bg);
 }
 
 .assistant-msg {
   max-width: 85%;
   margin-bottom: .5rem;
-  padding: .5rem .7rem;
-  border-radius: .6rem;
+  padding: .55rem .75rem;
+  border-radius: var(--radius-sm);
   font-size: .9rem;
   line-height: 1.6;
   white-space: pre-wrap;
 }
-.assistant-msg-user { margin-inline-start: auto; background: #0d6efd; color: #fff; }
-.assistant-msg-assistant { margin-inline-end: auto; background: #fff; border: 1px solid #dee2e6; }
-.assistant-msg.loading { opacity: .6; font-style: italic; }
+.assistant-msg-user      { margin-inline-start: auto; background: var(--brand);   color: #fff; }
+.assistant-msg-assistant { margin-inline-end:   auto; background: var(--surface); border: 1px solid var(--neutral); }
+.assistant-msg.loading   { opacity: .6; font-style: italic; }
 
-.assistant-form { display: flex; gap: .4rem; padding: .6rem; border-top: 1px solid #dee2e6; }
+.assistant-form { display: flex; gap: .4rem; padding: .6rem; border-top: 1px solid var(--neutral); background: var(--surface); }
 
-@media print { .assistant-fab, .assistant-panel { display: none !important; } }
+/* ============ MOBILE ============ */
+@media (max-width: 992px) {
+  /* Off-canvas sidebar behind a hamburger */
+  .app-sidebar {
+    transform: translateX(100%);   /* slides off to the right in RTL */
+    transition: transform 0.25s ease;
+  }
+  .app-sidebar.is-open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+  .app-main { margin-inline-start: 0; }
+  .app-content { padding: 1rem; }
+}
+@media (max-width: 576px) {
+  .stat-card .stat-value { font-size: 1.5rem; }
+  .page-header h1 { font-size: 1.25rem; }
+  .table { font-size: 0.85rem; }
+  .contextual-help-btn { width: 44px; height: 44px; font-size: 1.2rem; bottom: 16px; left: 16px; }
+  .assistant-fab { bottom: 1rem; left: 4.5rem; width: 2.75rem; height: 2.75rem; font-size: 1.15rem; }
+}
 
-/* ---------- TICKET-6: numeric columns must sit under their own header ----------
-   The page is RTL, so a table header aligns right. A data cell marked
-   dir="ltr" (needed so numbers, dates and signs render correctly) flips its
-   default alignment to the left, which parks the value at the opposite edge
-   from its header — what the client circled in every screenshot.
-
-   Bootstrap's RTL build also resolves .text-end to LEFT, so cells that already
-   carried that class were misaligned too; hence !important here.
-
-   One rule instead of editing 154 cells across 35 templates, and it covers any
-   table added later without anyone having to remember. */
+/* ============ TICKET-6 (kept) — numeric columns under their headers ============
+   RTL header aligns right; a data cell marked dir="ltr" flips to left, which
+   parks the value at the opposite edge from its header. Bootstrap's RTL build
+   also resolves .text-end to LEFT, so cells already carrying that class were
+   misaligned too — hence !important here. One rule covers every table in the
+   app, past and future. */
 table td[dir="ltr"],
 table th[dir="ltr"] {
   text-align: right !important;
+}
+
+/* ============ PRINT ============ */
+@media print {
+  .app-sidebar, .app-topbar, .btn, .alert-dismissible .btn-close, form,
+  .contextual-help-btn, .assistant-fab, .assistant-panel, .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .app-main { margin-inline-start: 0 !important; }
+  .app-content { padding: 0 !important; }
+  .card { border: 1px solid #999 !important; box-shadow: none; }
+  .page-header { border-bottom: 2px solid #333; }
+  a { color: #000 !important; text-decoration: none !important; }
 }
