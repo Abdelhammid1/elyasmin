@@ -237,6 +237,22 @@ a:hover { color: var(--brand); text-decoration: underline; }
 .alert-success { background: var(--success-soft); border-color: var(--success-soft); color: var(--brand-dark); }
 .alert-danger  { background: var(--danger-soft);  border-color: var(--danger-soft);  color: #9c1c1c; }
 
+/* Nav pills — Bootstrap's default sets --bs-nav-pills-link-active-bg on
+   the .nav-pills element itself, which overrides a :root value. Direct rule
+   forces the brand green. */
+.nav-pills .nav-link {
+  color: var(--ink-2);
+}
+.nav-pills .nav-link:hover {
+  color: var(--brand-dark);
+  background: var(--brand-tint);
+}
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  background-color: var(--brand) !important;
+  color: #fff !important;
+}
+
 /* Badges — keep the semantic status trio used by the herd list/detail */
 .badge-active { background: var(--brand); color: #fff; }
 .badge-sold   { background: var(--info);  color: #fff; }

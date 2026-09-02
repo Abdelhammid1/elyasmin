@@ -9,92 +9,107 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap">
+  {# UI-REFACTOR: consume the shared tokens so landing + app share one palette. #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <style>
-    :root { --brand-primary: #0f2c4a; --brand-accent: #f39c12; }
-    body { font-family: "Tajawal", "Cairo", "Segoe UI", sans-serif; background: #fff; color: #1c2532; }
+    /* Landing is standalone (no shell) but reads from the shared tokens. */
+    body {
+      font-family: "Tajawal", "Cairo", system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--ink-2);
+    }
 
     /* Top bar — the only navigation on the page. Brand right, CTA left. */
     .landing-topbar {
-      background: var(--brand-primary); color: #fff;
-      padding: 0.9rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--neutral);
+      padding: 0.85rem 1.5rem;
     }
-    .landing-topbar .brand { font-weight: 700; font-size: 1.15rem; letter-spacing: 0.2px; }
-    .landing-topbar .brand i { color: var(--brand-accent); }
+    .landing-topbar .brand {
+      font-weight: 800; font-size: 1.1rem; color: var(--ink-1);
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .landing-topbar .brand img { width: 34px; height: 34px; object-fit: contain; }
 
     /* Hero — the page's centre of gravity. */
     .hero {
-      background: linear-gradient(135deg, var(--brand-primary) 0%, #1a4470 100%);
-      color: #fff;
-      padding: 5rem 1.5rem 6rem;
+      background: linear-gradient(180deg, var(--brand-tint) 0%, var(--surface) 100%);
+      color: var(--ink-1);
+      padding: 4.5rem 1.5rem 5.5rem;
       position: relative;
       overflow: hidden;
     }
-    .hero::before {  /* subtle decorative circle so the hero doesn't read as a flat block */
-      content: ""; position: absolute; top: -120px; left: -120px;
+    .hero::before {  /* subtle decorative circle */
+      content: ""; position: absolute; top: -140px; left: -140px;
       width: 380px; height: 380px; border-radius: 50%;
-      background: rgba(243, 156, 18, 0.08);
-    }
-    .hero::after {
-      content: ""; position: absolute; bottom: -180px; right: -100px;
-      width: 480px; height: 480px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(0, 191, 99, 0.06);
     }
     .hero-inner { position: relative; max-width: 900px; margin: 0 auto; text-align: center; }
-    .hero h1 { font-weight: 900; font-size: clamp(2rem, 4.5vw, 3.4rem); line-height: 1.25; margin-bottom: 1.25rem; }
-    .hero h1 .accent { color: var(--brand-accent); }
-    .hero .lede { font-size: clamp(1.05rem, 1.8vw, 1.35rem); opacity: 0.92; margin-bottom: 2.2rem; font-weight: 400; }
+    .hero-logo {
+      width: 120px; height: 120px; object-fit: contain;
+      margin: 0 auto 1.5rem; display: block;
+    }
+    .hero h1 { font-weight: 900; font-size: clamp(2rem, 4.5vw, 3.4rem); line-height: 1.25; margin-bottom: 1.25rem; color: var(--ink-1); }
+    .hero h1 .accent { color: var(--brand-dark); }
+    .hero .lede { font-size: clamp(1.05rem, 1.8vw, 1.35rem); color: var(--ink-2); margin-bottom: 2.2rem; font-weight: 400; }
 
     .cta-btn {
-      background: var(--brand-accent); color: #1c2532;
+      background: var(--brand); color: #fff;
       font-weight: 700; padding: 0.9rem 2.2rem;
-      border-radius: 8px; border: none; font-size: 1.1rem;
+      border-radius: var(--radius-sm); border: none; font-size: 1.1rem;
       display: inline-flex; align-items: center; gap: 0.6rem;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
       text-decoration: none;
     }
-    .cta-btn:hover { background: #ffb139; color: #1c2532; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(243, 156, 18, 0.35); }
-    .cta-btn.subtle { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.6); padding: 0.55rem 1.4rem; font-size: 1rem; }
-    .cta-btn.subtle:hover { background: rgba(255,255,255,0.12); border-color: #fff; color: #fff; box-shadow: none; }
+    .cta-btn:hover { background: var(--brand-dark); color: #fff; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 191, 99, 0.3); text-decoration: none; }
+    .cta-btn.subtle {
+      background: transparent; color: var(--ink-1);
+      border: 1px solid var(--neutral);
+      padding: 0.55rem 1.4rem; font-size: 0.95rem;
+    }
+    .cta-btn.subtle:hover { background: var(--brand-tint); border-color: var(--brand); color: var(--brand-dark); box-shadow: none; }
 
-    /* Features — six cards. Grouped, not enumerated. */
-    .features { padding: 5rem 1.5rem; background: #f7f9fc; }
-    .features h2 { text-align: center; font-weight: 800; margin-bottom: 0.75rem; color: var(--brand-primary); font-size: clamp(1.6rem, 3vw, 2.2rem); }
-    .features .section-sub { text-align: center; color: #56607a; margin-bottom: 3rem; font-size: 1.05rem; }
+    /* Features — six cards. */
+    .features { padding: 5rem 1.5rem; background: var(--neutral-bg); }
+    .features h2 { text-align: center; font-weight: 800; margin-bottom: 0.75rem; color: var(--ink-1); font-size: clamp(1.6rem, 3vw, 2.2rem); }
+    .features .section-sub { text-align: center; color: var(--ink-3); margin-bottom: 3rem; font-size: 1.05rem; }
 
     .feature-card {
-      background: #fff; padding: 2rem 1.75rem;
-      border-radius: 12px;
-      border: 1px solid #e5e9f0;
+      background: var(--surface); padding: 2rem 1.75rem;
+      border-radius: var(--radius); border: 1px solid var(--neutral);
       height: 100%;
       transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     }
-    .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(15, 44, 74, 0.09); border-color: var(--brand-accent); }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--brand); }
     .feature-icon {
-      width: 52px; height: 52px; border-radius: 12px;
-      background: linear-gradient(135deg, rgba(243, 156, 18, 0.15), rgba(243, 156, 18, 0.05));
-      color: var(--brand-accent); font-size: 1.7rem;
+      width: 52px; height: 52px; border-radius: var(--radius);
+      background: var(--brand-tint);
+      color: var(--brand-dark); font-size: 1.7rem;
       display: inline-flex; align-items: center; justify-content: center;
       margin-bottom: 1.25rem;
     }
-    .feature-card h3 { font-weight: 700; font-size: 1.2rem; color: var(--brand-primary); margin-bottom: 0.6rem; }
-    .feature-card p { color: #56607a; margin: 0; line-height: 1.7; }
+    .feature-card h3 { font-weight: 800; font-size: 1.2rem; color: var(--ink-1); margin-bottom: 0.6rem; }
+    .feature-card p { color: var(--ink-3); margin: 0; line-height: 1.7; }
 
-    /* Bottom CTA strip — the last chance to click without scrolling back. */
+    /* Bottom CTA strip. */
     .cta-strip {
-      background: var(--brand-primary); color: #fff;
+      background: var(--ink-1); color: #fff;
       padding: 3.5rem 1.5rem; text-align: center;
     }
-    .cta-strip h2 { font-weight: 800; margin-bottom: 1rem; font-size: clamp(1.4rem, 2.5vw, 1.9rem); }
-    .cta-strip p { opacity: 0.85; margin-bottom: 1.75rem; }
+    .cta-strip h2 { font-weight: 800; margin-bottom: 1rem; font-size: clamp(1.4rem, 2.5vw, 1.9rem); color: #fff; }
+    .cta-strip p { opacity: 0.75; margin-bottom: 1.75rem; }
 
-    footer { padding: 2rem 1.5rem; text-align: center; color: #8892a6; font-size: 0.9rem; background: #f7f9fc; }
+    /* Manasety footer partial styles come from app.css — nothing to add here. */
   </style>
 </head>
 <body>
 
 <div class="landing-topbar d-flex justify-content-between align-items-center">
-  <div class="brand"><i class="bi bi-flower3"></i> {{ app_name }}</div>
+  <div class="brand">
+    <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}">
+    {{ app_name }}
+  </div>
   {# The whole "logged-in awareness" of the page is this one conditional #}
   {% if current_user.is_authenticated %}
     <a href="{{ url_for('dashboard.index') }}" class="cta-btn subtle">
@@ -109,6 +124,7 @@
 
 <section class="hero">
   <div class="hero-inner">
+    <img class="hero-logo" src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}">
     <h1>مزرعتك <span class="accent">في مكان واحد</span> — من المولود لحد الفاتورة</h1>
     <p class="lede">
       نظام كامل لإدارة مزرعة الألبان: قطيع، وصفات علف، توريدات لبن، فواتير،

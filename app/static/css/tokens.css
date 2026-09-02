@@ -74,6 +74,17 @@
   --bs-link-hover-color: var(--brand);
 
   --bs-font-sans-serif: "Tajawal", "Cairo", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Bootstrap 5.3 component-specific vars — the primary override alone
+     doesn't reach these because they were baked at build time as hex
+     literals ("Bootstrap primary blue"). Re-point them at the brand. */
+  --bs-nav-pills-link-active-bg: var(--brand);
+  --bs-nav-pills-link-active-color: #fff;
+  --bs-nav-link-color: var(--ink-2);
+  --bs-nav-link-hover-color: var(--brand-dark);
+  --bs-focus-ring-color: rgba(0, 191, 99, 0.25);
+  --bs-secondary: var(--ink-3);
+  --bs-secondary-rgb: 107, 109, 128;
 }
 
 /* Bootstrap `.btn-primary` computes hover/active from CSS vars we don't touch —

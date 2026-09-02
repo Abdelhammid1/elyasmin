@@ -31,7 +31,7 @@
 <div class="card p-2 mb-3">
   <div class="table-responsive">
     <table class="table table-sm table-bordered mb-0 text-center" style="font-size: 0.75rem;">
-      <thead style="background: #0f2c4a; color: #fff;">
+      <thead style="background: var(--ink-1); color: #fff;">
         <tr>
           <th>م</th><th>التاريخ</th><th>يوم</th><th>شهر</th><th>اسم العميل</th>
           <th>نوع العملية</th><th>النشاط</th><th>البند</th><th>اسم المنتج</th>
@@ -74,7 +74,7 @@
         {% endfor %}
       </tbody>
       <tfoot>
-        <tr style="background: #f4f6fa;">
+        <tr style="background: var(--neutral-bg);">
           <th colspan="22" class="text-end">إجمالي الفاتورة</th>
           <th dir="ltr" class="fs-6">{{ invoice.grand_total }}</th>
           <th colspan="2"></th>
