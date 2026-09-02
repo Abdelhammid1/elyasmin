@@ -1,0 +1,103 @@
+/* UI-REFACTOR: design tokens — single source of truth for every colour,
+   radius, shadow, and typography step used across the app. Every component
+   consumes these vars. To rebrand, change values here and nowhere else. */
+
+:root {
+  /* ---- Brand — the client's two colours, extended into a working ramp ---- */
+  --brand:            #00BF63;
+  --brand-dark:       #00A552;
+  --brand-mid:        #33CD82;
+  --brand-tint:       #E6F9EF;   /* selected rows, chip fills, nav-item hover */
+  --brand-soft:       #D8F4E5;   /* stat-tile brand tone bg */
+
+  /* ---- Neutral — the grey the client named ---- */
+  --neutral:          #D2D1D7;   /* borders, dividers */
+  --neutral-soft:     #EAEAED;   /* table stripes, inactive fills */
+  --neutral-bg:       #F5F5F7;   /* page ground */
+
+  /* ---- Ink — 4-step text hierarchy, sampled from the logo outline ---- */
+  --ink-1:            #1C1D2E;   /* strongest — headings, values */
+  --ink-2:            #3F4155;   /* body text */
+  --ink-3:            #6B6D80;   /* meta / muted */
+  --ink-4:            #9598A6;   /* placeholders / hints (AA-safe on white) */
+
+  /* ---- Surfaces ---- */
+  --surface:          #FFFFFF;   /* cards */
+  --surface-soft:     #FAFAFB;   /* table header, subtle panels */
+
+  /* ---- Semantic — chosen so they don't collide with the green primary ---- */
+  --success:          var(--brand);
+  --success-soft:     var(--brand-tint);
+  --warning:          #E8A317;
+  --warning-soft:     #FCF3D9;
+  --danger:           #E53E3E;   /* echoes the logo's mouth accent */
+  --danger-soft:      #FDE1E1;
+  --info:             #3B82F6;
+  --info-soft:        #DBEAFE;
+
+  /* ---- Structure ---- */
+  --radius-sm:        8px;
+  --radius:           12px;
+  --radius-lg:        16px;
+  --shadow-sm:        0 1px 2px rgba(28, 29, 46, 0.04);
+  --shadow:           0 2px 8px -2px rgba(28, 29, 46, 0.08),
+                      0 4px 16px -4px rgba(28, 29, 46, 0.05);
+  --shadow-lg:        0 4px 16px -4px rgba(28, 29, 46, 0.10),
+                      0 8px 32px -8px rgba(28, 29, 46, 0.08);
+
+  /* ---- Shell measurements — kept here so a re-layout is one edit ---- */
+  --sidebar-w:        264px;
+  --topbar-h:         64px;
+
+  /* ---- Bootstrap 5 variable overrides ----
+     70 templates use Bootstrap classes (.btn-primary, .alert-*, .badge-*,
+     .table, .form-control). Overriding Bootstrap's own vars here means those
+     classes wear the new palette without editing a single template. */
+  --bs-primary:        var(--brand);
+  --bs-primary-rgb:    0, 191, 99;
+  --bs-success:        var(--brand);
+  --bs-success-rgb:    0, 191, 99;
+  --bs-danger:         var(--danger);
+  --bs-danger-rgb:     229, 62, 62;
+  --bs-warning:        var(--warning);
+  --bs-warning-rgb:    232, 163, 23;
+  --bs-info:           var(--info);
+  --bs-info-rgb:       59, 130, 246;
+
+  --bs-body-bg:        var(--neutral-bg);
+  --bs-body-color:     var(--ink-2);
+  --bs-heading-color:  var(--ink-1);
+  --bs-border-color:   var(--neutral);
+  --bs-border-radius:  var(--radius);
+  --bs-border-radius-sm: var(--radius-sm);
+  --bs-link-color:     var(--brand-dark);
+  --bs-link-hover-color: var(--brand);
+
+  --bs-font-sans-serif: "Tajawal", "Cairo", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Bootstrap `.btn-primary` computes hover/active from CSS vars we don't touch —
+   force the green explicitly so the hover state matches the rest of the app. */
+.btn-primary,
+.btn-primary:focus {
+  background-color: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary.active {
+  background-color: var(--brand-dark) !important;
+  border-color: var(--brand-dark) !important;
+  color: #fff !important;
+}
+.btn-outline-primary {
+  color: var(--brand-dark);
+  border-color: var(--brand);
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+  background-color: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
