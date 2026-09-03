@@ -114,6 +114,10 @@ class PurchaseInvoice(db.Model):
         cascade="all, delete-orphan",
         order_by="PurchaseInvoiceCharge.display_order, PurchaseInvoiceCharge.id",
     )
+    allocations = db.relationship(
+        "SupplierPaymentAllocation", back_populates="invoice",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def payment_label(self) -> str:
@@ -121,7 +125,40 @@ class PurchaseInvoice(db.Model):
 
     @property
     def outstanding(self) -> Decimal:
+        # Preserved for backward compat — callers reading the old shape.
+        # For the new payment-status derivation use outstanding_amount below,
+        # which also nets allocations from credit-invoice partial payments.
         return self.total - self.paid_amount
+
+    # PHASE 4: allocation-aware payment status. `paid_amount` still holds
+    # the cash-invoice's own settlement (set at creation for PAY_CASH,
+    # zero for PAY_CREDIT); allocations carry the credit-invoice partial
+    # settlements. The two sources coexist because a cash invoice never
+    # gets an allocation and a credit invoice's `paid_amount` stays 0.
+    @property
+    def allocated_amount(self) -> Decimal:
+        return sum(
+            (Decimal(str(a.amount or 0)) for a in self.allocations),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+
+    @property
+    def outstanding_amount(self) -> Decimal:
+        settled = Decimal(str(self.paid_amount or 0)) + self.allocated_amount
+        return (Decimal(str(self.total or 0)) - settled).quantize(Decimal("0.01"))
+
+    @property
+    def payment_status(self) -> str:
+        """'paid' | 'partial' | 'unpaid'."""
+        total = Decimal(str(self.total or 0))
+        if total <= 0:
+            return "paid"
+        settled = Decimal(str(self.paid_amount or 0)) + self.allocated_amount
+        if settled >= total - Decimal("0.005"):
+            return "paid"
+        if settled > 0:
+            return "partial"
+        return "unpaid"
 
     @property
     def tax_rows(self) -> list:
@@ -222,7 +259,61 @@ class SupplierPayment(db.Model):
 
     supplier = db.relationship("Supplier", back_populates="payments")
     account = db.relationship("Account")
+    allocations = db.relationship(
+        "SupplierPaymentAllocation", back_populates="payment",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def method_label(self) -> str:
         return "كاش" if self.method == self.METHOD_CASH else "تحويل بنكي"
+
+    @property
+    def allocated_amount(self) -> Decimal:
+        """PHASE 4: how much of this payment has been tied to specific invoices."""
+        return sum(
+            (Decimal(str(a.amount or 0)) for a in self.allocations),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+
+    @property
+    def unallocated_amount(self) -> Decimal:
+        """The "on account" balance — payment.amount − allocated_amount."""
+        return (Decimal(str(self.amount or 0)) - self.allocated_amount).quantize(Decimal("0.01"))
+
+
+class SupplierPaymentAllocation(db.Model):
+    """PHASE 4: ties a slice of a SupplierPayment to a specific
+    PurchaseInvoice. Mirror of PaymentAllocation for the vendor side.
+
+    The ledger already recorded the payment as a whole-supplier payable
+    reduction (phase 1 autopost). This is a DISPLAY/REPORTING layer on
+    top: it says which invoices a payment was intended to settle.
+    Editing an allocation moves nothing on the ledger.
+
+    Invariants (enforced by the allocation service, not the DB):
+      SUM(amount for a payment)  <= payment.amount
+      SUM(amount for an invoice) <= invoice.outstanding_amount at write time
+    """
+
+    __tablename__ = "supplier_payment_allocations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    payment_id = db.Column(
+        db.Integer, db.ForeignKey("supplier_payments.id"),
+        nullable=False, index=True,
+    )
+    invoice_id = db.Column(
+        db.Integer, db.ForeignKey("purchase_invoices.id"),
+        nullable=False, index=True,
+    )
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    payment = db.relationship("SupplierPayment", back_populates="allocations")
+    invoice = db.relationship("PurchaseInvoice", back_populates="allocations")
+
+    __table_args__ = (
+        db.UniqueConstraint("payment_id", "invoice_id", name="uq_supplier_payment_invoice"),
+    )
