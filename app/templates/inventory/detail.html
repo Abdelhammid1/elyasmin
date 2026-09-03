@@ -116,4 +116,57 @@
     </div>
   </div>
 </div>
+
+{# PHASE 6: medicine lots — one row per received batch #}
+{% if ingredient.category == 'medicine' and ingredient.medicine_lots %}
+<div class="card p-3 mt-3">
+  <h5><i class="bi bi-boxes text-info"></i> الدفعات (Lots)</h5>
+  <p class="text-muted small mb-2">صرف الدواء بيقفل الدفعات حسب أقرب تاريخ انتهاء صلاحية أولاً.</p>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>رقم الدفعة</th>
+          <th>تاريخ الانتهاء</th>
+          <th>المستلم</th>
+          <th>المتبقي</th>
+          <th>تكلفة الوحدة</th>
+          <th>المصدر</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in ingredient.medicine_lots|sort(attribute='expires_on') %}
+        {% set days = l.days_until_expiry() %}
+        <tr class="{% if l.qty_remaining <= 0 %}text-muted text-decoration-line-through
+                    {% elif days is not none and days < 0 %}table-danger
+                    {% elif days is not none and days <= 30 %}table-warning
+                    {% endif %}">
+          <td>#{{ l.id }}</td>
+          <td>{{ l.lot_number or '—' }}</td>
+          <td dir="ltr">
+            {{ l.expires_on or '—' }}
+            {% if days is not none %}
+              <small class="text-muted d-block">
+                {% if days < 0 %}متأخر {{ -days }}ي
+                {% elif days == 0 %}اليوم
+                {% else %}بعد {{ days }}ي{% endif %}
+              </small>
+            {% endif %}
+          </td>
+          <td dir="ltr">{{ l.qty_received }}</td>
+          <td dir="ltr" class="fw-bold">{{ l.qty_remaining }}</td>
+          <td dir="ltr">{{ l.unit_cost }}</td>
+          <td class="small text-muted">
+            {% if l.source_type == 'PurchaseInvoice' %}فاتورة #{{ l.source_id }}
+            {% elif l.source_type == 'OpeningInventory' %}رصيد افتتاحي
+            {% else %}{{ l.source_type }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

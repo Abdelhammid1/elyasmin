@@ -236,6 +236,12 @@ class MedicineDispense(db.Model):
     cow_id = db.Column(db.Integer, db.ForeignKey("cows.id"), nullable=True)
     group_id = db.Column(db.Integer, db.ForeignKey("cattle_groups.id"), nullable=True)
 
+    # PHASE 6: the primary lot the dispense drew from (the first, if it
+    # spanned multiple). Full per-lot breakdown lives on the StockMovement
+    # rows the dispense produced.
+    lot_id = db.Column(db.Integer, db.ForeignKey("medicine_lots.id"),
+                       nullable=True, index=True)
+
     dispensed_on = db.Column(db.Date, nullable=False, default=date.today, index=True)
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
@@ -245,6 +251,7 @@ class MedicineDispense(db.Model):
     ingredient = db.relationship("Ingredient")
     cow = db.relationship("Cow")
     group = db.relationship("CattleGroup")
+    lot = db.relationship("MedicineLot")
 
     @property
     def target_label(self) -> str:

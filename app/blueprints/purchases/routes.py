@@ -82,6 +82,10 @@ def create_invoice():
             qty_raw = request.form.get(f"line_qty_{i}")
             price_raw = request.form.get(f"line_price_{i}")
             unit_code_raw = (request.form.get(f"line_unit_{i}") or "").strip()  # TICKET-2
+            # PHASE 6: medicine-only lot fields (both optional on the form,
+            # but expires_on is REQUIRED when the ingredient is medicine)
+            lot_number_raw = (request.form.get(f"line_lot_number_{i}") or "").strip()
+            expires_on_raw = (request.form.get(f"line_expires_on_{i}") or "").strip()
             i += 1
 
             if not ing_id_raw or not qty_raw or not price_raw:
@@ -125,6 +129,29 @@ def create_invoice():
             qty_base = to_base(qty, input_unit, ing) or qty
             price_base = per_base_price(price, input_unit, ing) or price
 
+            # PHASE 6: medicine lines must carry an expiry date. Optional
+            # lot_number identifies the batch on the packaging.
+            expires_on = None
+            if ing.category == Ingredient.CATEGORY_MEDICINE:
+                if not expires_on_raw:
+                    flash(
+                        f"لازم تدخل تاريخ انتهاء صلاحية للدواء {ing.name}.",
+                        "error",
+                    )
+                    return render_template(
+                        "purchases/form.html", form=form,
+                        ingredients=ingredients, suppliers=suppliers,
+                    )
+                from datetime import date as _date
+                try:
+                    expires_on = _date.fromisoformat(expires_on_raw)
+                except ValueError:
+                    flash(f"تاريخ انتهاء صلاحية غير صالح للدواء {ing.name}.", "error")
+                    return render_template(
+                        "purchases/form.html", form=form,
+                        ingredients=ingredients, suppliers=suppliers,
+                    )
+
             line_items.append({
                 "ingredient": ing,
                 "qty": qty_base,          # in base unit
@@ -132,6 +159,8 @@ def create_invoice():
                 "input_qty": qty,
                 "input_unit": input_unit,
                 "input_price": price,
+                "lot_number": lot_number_raw or None,
+                "expires_on": expires_on,
             })
 
         if not line_items:
@@ -222,6 +251,25 @@ def create_invoice():
             from app.utils import inventory_cost
             inventory_cost.blend_purchase(ing, item["qty"], item["price"])
 
+            # PHASE 6: for medicine lines, spin up a lot linked to this
+            # invoice so the FIFO dispenser has expiry-aware picks.
+            new_lot = None
+            if ing.category == Ingredient.CATEGORY_MEDICINE:
+                from app.models.inventory import MedicineLot
+                new_lot = MedicineLot(
+                    ingredient_id=ing.id,
+                    lot_number=item.get("lot_number"),
+                    expires_on=item.get("expires_on"),
+                    qty_received=item["qty"],
+                    qty_remaining=item["qty"],
+                    unit_cost=item["price"],
+                    source_type=MedicineLot.SOURCE_PURCHASE,
+                    source_id=invoice.id,
+                    created_by_id=current_user.id,
+                )
+                db.session.add(new_lot)
+                db.session.flush()
+
             db.session.add(
                 StockMovement(
                     ingredient_id=ing.id,
@@ -231,6 +279,7 @@ def create_invoice():
                     unit_price_at_move=item["price"],
                     input_qty=item.get("input_qty"),
                     input_unit_code=item.get("input_unit"),
+                    lot_id=new_lot.id if new_lot else None,
                     moved_on=invoice.invoice_date,
                     notes=f"فاتورة #{invoice.id} — {supplier.name}",
                     created_by_id=current_user.id,

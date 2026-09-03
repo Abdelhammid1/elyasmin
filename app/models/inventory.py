@@ -161,10 +161,15 @@ class StockMovement(db.Model):
 
     moved_on = db.Column(db.Date, nullable=False, default=date.today, index=True)
     notes = db.Column(db.String(255), nullable=True)
+    # PHASE 6: nullable link to a medicine lot so a dispense that pulled
+    # from multiple lots reads back cleanly (one StockMovement per lot).
+    lot_id = db.Column(db.Integer, db.ForeignKey("medicine_lots.id"),
+                       nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     ingredient = db.relationship("Ingredient")
+    lot = db.relationship("MedicineLot")
 
     @property
     def reason_label(self) -> str:
@@ -174,3 +179,58 @@ class StockMovement(db.Model):
             self.REASON_MEDICINE: "صرف دواء",
             self.REASON_ADJUST: "تعديل جرد",
         }.get(self.reason, self.reason)
+
+
+class MedicineLot(db.Model):
+    """PHASE 6 — one batch of medicine received from a supplier.
+
+    Only medicine ingredients carry lots. Feed pools into the tank's
+    weighted average and doesn't need lot-level tracking. Every dispense
+    picks lots FIFO by expiry_date; the picking service lives in
+    `app/utils/inventory_cost.py`.
+
+    A brand-new purchase creates one lot per invoice line. A backfill row
+    lives on with `source_type='OpeningInventory'` and no expiry so the
+    dispense picker can still find something to draw from for medicines
+    that were on the shelf before phase 6 shipped.
+    """
+
+    __tablename__ = "medicine_lots"
+
+    SOURCE_PURCHASE = "PurchaseInvoice"
+    SOURCE_OPENING = "OpeningInventory"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ingredient_id = db.Column(
+        db.Integer, db.ForeignKey("ingredients.id"),
+        nullable=False, index=True,
+    )
+    lot_number = db.Column(db.String(60), nullable=True)
+    expires_on = db.Column(db.Date, nullable=True, index=True)
+    qty_received = db.Column(db.Numeric(14, 3), nullable=False)
+    qty_remaining = db.Column(db.Numeric(14, 3), nullable=False)
+    unit_cost = db.Column(db.Numeric(12, 4), nullable=False, default=Decimal("0"))
+    # Where this lot came from — usually a PurchaseInvoice row
+    source_type = db.Column(db.String(40), nullable=False, default=SOURCE_PURCHASE)
+    source_id = db.Column(db.Integer, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    ingredient = db.relationship("Ingredient", backref="medicine_lots")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "ingredient_id", "source_type", "source_id", "lot_number",
+            name="uq_med_lot_source",
+        ),
+    )
+
+    @property
+    def is_expired(self) -> bool:
+        return bool(self.expires_on and self.expires_on < date.today())
+
+    def days_until_expiry(self) -> int | None:
+        if self.expires_on is None:
+            return None
+        return (self.expires_on - date.today()).days

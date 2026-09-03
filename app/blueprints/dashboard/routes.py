@@ -64,6 +64,23 @@ def index():
         .all()
     )
 
+    # PHASE 6: medicine lots expiring within 30 days (or already expired
+    # but still on the shelf). Ordered soonest-first so the row that
+    # needs handling today sits at the top.
+    from datetime import timedelta
+    from app.models.inventory import MedicineLot
+    expiring_soon_lots = (
+        MedicineLot.query
+        .filter(
+            MedicineLot.qty_remaining > 0,
+            MedicineLot.expires_on.isnot(None),
+            MedicineLot.expires_on <= today + timedelta(days=30),
+        )
+        .order_by(MedicineLot.expires_on.asc())
+        .limit(20)
+        .all()
+    )
+
     # Suppliers total balance owed
     invoices_total = (
         db.session.query(func.coalesce(func.sum(PurchaseInvoice.total), 0))
@@ -140,6 +157,7 @@ def index():
         recent_births=recent_births,
         recent_sales=recent_sales,
         low_stock_ings=low_stock_ings,
+        expiring_soon_lots=expiring_soon_lots,
         total_owed_to_suppliers=total_owed_to_suppliers,
         active_suppliers_count=active_suppliers_count,
     )

@@ -118,12 +118,25 @@ def create_dispense():
                 flash("من فضلك اختار المجموعة.", "error")
                 return render_template("medicine/form.html", form=form, meds=_meds)
 
-            # PHASE 6: value at weighted-average cost (was last_price).
-            # In commit 2 this is replaced by a FIFO lot picker for
-            # medicine, which produces the same avg-weighted number when
-            # there's only one lot but tracks expiries separately.
-            unit_price = ing.avg_cost or Decimal("0")
-            total_cost = (qty * unit_price).quantize(Decimal("0.01"))
+            # PHASE 6: pick lots FIFO by expiry, decrement each lot, and
+            # value the dispense at the weighted average of what was
+            # actually pulled (which is exact for a single-lot case and
+            # correctly blended when the pick spans lots).
+            from app.utils import inventory_cost
+            from app.services import autoposting
+            try:
+                picks = inventory_cost.pick_lots_fifo(ing, qty)
+            except ValueError as ve:
+                flash(str(ve), "error")
+                return render_template("medicine/form.html", form=form, meds=_meds)
+
+            money_out = sum(
+                ((q * c).quantize(Decimal("0.01")) for _, q, c in picks),
+                Decimal("0"),
+            )
+            unit_price = (money_out / qty).quantize(Decimal("0.01")) if qty else Decimal("0")
+            total_cost = money_out.quantize(Decimal("0.01"))
+            primary_lot_id = picks[0][0].id if picks else None
 
             dispense = MedicineDispense(
                 ingredient_id=ing.id,
@@ -134,6 +147,7 @@ def create_dispense():
                 input_unit_code=unit_code,
                 cow_id=cow_id,
                 group_id=group_id,
+                lot_id=primary_lot_id,
                 dispensed_on=form.dispensed_on.data,
                 notes=form.notes.data,
                 created_by_id=current_user.id,
@@ -141,28 +155,42 @@ def create_dispense():
             db.session.add(dispense)
             db.session.flush()
 
-            # Deduct inventory (always in base unit)
+            # Deduct the ingredient's operational qty, decrement each lot,
+            # and record one StockMovement per lot so the audit trail
+            # names which batch each dose came from.
             ing.current_qty = ing.current_qty - qty
-            db.session.add(
-                StockMovement(
-                    ingredient_id=ing.id,
-                    delta=-qty,
-                    reason=StockMovement.REASON_MEDICINE,
-                    ref_id=dispense.id,
-                    unit_price_at_move=unit_price,
-                    input_qty=input_qty,
-                    input_unit_code=unit_code,
-                    moved_on=form.dispensed_on.data,
-                    notes=f"صرف دواء — {dispense.target_label}",
-                    created_by_id=current_user.id,
+            if ing.current_qty == 0:
+                # avg_cost carries no meaning when the shelf is empty
+                ing.avg_cost = Decimal("0")
+            for lot, take, cost in picks:
+                lot.qty_remaining = (
+                    Decimal(str(lot.qty_remaining)) - take
+                ).quantize(Decimal("0.001"))
+                db.session.add(
+                    StockMovement(
+                        ingredient_id=ing.id,
+                        delta=-take,
+                        reason=StockMovement.REASON_MEDICINE,
+                        ref_id=dispense.id,
+                        unit_price_at_move=cost,
+                        input_qty=input_qty,
+                        input_unit_code=unit_code,
+                        lot_id=lot.id,
+                        moved_on=form.dispensed_on.data,
+                        notes=f"صرف دواء — {dispense.target_label} — دفعة #{lot.id}",
+                        created_by_id=current_user.id,
+                    )
                 )
-            )
+
+            # New in P6: the dispense hits the ledger.
+            autoposting.on_medicine_dispense(dispense, created_by=current_user.id)
 
             log_action(
                 "medicine_dispensed",
                 "MedicineDispense",
                 dispense.id,
-                details=f"ingredient={ing.id} qty={qty} target={dispense.target_label}",
+                details=f"ingredient={ing.id} qty={qty} target={dispense.target_label} "
+                        f"lots={[lot.id for lot,_,_ in picks]}",
             )
             db.session.commit()
             flash(f"تم صرف {qty} {ing.unit_label} من {ing.name}.", "success")

@@ -31,6 +31,8 @@ CODE_LIVESTOCK_REV   = "4200"
 CODE_WAGES_PAYABLE   = "2200"
 CODE_LABOUR_EXPENSE  = "5200"
 CODE_OPENING_EQUITY  = "3900"    # equity offset for backfilled openings
+CODE_MEDICINE_INVENTORY = "1220" # مخزون الأدوية
+CODE_MEDICINE_EXPENSE   = "5400" # أدوية بيطرية
 
 # Expense-category → COA-code mapping, one place instead of a switch spread
 # across every autoposting callsite.
@@ -396,6 +398,59 @@ def on_purchase_invoice(invoice, *, created_by=None):
         reference=invoice.original_invoice_no or None,
         source_type="PurchaseInvoice",
         source_id=invoice.id,
+        created_by=created_by,
+    )
+
+
+# ==================== PHASE 6 — medicine dispense ====================
+
+def on_medicine_dispense(dispense, *, created_by=None):
+    """Ledger effect of a vet-medicine dispense.
+
+        DR 5400 أدوية بيطرية   (dispense.total_cost)   [cost_center = group_id]
+        CR 1220 مخزون الأدوية
+
+    Idempotent by (source_type='MedicineDispense', source_id=dispense.id) —
+    editing or re-posting a dispense wipes and re-lays the JE. When a
+    dispense is archived (soft-delete), passing an `is_archived=True`
+    dispense here removes the JE without re-posting, matching the returns
+    autoposter pattern.
+
+    When the dispense has a `group_id`, the debit line carries a
+    cost-centre tag so the milk-cost-by-group report attributes it.
+    Cow-level dispenses have no cost centre — this is a real-world
+    limitation, not a bug: a per-cow cost centre would explode the COA
+    for no reporting benefit.
+    """
+    _delete_prior_je("MedicineDispense", dispense.id)
+    if getattr(dispense, "is_archived", False):
+        return None
+
+    amount = _d(dispense.total_cost)
+    if amount <= 0:
+        return None
+
+    expense = _code(CODE_MEDICINE_EXPENSE)
+    inventory = _code(CODE_MEDICINE_INVENTORY)
+
+    dr_line = {
+        "account_id": expense.id, "debit": amount,
+        "memo": f"صرف دواء — {dispense.ingredient.name}",
+    }
+    if getattr(dispense, "group_id", None):
+        dr_line["cost_center_id"] = dispense.group_id
+
+    cr_line = {
+        "account_id": inventory.id, "credit": amount,
+        "memo": f"صرف #{dispense.id} — {dispense.ingredient.name}",
+    }
+
+    return post_journal(
+        description=f"صرف دواء — {dispense.ingredient.name} ({dispense.target_label})",
+        lines=[dr_line, cr_line],
+        entry_date=dispense.dispensed_on,
+        source_type="MedicineDispense",
+        source_id=dispense.id,
         created_by=created_by,
     )
 

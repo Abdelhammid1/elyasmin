@@ -149,6 +149,7 @@
         base_code: "{{ i.unit }}",
         base_label: "{{ i.unit_label }}",
         last: "{{ i.last_price }}",
+        category: "{{ i.category }}",
         alt_units: [
           {% for u in i.alt_units %}
             { code: "{{ u.unit_code }}", label: "{{ u.unit_label }}", factor: "{{ u.factor_to_base }}" },
@@ -195,6 +196,15 @@
         <div class="col-md-1">
           <button type="button" class="btn btn-outline-danger btn-sm remove-line"><i class="bi bi-x-lg"></i></button>
         </div>
+        <!-- PHASE 6: medicine-only lot fields, hidden by default -->
+        <div class="col-md-6 lot-fields" hidden>
+          <label class="form-label small">رقم الدفعة (اختياري)</label>
+          <input type="text" name="line_lot_number_${idx}" class="form-control" placeholder="مثال: LOT-2026-A">
+        </div>
+        <div class="col-md-6 lot-fields" hidden>
+          <label class="form-label small">تاريخ انتهاء الصلاحية <span class="text-danger">*</span></label>
+          <input type="date" name="line_expires_on_${idx}" class="form-control lot-expiry" dir="ltr">
+        </div>
       </div>`;
     container.insertAdjacentHTML('beforeend', html);
     bindRow(container.querySelector(`[data-idx="${idx}"]`));
@@ -229,6 +239,11 @@
       const ing = ingredients.find(x => String(x.id) === ingSel.value);
       populateUnits(ing);
       if (last && !price.value) price.value = last;
+      // PHASE 6: show/require the lot fields only for medicine
+      const isMed = ing && ing.category === 'medicine';
+      row.querySelectorAll('.lot-fields').forEach(el => { el.hidden = !isMed; });
+      const expInp = row.querySelector('.lot-expiry');
+      if (expInp) expInp.required = !!isMed;
       recalc();
     });
     qty.addEventListener('input', recalc);

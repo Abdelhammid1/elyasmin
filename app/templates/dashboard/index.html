@@ -125,8 +125,8 @@
 </div>
 
 <div class="row g-3 mt-1">
-  <div class="col-md-6">
-    <div class="card p-3">
+  <div class="col-lg-4 col-md-6">
+    <div class="card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> مواد تحت الحد الأدنى</h5>
         <a href="{{ url_for('inventory.list_ingredients') }}" class="btn btn-sm btn-outline-primary">عرض المخزون</a>
@@ -149,7 +149,42 @@
     </div>
   </div>
 
-  <div class="col-md-6">
+  {# PHASE 6: medicine lots expiring soon or already expired #}
+  <div class="col-lg-4 col-md-6">
+    <div class="card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-hourglass-split text-warning"></i> دواء قارب على الانتهاء</h5>
+        <a href="{{ url_for('inventory.list_ingredients') }}" class="btn btn-sm btn-outline-primary">التفاصيل</a>
+      </div>
+      {% if expiring_soon_lots %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>الدواء</th><th>الدفعة</th><th>الرصيد</th><th>تاريخ الانتهاء</th></tr></thead>
+        <tbody>
+          {% for l in expiring_soon_lots %}
+          {% set days = l.days_until_expiry() %}
+          <tr class="{% if days is not none and days < 0 %}table-danger{% else %}table-warning{% endif %}">
+            <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=l.ingredient_id) }}">{{ l.ingredient.name }}</a></td>
+            <td class="small">{{ l.lot_number or '—' }}</td>
+            <td dir="ltr" class="fw-bold">{{ l.qty_remaining }} {{ l.ingredient.unit_label }}</td>
+            <td dir="ltr">
+              {{ l.expires_on }}
+              <small class="text-muted d-block">
+                {% if days is none %}—
+                {% elif days < 0 %}متأخر {{ -days }} يوم
+                {% elif days == 0 %}اليوم
+                {% else %}بعد {{ days }} يوم
+                {% endif %}
+              </small>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش دواء قرب انتهاء صلاحيته. 👌</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-4 col-md-12">
     <div class="card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><i class="bi bi-truck text-warning"></i> الموردون</h5>

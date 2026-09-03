@@ -75,6 +75,56 @@ def withdraw(ing, qty) -> Decimal:
     return value
 
 
+def pick_lots_fifo(ing, qty_needed) -> list[tuple[object, Decimal, Decimal]]:
+    """Pick medicine lots FIFO by expiry_date until `qty_needed` is
+    covered. Returns a list of (lot, qty_from_lot, unit_cost) tuples;
+    empty when qty_needed is 0. Raises ValueError if the ingredient
+    doesn't have enough remaining across all lots.
+
+    Ordering: NULL expiry sorts last (via `expires_on.asc().nulls_last()`
+    equivalent), so a backfilled legacy lot with no expiry is drawn from
+    only after every dated lot is empty. Ties on expiry break by id
+    ascending so the earliest received wins.
+    """
+    from app.models.inventory import MedicineLot
+
+    qty_needed = _d(qty_needed)
+    if qty_needed <= 0:
+        return []
+
+    lots = (
+        MedicineLot.query
+        .filter(MedicineLot.ingredient_id == ing.id,
+                MedicineLot.qty_remaining > 0)
+        .order_by(
+            # NULLs come after real dates on both SQLite and PG when we
+            # explicitly separate them; ORDER BY expires_on IS NULL, expires_on
+            # keeps a single expression predictable across dialects.
+            MedicineLot.expires_on.is_(None),
+            MedicineLot.expires_on.asc(),
+            MedicineLot.id.asc(),
+        )
+        .all()
+    )
+
+    picks: list[tuple[object, Decimal, Decimal]] = []
+    remaining = qty_needed
+    for lot in lots:
+        if remaining <= 0:
+            break
+        avail = _d(lot.qty_remaining)
+        take = min(avail, remaining)
+        picks.append((lot, take.quantize(QTY), _d(lot.unit_cost)))
+        remaining -= take
+
+    if remaining > 0:
+        raise ValueError(
+            f"مفيش رصيد كافي في التشغيلات — محتاج {qty_needed} من "
+            f"{ing.name} والمتاح في التشغيلات {qty_needed - remaining}."
+        )
+    return picks
+
+
 def reverse_purchase(ing, qty_removed) -> Decimal:
     """Pull `qty_removed` off the shelf at the current avg_cost.
 
