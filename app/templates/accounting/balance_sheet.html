@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}الميزانية العمومية{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-book"></i> الميزانية العمومية</h1>
+    <p class="text-muted mb-0">وضع المزرعة كما هو حتى تاريخ <span dir="ltr">{{ as_of }}</span>.</p>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-end">
+    <div><label class="form-label small fw-bold mb-1">حتى تاريخ</label>
+      <input type="date" name="as_of" value="{{ as_of.isoformat() }}" class="form-control" dir="ltr"></div>
+    <button class="btn btn-primary">تحديث</button>
+  </form>
+</div>
+
+<div class="card mb-3 p-3 d-flex flex-row justify-content-between align-items-center
+     {% if is_balanced %}alert-success{% else %}alert-danger{% endif %}"
+     style="border-radius: var(--radius);">
+  <div>
+    {% if is_balanced %}
+      <i class="bi bi-check-circle-fill fs-4"></i> <span class="fw-bold">الميزانية متوازنة</span> — الأصول = الخصوم + حقوق الملكية.
+    {% else %}
+      <i class="bi bi-exclamation-triangle-fill fs-4"></i> <span class="fw-bold">غير متوازنة!</span> الفرق =
+      <span dir="ltr">{{ (total_assets - total_liab_equity)|abs }}</span> جنيه.
+    {% endif %}
+  </div>
+  <div class="d-flex gap-4">
+    <div><div class="small text-muted">الأصول</div><div class="fw-bold" dir="ltr">{{ total_assets }}</div></div>
+    <div><div class="small text-muted">الخصوم + حقوق الملكية</div><div class="fw-bold" dir="ltr">{{ total_liab_equity }}</div></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header fw-bold" style="background: var(--brand-tint); color: var(--brand-dark);">
+        <i class="bi bi-cash-stack"></i> الأصول
+      </div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <tbody>
+            {% for a in assets %}
+            <tr>
+              <td><span class="font-monospace text-muted small">{{ a.account.code }}</span> {{ a.account.name }}</td>
+              <td dir="ltr" class="num text-end">{{ a.amount }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2" class="text-center text-muted py-3">مفيش أصول لسه.</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr class="fw-bold"><td>إجمالي الأصول</td><td dir="ltr" class="num text-end">{{ total_assets }}</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-header fw-bold" style="background: var(--warning-soft); color: var(--warning);">
+        <i class="bi bi-file-earmark-minus"></i> الخصوم
+      </div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <tbody>
+            {% for l in liabilities %}
+            <tr>
+              <td><span class="font-monospace text-muted small">{{ l.account.code }}</span> {{ l.account.name }}</td>
+              <td dir="ltr" class="num text-end">{{ l.amount }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2" class="text-center text-muted py-3">مفيش خصوم.</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr class="fw-bold"><td>إجمالي الخصوم</td><td dir="ltr" class="num text-end">{{ total_liabilities }}</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-bold" style="background: var(--info-soft); color: var(--info);">
+        <i class="bi bi-people-fill"></i> حقوق الملكية
+      </div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <tbody>
+            {% for e in equity %}
+            <tr>
+              <td><span class="font-monospace text-muted small">{{ e.account.code }}</span> {{ e.account.name }}</td>
+              <td dir="ltr" class="num text-end">{{ e.amount }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+              <td class="text-muted">الأرباح المحتجزة (من العمليات)</td>
+              <td dir="ltr" class="num text-end {% if retained_earnings < 0 %}text-danger{% endif %}">{{ retained_earnings }}</td>
+            </tr>
+          </tbody>
+          <tfoot><tr class="fw-bold"><td>إجمالي حقوق الملكية</td><td dir="ltr" class="num text-end">{{ total_equity }}</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

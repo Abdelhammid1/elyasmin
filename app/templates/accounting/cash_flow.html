@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}قائمة التدفقات النقدية{% endblock %}
+
+{% macro section(title, rows, total, icon, tone) %}
+<div class="card mb-3">
+  <div class="card-header fw-bold" style="background: var(--{{ tone }}-soft); color: var(--{{ tone }});">
+    <i class="bi bi-{{ icon }}"></i> {{ title }}
+    <span class="float-start" dir="ltr">{{ total }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>التاريخ</th><th>الوصف</th><th>الحساب المقابل</th><th class="text-end">التأثير النقدي</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td dir="ltr">{{ r.entry.date }}</td>
+          <td><a href="{{ url_for('accounting.journal_detail', entry_id=r.entry.id) }}">{{ r.entry.description }}</a>
+              <div class="small text-muted">{{ r.treasury_account.name }}</div></td>
+          <td class="small">{{ r.counterpart.code }} — {{ r.counterpart.name }}</td>
+          <td dir="ltr" class="num text-end {% if r.delta < 0 %}text-danger{% else %}text-success{% endif %}">{{ r.delta }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-center text-muted py-3">مفيش حركات في القسم ده.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-cash-coin"></i> قائمة التدفقات النقدية</h1>
+    <p class="text-muted mb-0">حركة الكاش الفعلية (الطريقة المباشرة)، من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span>.</p>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-end">
+    <div><label class="form-label small fw-bold mb-1">من</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr"></div>
+    <div><label class="form-label small fw-bold mb-1">إلى</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr"></div>
+    <button class="btn btn-primary">تحديث</button>
+  </form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">رصيد بداية الفترة</div>
+      <div class="stat-value" dir="ltr">{{ opening_cash }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card tone-brand">
+      <div class="stat-label">صافي التغير</div>
+      <div class="stat-value {% if net_change < 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ net_change }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">رصيد نهاية الفترة</div>
+      <div class="stat-value" dir="ltr">{{ closing_cash }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">تشغيلي / استثماري / تمويلي</div>
+      <div class="stat-value" style="font-size: 1.05rem;" dir="ltr">
+        {{ op_total }} / {{ inv_total }} / {{ fin_total }}
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ section("التدفقات التشغيلية (Operating)", operating, op_total, "arrow-repeat", "success") }}
+{{ section("التدفقات الاستثمارية (Investing)", investing, inv_total, "building",       "info") }}
+{{ section("التدفقات التمويلية (Financing)", financing, fin_total, "bank",            "warning") }}
+{% endblock %}

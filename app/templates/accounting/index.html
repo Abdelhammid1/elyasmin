@@ -32,4 +32,32 @@
     </div>
   </div>
 </div>
+
+<h4 class="mt-4 mb-3">القوائم المالية</h4>
+<div class="row g-3">
+  <div class="col-md-6 col-lg-3">
+    <a href="{{ url_for('accounting.income_statement_view') }}" class="card stat-card d-block text-decoration-none">
+      <div class="stat-label"><i class="bi bi-graph-up-arrow"></i> قائمة الدخل</div>
+      <div class="stat-value" style="font-size:1.05rem;">الإيرادات ناقص المصروفات = صافي الربح</div>
+    </a>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <a href="{{ url_for('accounting.balance_sheet_view') }}" class="card stat-card d-block text-decoration-none">
+      <div class="stat-label"><i class="bi bi-book"></i> الميزانية العمومية</div>
+      <div class="stat-value" style="font-size:1.05rem;">أصول = خصوم + حقوق ملكية</div>
+    </a>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <a href="{{ url_for('accounting.cash_flow_view') }}" class="card stat-card d-block text-decoration-none">
+      <div class="stat-label"><i class="bi bi-cash-coin"></i> التدفقات النقدية</div>
+      <div class="stat-value" style="font-size:1.05rem;">حركة الكاش الفعلية بالتصنيف</div>
+    </a>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <a href="{{ url_for('accounting.milk_cost_by_group_view') }}" class="card stat-card d-block text-decoration-none">
+      <div class="stat-label"><i class="bi bi-droplet-half"></i> تكلفة اللبن حسب المجموعة</div>
+      <div class="stat-value" style="font-size:1.05rem;">من الدفتر مباشرة، مش بنسبة ثابتة</div>
+    </a>
+  </div>
+</div>
 {% endblock %}

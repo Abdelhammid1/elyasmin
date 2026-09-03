@@ -24,6 +24,9 @@ from app.models.accounting import (
 from app.models.sales import Customer
 from app.models.suppliers import Supplier
 from app.services.ledger import party_balance, trial_balance
+from app.services.statements import (
+    balance_sheet, cash_flow, income_statement, milk_cost_by_group,
+)
 
 bp = Blueprint("accounting", __name__, template_folder="../../templates/accounting")
 
@@ -198,4 +201,59 @@ def trial_balance_view():
         rows=rows, as_of=as_of,
         total_debit=total_debit, total_credit=total_credit,
         is_balanced=abs(total_debit - total_credit) < Decimal("0.05"),
+    )
+
+
+# ==================== PHASE 2 — the three statements ====================
+
+def _report_dates():
+    today = _date.today()
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    d_from = _date.fromisoformat(fm) if fm else today.replace(day=1)
+    d_to = _date.fromisoformat(to) if to else today
+    return d_from, d_to
+
+
+@bp.route("/income-statement")
+@login_required
+def income_statement_view():
+    d_from, d_to = _report_dates()
+    data = income_statement(d_from, d_to)
+    return render_template(
+        "accounting/income_statement.html",
+        date_from=d_from, date_to=d_to, **data,
+    )
+
+
+@bp.route("/balance-sheet")
+@login_required
+def balance_sheet_view():
+    as_of_str = request.args.get("as_of")
+    as_of = _date.fromisoformat(as_of_str) if as_of_str else _date.today()
+    data = balance_sheet(as_of)
+    return render_template(
+        "accounting/balance_sheet.html", as_of=as_of, **data,
+    )
+
+
+@bp.route("/cash-flow")
+@login_required
+def cash_flow_view():
+    d_from, d_to = _report_dates()
+    data = cash_flow(d_from, d_to)
+    return render_template(
+        "accounting/cash_flow.html",
+        date_from=d_from, date_to=d_to, **data,
+    )
+
+
+@bp.route("/milk-cost-by-group")
+@login_required
+def milk_cost_by_group_view():
+    d_from, d_to = _report_dates()
+    data = milk_cost_by_group(d_from, d_to)
+    return render_template(
+        "accounting/milk_cost_by_group.html",
+        date_from=d_from, date_to=d_to, **data,
     )

@@ -113,6 +113,14 @@
          href="{{ url_for('accounting.journal_list') }}"><i class="bi bi-journal-text"></i> دفتر اليومية</a>
       <a class="sidebar-item {% if request.endpoint == 'accounting.trial_balance_view' %}active{% endif %}"
          href="{{ url_for('accounting.trial_balance_view') }}"><i class="bi bi-clipboard-data"></i> ميزان المراجعة</a>
+      <a class="sidebar-item {% if request.endpoint == 'accounting.income_statement_view' %}active{% endif %}"
+         href="{{ url_for('accounting.income_statement_view') }}"><i class="bi bi-graph-up-arrow"></i> قائمة الدخل</a>
+      <a class="sidebar-item {% if request.endpoint == 'accounting.balance_sheet_view' %}active{% endif %}"
+         href="{{ url_for('accounting.balance_sheet_view') }}"><i class="bi bi-book"></i> الميزانية العمومية</a>
+      <a class="sidebar-item {% if request.endpoint == 'accounting.cash_flow_view' %}active{% endif %}"
+         href="{{ url_for('accounting.cash_flow_view') }}"><i class="bi bi-cash-coin"></i> التدفقات النقدية</a>
+      <a class="sidebar-item {% if request.endpoint == 'accounting.milk_cost_by_group_view' %}active{% endif %}"
+         href="{{ url_for('accounting.milk_cost_by_group_view') }}"><i class="bi bi-droplet-half"></i> تكلفة اللبن (بالمجموعة)</a>
 
       <div class="sidebar-section-title">الإدارة</div>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('labor') %}active{% endif %}"

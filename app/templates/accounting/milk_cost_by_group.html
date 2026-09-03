@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}تكلفة الكيلو حسب المجموعة{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-droplet-half"></i> تكلفة الكيلو حسب المجموعة</h1>
+    <p class="text-muted mb-0">
+      المصروفات المسجلة على كل مجموعة، من الدفتر مباشرة — بدل التقسيم بنسبة ثابتة.
+      من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span>.
+    </p>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-end">
+    <div><label class="form-label small fw-bold mb-1">من</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr"></div>
+    <div><label class="form-label small fw-bold mb-1">إلى</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr"></div>
+    <button class="btn btn-primary">تحديث</button>
+  </form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي التكلفة</div>
+      <div class="stat-value" dir="ltr">{{ total_cost }}</div>
+      <div class="tile-hint">جنيه</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي اللبن الموزّع</div>
+      <div class="stat-value" dir="ltr">{{ total_milk_kg }}</div>
+      <div class="tile-hint">كيلو</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card tone-brand">
+      <div class="stat-label">تكلفة الكيلو</div>
+      <div class="stat-value text-success" dir="ltr">{{ cost_per_kg }}</div>
+      <div class="tile-hint">جنيه/كيلو</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>المجموعة</th><th class="text-end">التكلفة (جنيه)</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            {% if r.group %}
+              <i class="bi bi-diagram-3"></i> {{ r.group.name }}
+            {% else %}
+              <span class="text-muted"><i class="bi bi-question-circle"></i> غير مخصّصة</span>
+            {% endif %}
+          </td>
+          <td dir="ltr" class="num text-end">{{ r.cost }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2" class="text-center text-muted py-3">مفيش مصروفات مسجّلة في الفترة.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot><tr class="fw-bold"><td>الإجمالي</td><td dir="ltr" class="num text-end">{{ total_cost }}</td></tr></tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<p class="text-muted small mt-3">
+  <i class="bi bi-info-circle"></i>
+  التصنيف "غير مخصّصة" فيها المصروفات اللي ما اتربطتش بمجموعة معينة —
+  زي فواتير الكهرباء والإيجار والصيانة. القيود القديمة كلها هنا لأن مفهوم
+  المجموعة كان بيتحسب بنسبة قبل كده.
+</p>
+{% endblock %}
