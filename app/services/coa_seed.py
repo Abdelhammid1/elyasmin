@@ -59,6 +59,10 @@ DEFAULT_COA = [
     ("5400", "أدوية بيطرية",                "Veterinary",          AccountType.EXPENSE,   True,  "5"),
     ("5500", "نقل ومصاريف تشغيلية",         "Transport & Ops",     AccountType.EXPENSE,   True,  "5"),
     ("5900", "مصروفات متنوعة",              "Miscellaneous",       AccountType.EXPENSE,   True,  "5"),
+    # PHASE 8a — checks in transit. Numbering here fits the current
+    # scheme; phase 8c renumbers everything to Ibrahim's 1030/2020.
+    ("1130", "شيكات تحت التحصيل",           "Checks Receivable",   AccountType.ASSET,     True,  "1100"),
+    ("2110", "شيكات تحت الدفع",              "Checks Payable",      AccountType.LIABILITY, True,  "2"),
 ]
 
 
@@ -85,6 +89,15 @@ def seed_default_coa() -> dict:
         db.session.flush()   # need id for downstream parents
         existing[code] = acc
     return existing
+
+
+def ensure_check_accounts() -> None:
+    """PHASE 8a — called from the checks migration to seed 1130/2110 the
+    first time the DB is migrated onto phase 8, without needing to
+    re-run the entire seed. `seed_default_coa` would work too but is
+    heavier."""
+    seed_default_coa()
+    db.session.commit()
 
 
 def wire_treasury_accounts(coa: Optional[dict] = None) -> int:

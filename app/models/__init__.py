@@ -45,6 +45,7 @@ from app.models.finance import (
     TreasuryAccount,
 )
 from app.models.labor import Attendance, Worker, WorkerPayment
+from app.models.checks import Check
 
 __all__ = [
     "User", "LoginAttempt",
@@ -60,4 +61,5 @@ __all__ = [
     "Setting", "Expense",
     "TreasuryAccount", "AccountMovement", "AccountTransfer",
     "Worker", "Attendance", "WorkerPayment",
+    "Check",
 ]
