@@ -12,7 +12,7 @@ from typing import Optional
 
 from app.extensions import db
 from app.models.accounting import (
-    Account, AccountType, NormalSide, NORMAL_SIDE_FOR_TYPE,
+    LedgerAccount as Account, AccountType, NormalSide, NORMAL_SIDE_FOR_TYPE,
 )
 
 

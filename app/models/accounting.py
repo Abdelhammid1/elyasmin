@@ -42,7 +42,7 @@ NORMAL_SIDE_FOR_TYPE = {
 }
 
 
-class Account(db.Model):
+class LedgerAccount(db.Model):
     """One row in the Chart of Accounts.
 
     Hierarchical via `parent_id`. Headers (`is_postable=False`) exist for
@@ -71,7 +71,7 @@ class Account(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    parent = db.relationship("Account", remote_side=[id], backref="children")
+    parent = db.relationship("LedgerAccount", remote_side=[id], backref="children")
 
     def __repr__(self) -> str:
         return f"<Account {self.code} {self.name}>"
@@ -193,4 +193,4 @@ class JournalLine(db.Model):
     party_id = db.Column(db.Integer, nullable=True, index=True)
 
     entry = db.relationship("JournalEntry", back_populates="lines")
-    account = db.relationship("Account", backref=db.backref("lines", lazy="dynamic"))
+    account = db.relationship("LedgerAccount", backref=db.backref("lines", lazy="dynamic"))

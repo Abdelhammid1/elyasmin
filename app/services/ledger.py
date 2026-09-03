@@ -14,7 +14,7 @@ from typing import Iterable, Optional
 from sqlalchemy import func
 
 from app.extensions import db
-from app.models.accounting import Account, JournalEntry, JournalLine
+from app.models.accounting import LedgerAccount as Account, JournalEntry, JournalLine
 
 MONEY = Decimal("0.0001")   # ledger precision is 4 decimals; UI rounds to 2
 TOL = Decimal("0.005")      # balance tolerance — half a piastre

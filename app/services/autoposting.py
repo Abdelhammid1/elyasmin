@@ -17,7 +17,7 @@ from decimal import Decimal
 from typing import Optional
 
 from app.extensions import db
-from app.models.accounting import Account
+from app.models.accounting import LedgerAccount as Account
 from app.models.finance import Expense
 from app.services.ledger import get_account_by_code, post_journal, LedgerError
 
