@@ -30,3 +30,7 @@ test_elyasmin_full.py
 *.sql
 backups/
 db_backups/
+
+# Stray phone/screenshot files
+IMG_*.PNG
+IMG_*.JPG
