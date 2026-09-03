@@ -404,7 +404,6 @@ def create_birth():
             return render_template("herd/birth_form.html", form=form)
 
         # US-1.5 AC4: warn if mother gave birth <6 months ago (needs confirm)
-        from datetime import timedelta
         last_birth = (
             Birth.query.filter_by(mother_id=mother.id)
             .order_by(Birth.birth_date.desc())

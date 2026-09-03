@@ -1,13 +1,13 @@
 """TREASURY: manage cash/bank accounts, transfer between them, read a statement."""
 from decimal import Decimal
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.finance import AccountForm, AccountTransferForm
-from app.models.finance import TreasuryAccount, AccountMovement, AccountTransfer
+from app.models.finance import TreasuryAccount
 from app.utils import accounts as acc
 from app.utils.audit import log_action
 

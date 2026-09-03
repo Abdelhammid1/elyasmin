@@ -174,7 +174,7 @@ def trial_balance(as_of: Optional[_date] = None):
     the balance naturally falls on. Total debit MUST equal total credit if the
     ledger has integrity; the trial-balance screen asserts that.
     """
-    from app.models.accounting import AccountType, NormalSide
+    from app.models.accounting import NormalSide
 
     q = (
         db.session.query(

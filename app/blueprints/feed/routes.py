@@ -14,7 +14,6 @@ from app.models.feed import (
     FeedingAddition,
     FeedingSession,
     FeedTank,
-    FeedTankMovement,
     GroupFeedAllowance,
 )
 from app.models.herd import CattleGroup

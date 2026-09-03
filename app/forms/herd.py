@@ -13,7 +13,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
-from app.models.herd import AnimalSale, Birth, CattleGroup, Cow, Death
+from app.models.herd import Birth, CattleGroup, Cow, Death
 
 
 GROUP_TYPE_CHOICES = [

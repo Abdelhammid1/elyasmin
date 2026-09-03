@@ -15,11 +15,10 @@ from decimal import Decimal
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask_login import login_required
-from sqlalchemy import func, or_
 
 from app.extensions import db
 from app.models.accounting import (
-    AccountType, JournalEntry, JournalLine, LedgerAccount, NormalSide,
+    JournalEntry, JournalLine, LedgerAccount,
 )
 from app.models.sales import Customer
 from app.models.suppliers import Supplier

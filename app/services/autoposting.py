@@ -14,7 +14,6 @@ The caller lets that propagate — better to abort the whole transaction than
 to record a money event with no ledger effect.
 """
 from decimal import Decimal
-from typing import Optional
 
 from app.extensions import db
 from app.models.accounting import LedgerAccount
@@ -151,7 +150,6 @@ def on_feeding_session(session, *, created_by=None):
     stays a clean swap.
     """
     from app.models.accounting import JournalEntry
-    from app.models.feed import FeedingSession
     prior = JournalEntry.query.filter_by(
         source_type="FeedingSession", source_id=session.id
     ).all()

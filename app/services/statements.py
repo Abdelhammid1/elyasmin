@@ -10,13 +10,12 @@ Nothing here writes to the DB.
 """
 from datetime import date as _date
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import func
 
 from app.extensions import db
 from app.models.accounting import (
-    AccountType, JournalEntry, JournalLine, LedgerAccount, NormalSide,
+    AccountType, JournalEntry, JournalLine, LedgerAccount,
 )
 from app.models.herd import CattleGroup
 

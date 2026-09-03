@@ -11,7 +11,6 @@ from decimal import Decimal
 from flask import Blueprint, render_template, request, url_for
 from flask_login import login_required
 
-from app.extensions import db
 from app.models.herd import Birth, Calf, CattleGroup, Cow
 from app.models.inventory import Ingredient
 from app.utils.reports import excel_response, pdf_from_current_page

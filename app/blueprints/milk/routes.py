@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
