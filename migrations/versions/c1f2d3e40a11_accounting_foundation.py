@@ -160,7 +160,10 @@ def _backfill_openings(coa):
     Supplier openings: DR 3900 / CR ذمم الموردين  (positive = we owe them).
     """
     from app.extensions import db
-    from app.models.finance import Account as TreasuryAccount
+    # PHASE 7 rename: `finance.Account` became `TreasuryAccount`. Import
+    # the new name directly — migrations are code, not just history, so
+    # they follow model renames.
+    from app.models.finance import TreasuryAccount
     from app.models.suppliers import Supplier
     from app.services.autoposting import CODE_TRADE_PAYABLE, CODE_OPENING_EQUITY
     from app.services.ledger import post_journal, get_account_by_code
@@ -260,7 +263,7 @@ def _backfill_events():
               .order_by(Expense.expense_date, Expense.id).all()):
         if e.account_id is None:
             continue
-        from app.models.finance import Account as TreasuryAccount
+        from app.models.finance import TreasuryAccount
         acc = db.session.get(TreasuryAccount, e.account_id)
         if acc is None:
             continue
@@ -269,7 +272,7 @@ def _backfill_events():
     # ---- treasury transfers ----
     for tr in AccountTransfer.query.order_by(
             AccountTransfer.transfer_date, AccountTransfer.id).all():
-        from app.models.finance import Account as TreasuryAccount
+        from app.models.finance import TreasuryAccount
         src = db.session.get(TreasuryAccount, tr.from_account_id)
         dst = db.session.get(TreasuryAccount, tr.to_account_id)
         if src is None or dst is None:
@@ -293,7 +296,7 @@ def _verify_ledger():
     whole upgrade rolls back."""
     from app.extensions import db
     from app.models.accounting import LedgerAccount as Account, JournalEntry, JournalLine
-    from app.models.finance import Account as TreasuryAccount
+    from app.models.finance import TreasuryAccount
     from app.models.sales import Customer
     from app.models.suppliers import Supplier
     from app.services.ledger import party_balance

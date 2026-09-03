@@ -64,20 +64,30 @@ RENUMBER_MAP = [
 
 
 def upgrade():
-    # The rewrite is done via a temporary staging code so the UNIQUE
-    # constraint on `coa_accounts.code` doesn't fire mid-flight when
-    # two rows would briefly share the same code.
     conn = op.get_bind()
-    for old, _new in RENUMBER_MAP:
-        conn.execute(
-            sa.text("UPDATE coa_accounts SET code = :tmp WHERE code = :old"),
-            {"tmp": f"__TMP__{old}", "old": old},
-        )
-    for old, new in RENUMBER_MAP:
-        conn.execute(
-            sa.text("UPDATE coa_accounts SET code = :new WHERE code = :tmp"),
-            {"new": new, "tmp": f"__TMP__{old}"},
-        )
+
+    # A fresh DB migrated up from zero has already seeded the spec codes
+    # (DEFAULT_COA carries the new numbering), so there is nothing to
+    # renumber. Detect this by probing for a spec code that never
+    # existed under the old scheme — 1010 (خزنة نقدية) fits: it never
+    # existed before this migration.
+    fresh = conn.execute(sa.text(
+        "SELECT 1 FROM coa_accounts WHERE code = '1010'"
+    )).scalar()
+    if not fresh:
+        # Legacy DB — apply the rename via a temp-code two-step so the
+        # UNIQUE constraint on `code` doesn't fire mid-flight when two
+        # rows would briefly share a value.
+        for old, _new in RENUMBER_MAP:
+            conn.execute(
+                sa.text("UPDATE coa_accounts SET code = :tmp WHERE code = :old"),
+                {"tmp": f"__TMP__{old}", "old": old},
+            )
+        for old, new in RENUMBER_MAP:
+            conn.execute(
+                sa.text("UPDATE coa_accounts SET code = :new WHERE code = :tmp"),
+                {"new": new, "tmp": f"__TMP__{old}"},
+            )
 
     # Insert the two accounts Ibrahim's spec asks for that we never had:
     # 2040 قروض and 3030 مسحوبات صاحب العمل. Raw SQL so alembic's own
