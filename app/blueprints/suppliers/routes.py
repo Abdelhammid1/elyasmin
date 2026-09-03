@@ -107,6 +107,10 @@ def supplier_detail(supplier_id: int):
             .all()
         )
 
+    # PHASE 4: open credit invoices for the payment form's allocation grid
+    from app.services.allocations import open_supplier_invoices_for
+    open_invoices = open_supplier_invoices_for(supplier.id)
+
     return render_template(
         "suppliers/detail.html",
         supplier=supplier,
@@ -115,6 +119,7 @@ def supplier_detail(supplier_id: int):
         payment_form=payment_form,
         linked_deliveries=linked_deliveries,
         linked_customer_payments=linked_customer_payments,
+        open_invoices=open_invoices,
     )
 
 
@@ -245,8 +250,35 @@ def record_payment(supplier_id: int):
         )
     )
 
+    # PHASE 4: parse allocation rows (alloc_inv_<id>) if the form carried
+    # any. Same shape as the customer route, other direction. If any
+    # single allocation is invalid the whole transaction rolls back and
+    # the payment is discarded — better than saving a payment that
+    # doesn't match what the user intended.
+    from decimal import InvalidOperation
+    allocations = []
+    for key, val in request.form.items():
+        if not key.startswith("alloc_inv_"):
+            continue
+        try:
+            inv_id = int(key[len("alloc_inv_"):])
+            amt = Decimal(str(val or "0"))
+        except (ValueError, InvalidOperation):
+            continue
+        if amt > 0:
+            allocations.append((inv_id, amt))
+    if allocations:
+        from app.services.allocations import allocate_supplier_payment, AllocationError
+        try:
+            allocate_supplier_payment(payment, allocations, created_by=current_user.id)
+        except AllocationError as ae:
+            db.session.rollback()
+            flash(str(ae), "error")
+            return redirect(url_for("suppliers.supplier_detail", supplier_id=supplier.id))
+
     log_action(
-        "supplier_payment", "SupplierPayment", payment.id, details=f"supplier={supplier.id} amount={amount}"
+        "supplier_payment", "SupplierPayment", payment.id,
+        details=f"supplier={supplier.id} amount={amount} allocations={len(allocations)}"
     )
     db.session.commit()
     flash(
@@ -337,3 +369,53 @@ def suppliers_report_excel():
         rows,
         f"suppliers_report_{d_from}_{d_to}.xlsx",
     )
+
+
+# ==================== PHASE 4: supplier dues aging ====================
+
+@bp.route("/dues")
+@login_required
+def dues():
+    """المستحقات على المزرعة — every PurchaseInvoice with outstanding_amount>0
+    (credit invoices with partial payments), grouped per supplier and aged
+    by days since invoice_date into 0-14 / 15-30 / 31-60 / >60 buckets.
+    Mirror of /customers/dues."""
+    today = date.today()
+    invs = (
+        PurchaseInvoice.query
+        .filter_by(is_archived=False)
+        .order_by(PurchaseInvoice.supplier_id, PurchaseInvoice.invoice_date)
+        .all()
+    )
+
+    def bucket(days):
+        if days <= 14: return "b_0_14"
+        if days <= 30: return "b_15_30"
+        if days <= 60: return "b_31_60"
+        return "b_60_plus"
+
+    per_supplier: dict[int, dict] = {}
+    totals = {"b_0_14": Decimal("0"), "b_15_30": Decimal("0"),
+              "b_31_60": Decimal("0"), "b_60_plus": Decimal("0"),
+              "grand": Decimal("0")}
+
+    for i in invs:
+        out = i.outstanding_amount
+        if out <= 0:
+            continue
+        days = (today - i.invoice_date).days
+        b = bucket(days)
+        c = per_supplier.setdefault(i.supplier_id, {
+            "supplier": i.supplier, "invoices": [],
+            "b_0_14": Decimal("0"), "b_15_30": Decimal("0"),
+            "b_31_60": Decimal("0"), "b_60_plus": Decimal("0"),
+            "total": Decimal("0"),
+        })
+        c["invoices"].append({"inv": i, "days": days, "bucket": b, "outstanding": out})
+        c[b] += out
+        c["total"] += out
+        totals[b] += out
+        totals["grand"] += out
+
+    rows = sorted(per_supplier.values(), key=lambda r: r["supplier"].name)
+    return render_template("suppliers/dues.html", rows=rows, totals=totals, today=today)

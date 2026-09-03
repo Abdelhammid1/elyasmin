@@ -95,6 +95,8 @@
          href="{{ url_for('suppliers.list_suppliers') }}"><i class="bi bi-truck"></i> الموردون</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('purchases') %}active{% endif %}"
          href="{{ url_for('purchases.list_invoices') }}"><i class="bi bi-receipt"></i> المشتريات</a>
+      <a class="sidebar-item {% if request.endpoint == 'suppliers.dues' %}active{% endif %}"
+         href="{{ url_for('suppliers.dues') }}"><i class="bi bi-alarm"></i> مستحقات الموردين</a>
 
       <div class="sidebar-section-title">المالية</div>
       <a class="sidebar-item {% if request.endpoint == 'finance.milk_cost' %}active{% endif %}"
