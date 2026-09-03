@@ -202,6 +202,10 @@ class MilkInvoice(db.Model):
         back_populates="invoice",
         order_by="MilkDelivery.delivery_date",
     )
+    allocations = db.relationship(
+        "PaymentAllocation", back_populates="invoice",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def status_label(self) -> str:
@@ -213,6 +217,37 @@ class MilkInvoice(db.Model):
             (d.total_value for d in self.deliveries if d.total_value is not None),
             Decimal("0"),
         )
+
+    # PHASE 3 — payment status derived from allocations. The ledger doesn't
+    # know or care about invoice-level payment; these three properties are
+    # the display layer that turns "customer paid X" into "invoice A is
+    # paid, invoice B has Y remaining".
+    @property
+    def paid_amount(self) -> Decimal:
+        return sum(
+            (Decimal(str(a.amount or 0)) for a in self.allocations),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+
+    @property
+    def outstanding_amount(self) -> Decimal:
+        return (Decimal(str(self.grand_total or 0)) - self.paid_amount).quantize(Decimal("0.01"))
+
+    @property
+    def payment_status(self) -> str:
+        """'paid' | 'partial' | 'unpaid' — matches what the aging + status
+        chips render. Draft invoices are always 'unpaid' regardless."""
+        if self.status != self.STATUS_ISSUED:
+            return "unpaid"
+        paid = self.paid_amount
+        grand = Decimal(str(self.grand_total or 0))
+        if grand <= 0:
+            return "paid"
+        if paid >= grand - Decimal("0.005"):
+            return "paid"
+        if paid > 0:
+            return "partial"
+        return "unpaid"
 
 
 class CustomerPayment(db.Model):
@@ -235,10 +270,66 @@ class CustomerPayment(db.Model):
 
     customer = db.relationship("Customer", back_populates="payments")
     account = db.relationship("Account")
+    allocations = db.relationship(
+        "PaymentAllocation", back_populates="payment",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def method_label(self) -> str:
         return "كاش" if self.method == self.METHOD_CASH else "تحويل بنكي"
+
+    @property
+    def allocated_amount(self) -> Decimal:
+        """PHASE 3: how much of this payment has been tied to specific invoices.
+        The remainder floats as "on account" credit against the customer."""
+        return sum(
+            (Decimal(str(a.amount or 0)) for a in self.allocations),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+
+    @property
+    def unallocated_amount(self) -> Decimal:
+        """The "on account" balance — payment.amount − allocated_amount.
+        A positive value is available to allocate against future invoices."""
+        return (Decimal(str(self.amount or 0)) - self.allocated_amount).quantize(Decimal("0.01"))
+
+
+class PaymentAllocation(db.Model):
+    """PHASE 3: ties a slice of a CustomerPayment to a specific MilkInvoice.
+
+    The ledger already recorded the payment as a whole-customer receivable
+    reduction (phase 1 autopost). This is a DISPLAY/REPORTING layer on top:
+    it says which invoices a payment was intended to settle. Editing an
+    allocation moves nothing on the ledger — it only changes which invoice
+    is considered "paid" for the aging report.
+
+    Invariants (enforced by the allocation service, not the DB):
+      SUM(amount for a payment)  <= payment.amount
+      SUM(amount for an invoice) <= invoice.grand_total
+    """
+
+    __tablename__ = "payment_allocations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    payment_id = db.Column(
+        db.Integer, db.ForeignKey("customer_payments.id"),
+        nullable=False, index=True,
+    )
+    invoice_id = db.Column(
+        db.Integer, db.ForeignKey("milk_invoices.id"),
+        nullable=False, index=True,
+    )
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    payment = db.relationship("CustomerPayment", back_populates="allocations")
+    invoice = db.relationship("MilkInvoice", back_populates="allocations")
+
+    __table_args__ = (
+        db.UniqueConstraint("payment_id", "invoice_id", name="uq_payment_invoice"),
+    )
 
 
 class DailyProduction(db.Model):
