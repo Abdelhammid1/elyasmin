@@ -100,7 +100,8 @@
     .cta-strip h2 { font-weight: 800; margin-bottom: 1rem; font-size: clamp(1.4rem, 2.5vw, 1.9rem); color: #fff; }
     .cta-strip p { opacity: 0.75; margin-bottom: 1.75rem; }
 
-    /* Manasety footer partial styles come from app.css — nothing to add here. */
+    /* BRAND: footer styling now comes from the shared .site-footer class in
+       app.css, so the landing page uses the same footer as the rest of the app. */
   </style>
 </head>
 <body>
@@ -219,9 +220,10 @@
   {% endif %}
 </section>
 
-<footer>
-  © {{ now().year }} {{ app_name }}
-</footer>
+{# BRAND: shared footer partial, so the landing footer and every app-shell
+   footer never drift apart. The landing page's own <footer> styles above still
+   apply because the partial uses its own scoped .site-footer class. #}
+{% include "_footer.html" ignore missing %}
 
 </body>
 </html>
