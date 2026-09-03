@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}شيك صادر #{{ chk.id }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-arrow-up-circle text-warning"></i>
+      شيك صادر #{{ chk.id }}
+      {% if chk.status == 'pending' %}<span class="badge badge-warning">{{ chk.status_label }}</span>
+      {% elif chk.status == 'cleared' %}<span class="badge badge-success">{{ chk.status_label }}</span>
+      {% else %}<span class="badge bg-danger">{{ chk.status_label }}</span>{% endif %}
+    </h1>
+    <p class="text-muted mb-0">{{ chk.supplier.name }} · بنك {{ chk.bank_name }} · <span dir="ltr">{{ chk.check_number }}</span></p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('checks.issued_list') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-right"></i> رجوع للقائمة
+    </a>
+    {% if current_user.is_admin and not chk.is_archived %}
+    <form method="post" action="{{ url_for('checks.void', check_id=chk.id) }}"
+          onsubmit="return confirm('تأكيد إلغاء الشيك بالكامل؟ كل القيود المرتبطة هتتشال.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> إلغاء الشيك</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-info-circle"></i> تفاصيل الشيك</h5>
+      <dl class="row mb-0">
+        <dt class="col-4">المورد</dt><dd class="col-8"><a href="{{ url_for('suppliers.supplier_detail', supplier_id=chk.supplier.id) }}">{{ chk.supplier.name }}</a></dd>
+        <dt class="col-4">البنك</dt><dd class="col-8">{{ chk.bank_name }}</dd>
+        <dt class="col-4">رقم الشيك</dt><dd class="col-8" dir="ltr">{{ chk.check_number }}</dd>
+        {% if chk.drawer_name %}<dt class="col-4">اسم الساحب</dt><dd class="col-8">{{ chk.drawer_name }}</dd>{% endif %}
+        <dt class="col-4">المبلغ</dt><dd class="col-8" dir="ltr" class="num fw-bold">{{ chk.amount }} جنيه</dd>
+        <dt class="col-4">تاريخ التحرير</dt><dd class="col-8" dir="ltr">{{ chk.issue_date }}</dd>
+        <dt class="col-4">تاريخ الاستحقاق</dt><dd class="col-8" dir="ltr">{{ chk.due_date }}</dd>
+        {% if chk.cleared_on %}<dt class="col-4">تاريخ التحصيل</dt><dd class="col-8" dir="ltr">{{ chk.cleared_on }}</dd>{% endif %}
+        {% if chk.bounced_on %}<dt class="col-4">تاريخ الارتداد</dt><dd class="col-8" dir="ltr">{{ chk.bounced_on }}</dd>{% endif %}
+        {% if chk.treasury_account %}<dt class="col-4">الحساب البنكي</dt><dd class="col-8">{{ chk.treasury_account.name }}</dd>{% endif %}
+        {% if chk.related_ref %}<dt class="col-4">مرجع</dt><dd class="col-8">{{ chk.related_ref }}</dd>{% endif %}
+        {% if chk.notes %}<dt class="col-4">ملاحظات</dt><dd class="col-8" style="white-space: pre-wrap;">{{ chk.notes }}</dd>{% endif %}
+      </dl>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    {% if chk.status == 'pending' %}
+    <div class="card p-3 mb-3">
+      <h5 class="mb-3"><i class="bi bi-check-circle text-success"></i> صرف الشيك</h5>
+      <form method="post" action="{{ url_for('checks.issued_settle', check_id=chk.id) }}">
+        {{ settle_form.hidden_tag() }}
+        <div class="mb-3">
+          {{ settle_form.treasury_account_id.label(class="form-label fw-bold") }}
+          {{ settle_form.treasury_account_id(class="form-select") }}
+        </div>
+        <div class="mb-3">
+          {{ settle_form.cleared_on.label(class="form-label fw-bold") }}
+          {{ settle_form.cleared_on(class="form-control", dir="ltr", type="date") }}
+        </div>
+        {{ settle_form.submit(class="btn btn-success w-100", value="تسجيل الصرف") }}
+      </form>
+    </div>
+
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-arrow-return-left text-danger"></i> ارتد الشيك</h5>
+      <form method="post" action="{{ url_for('checks.issued_bounce', check_id=chk.id) }}">
+        {{ bounce_form.hidden_tag() }}
+        <div class="mb-3">
+          {{ bounce_form.bounced_on.label(class="form-label fw-bold") }}
+          {{ bounce_form.bounced_on(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ bounce_form.notes.label(class="form-label fw-bold") }}
+          {{ bounce_form.notes(class="form-control", rows=2, placeholder="مثال: مفيش رصيد كافي") }}
+        </div>
+        {{ bounce_form.submit(class="btn btn-outline-danger w-100") }}
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card p-3">
+  <h5 class="mb-3"><i class="bi bi-journal-bookmark"></i> القيود المحاسبية</h5>
+  {% if jes %}
+  {% for je in jes %}
+  <div class="mb-3 border-bottom pb-2">
+    <p class="text-muted mb-2 small">قيد #{{ je.id }} — <span dir="ltr">{{ je.date }}</span> — {{ je.description }}</p>
+    <table class="table table-sm mb-0">
+      <thead><tr><th>الحساب</th><th class="text-end">مدين</th><th class="text-end">دائن</th></tr></thead>
+      <tbody>
+      {% for l in je.lines %}
+        <tr>
+          <td>{{ l.account.code }} — {{ l.account.name }}</td>
+          <td dir="ltr" class="num text-end">{{ l.debit or '' }}</td>
+          <td dir="ltr" class="num text-end">{{ l.credit or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="text-muted mb-0">مفيش قيود مسجّلة.</p>
+  {% endif %}
+</div>
+{% endblock %}

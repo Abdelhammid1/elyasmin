@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}الشيكات{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-cash-stack"></i> الشيكات</h1>
+  <p class="text-muted mb-0">شيكات وردت من العملاء وشيكات صادرة للموردين — كل شيك بيسجّل قيده الخاص عند الاستلام والصرف والارتداد.</p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <a href="{{ url_for('checks.received_list') }}" class="card stat-card d-block text-decoration-none">
+      <div class="stat-label"><i class="bi bi-arrow-down-circle text-success"></i> شيكات واردة</div>
+      <div class="stat-value" style="font-size:1.1rem;">من العملاء — 1130 شيكات تحت التحصيل</div>
+    </a>
+  </div>
+  <div class="col-md-6">
+    <a href="{{ url_for('checks.issued_list') }}" class="card stat-card d-block text-decoration-none">
+      <div class="stat-label"><i class="bi bi-arrow-up-circle text-warning"></i> شيكات صادرة</div>
+      <div class="stat-value" style="font-size:1.1rem;">للموردين — 2110 شيكات تحت الدفع</div>
+    </a>
+  </div>
+</div>
+
+<div class="card p-3">
+  <h5 class="mb-3"><i class="bi bi-alarm text-danger"></i> شيكات مستحقة خلال 7 أيام</h5>
+  {% if upcoming %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>النوع</th>
+          <th>الطرف</th>
+          <th>البنك</th>
+          <th>رقم الشيك</th>
+          <th class="text-end">المبلغ</th>
+          <th>تاريخ الاستحقاق</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in upcoming %}
+        {% set days = c.days_until_due() %}
+        <tr class="{% if days < 0 %}table-danger{% else %}table-warning{% endif %}">
+          <td>
+            {% if c.direction == 'received' %}
+              <a href="{{ url_for('checks.received_detail', check_id=c.id) }}">#{{ c.id }}</a>
+            {% else %}
+              <a href="{{ url_for('checks.issued_detail', check_id=c.id) }}">#{{ c.id }}</a>
+            {% endif %}
+          </td>
+          <td><span class="badge {% if c.direction == 'received' %}badge-brand{% else %}badge-info{% endif %}">{{ c.direction_label }}</span></td>
+          <td>{{ c.party_name }}</td>
+          <td>{{ c.bank_name }}</td>
+          <td dir="ltr">{{ c.check_number }}</td>
+          <td dir="ltr" class="num text-end fw-bold">{{ c.amount }}</td>
+          <td dir="ltr">
+            {{ c.due_date }}
+            <small class="text-muted d-block">
+              {% if days < 0 %}متأخر {{ -days }}ي
+              {% elif days == 0 %}اليوم
+              {% else %}بعد {{ days }}ي{% endif %}
+            </small>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">مفيش شيكات مستحقة خلال 7 أيام. 👌</p>
+  {% endif %}
+</div>
+{% endblock %}

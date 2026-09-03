@@ -184,6 +184,46 @@
     </div>
   </div>
 
+  {# PHASE 8a: pending checks with a due date in the next 7 days #}
+  <div class="col-lg-4 col-md-6">
+    <div class="card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-cash-stack text-danger"></i> شيكات مستحقة قريباً</h5>
+        <a href="{{ url_for('checks.index') }}" class="btn btn-sm btn-outline-primary">التفاصيل</a>
+      </div>
+      {% if upcoming_checks %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>الطرف</th><th>البنك</th><th>المبلغ</th><th>الاستحقاق</th></tr></thead>
+        <tbody>
+          {% for c in upcoming_checks %}
+          {% set days = c.days_until_due() %}
+          <tr class="{% if days < 0 %}table-danger{% else %}table-warning{% endif %}">
+            <td>
+              {% if c.direction == 'received' %}
+                <a href="{{ url_for('checks.received_detail', check_id=c.id) }}">{{ c.party_name }}</a>
+              {% else %}
+                <a href="{{ url_for('checks.issued_detail', check_id=c.id) }}">{{ c.party_name }}</a>
+              {% endif %}
+              <small class="text-muted d-block">{{ c.direction_label }}</small>
+            </td>
+            <td class="small">{{ c.bank_name }}</td>
+            <td dir="ltr" class="fw-bold">{{ c.amount }}</td>
+            <td dir="ltr">
+              {{ c.due_date }}
+              <small class="text-muted d-block">
+                {% if days < 0 %}متأخر {{ -days }}ي
+                {% elif days == 0 %}اليوم
+                {% else %}بعد {{ days }}ي{% endif %}
+              </small>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="text-muted mb-0">مفيش شيكات مستحقة خلال أسبوع. 👌</p>{% endif %}
+    </div>
+  </div>
+
   <div class="col-lg-4 col-md-12">
     <div class="card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-3">

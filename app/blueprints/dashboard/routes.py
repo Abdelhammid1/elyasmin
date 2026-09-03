@@ -76,6 +76,21 @@ def index():
         .all()
     )
 
+    # PHASE 8a: checks due in the next 7 days (or already overdue and
+    # still pending). Same shape as the expiring-medicine query.
+    from app.models.checks import Check
+    upcoming_checks = (
+        Check.query
+        .filter(
+            Check.status == Check.STATUS_PENDING,
+            Check.is_archived.is_(False),
+            Check.due_date <= today + timedelta(days=7),
+        )
+        .order_by(Check.due_date.asc())
+        .limit(20)
+        .all()
+    )
+
     # Suppliers total balance owed
     invoices_total = (
         db.session.query(func.coalesce(func.sum(PurchaseInvoice.total), 0))
@@ -153,6 +168,7 @@ def index():
         recent_sales=recent_sales,
         low_stock_ings=low_stock_ings,
         expiring_soon_lots=expiring_soon_lots,
+        upcoming_checks=upcoming_checks,
         total_owed_to_suppliers=total_owed_to_suppliers,
         active_suppliers_count=active_suppliers_count,
     )

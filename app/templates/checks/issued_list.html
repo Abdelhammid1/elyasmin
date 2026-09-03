@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}شيكات صادرة{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-arrow-up-circle text-warning"></i> شيكات صادرة</h1>
+    <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span> — استحقاق الشيك</p>
+  </div>
+  <a href="{{ url_for('checks.issued_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> شيك صادر جديد
+  </a>
+</div>
+
+<div class="card p-3 mb-3">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">من</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">إلى</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">الحالة</label>
+      <select name="status" class="form-select">
+        <option value="">— كل الحالات —</option>
+        <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>معلّق</option>
+        <option value="cleared" {% if selected_status == 'cleared' %}selected{% endif %}>تم صرفه</option>
+        <option value="bounced" {% if selected_status == 'bounced' %}selected{% endif %}>ارتد</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">تحديث</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المورد</th>
+          <th>البنك</th>
+          <th>رقم الشيك</th>
+          <th class="text-end">المبلغ</th>
+          <th>الاستحقاق</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in rows %}
+        <tr {% if c.is_archived %}class="text-muted text-decoration-line-through"{% endif %}>
+          <td><a href="{{ url_for('checks.issued_detail', check_id=c.id) }}">#{{ c.id }}</a></td>
+          <td>{{ c.supplier.name }}</td>
+          <td>{{ c.bank_name }}</td>
+          <td dir="ltr">{{ c.check_number }}</td>
+          <td dir="ltr" class="num text-end fw-bold">{{ c.amount }}</td>
+          <td dir="ltr">{{ c.due_date }}</td>
+          <td>
+            {% if c.status == 'pending' %}<span class="badge badge-warning">{{ c.status_label }}</span>
+            {% elif c.status == 'cleared' %}<span class="badge badge-success">{{ c.status_label }}</span>
+            {% else %}<span class="badge bg-danger">{{ c.status_label }}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">مفيش شيكات صادرة في الفترة دي.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
