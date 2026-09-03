@@ -40,6 +40,7 @@ from app.models.sales import (
 from app.models.finance import (
     AccountMovement,
     AccountTransfer,
+    CompanyProfile,
     Expense,
     Setting,
     TreasuryAccount,
@@ -61,6 +62,7 @@ __all__ = [
     "Customer", "MilkDelivery", "MilkInvoice", "CustomerPayment", "DailyProduction",
     "Setting", "Expense",
     "TreasuryAccount", "AccountMovement", "AccountTransfer",
+    "CompanyProfile",
     "Worker", "Attendance", "WorkerPayment",
     "Check",
     "FixedAsset", "DepreciationPosting",

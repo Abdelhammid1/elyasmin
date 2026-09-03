@@ -4,6 +4,78 @@ from decimal import Decimal
 from app.extensions import db
 
 
+class CompanyProfile(db.Model):
+    """PHASE 11 (YAS-SET-1): the farm's identity, printed on every
+    invoice. Singleton — always id=1. Auto-created on first access so
+    a fresh install never has to worry about a NULL profile.
+
+    Every field is nullable / has a default so the row can be seeded
+    empty and filled in gradually from the settings page.
+    """
+    __tablename__ = "company_profile"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # ---- Public identity ----
+    name = db.Column(db.String(150), nullable=False,
+                     default="مزرعة الياسمين",
+                     server_default="مزرعة الياسمين")
+    logo_path = db.Column(db.String(255), nullable=True)   # relative to /static/
+    base_currency = db.Column(db.String(10), nullable=False,
+                              default="EGP", server_default="EGP")
+    tax_rate_pct = db.Column(db.Numeric(5, 2), nullable=False,
+                             default=Decimal("0"), server_default="0")
+    region = db.Column(db.String(120), nullable=True)
+
+    # ---- Legal identity — printed on every invoice ----
+    legal_name = db.Column(db.String(200), nullable=True)
+    commercial_register_no = db.Column(db.String(60), nullable=True)
+    tax_registration_no = db.Column(db.String(60), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+
+    # ---- Bank transfer info — printed on invoice footer ----
+    bank_account_holder = db.Column(db.String(150), nullable=True)
+    bank_name = db.Column(db.String(150), nullable=True)
+    bank_account_no = db.Column(db.String(60), nullable=True)
+    bank_iban = db.Column(db.String(60), nullable=True)
+
+    # ---- Operational + reminders (reminders will be wired later) ----
+    weekend_days = db.Column(db.String(20), nullable=False,
+                             default="fri,sat", server_default="fri,sat")
+    reminder_days_before_due = db.Column(db.Integer, nullable=False,
+                                          default=3, server_default="3")
+
+    # ---- YAS-SET-4: invoice-number prefixes ----
+    invoice_number_prefix_sale = db.Column(db.String(20), nullable=False,
+                                            default="INV", server_default="INV")
+    invoice_number_prefix_purchase = db.Column(db.String(20), nullable=False,
+                                                default="PUR", server_default="PUR")
+
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+    updated_by_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                              nullable=True)
+
+    @classmethod
+    def current(cls) -> "CompanyProfile":
+        """The single (id=1) row. Auto-creates the blank default on
+        first access so a fresh install always has a profile to bind
+        to; the seed migration also inserts one."""
+        row = db.session.get(cls, 1)
+        if row is None:
+            row = cls(id=1)
+            db.session.add(row)
+            db.session.flush()
+        return row
+
+    def format_invoice_number(self, kind: str, invoice_id: int) -> str:
+        """PUR-2026-00042 / INV-2026-00042 — the id keeps its role as
+        the DB primary key; this is display-only."""
+        prefix = (self.invoice_number_prefix_purchase if kind == "purchase"
+                  else self.invoice_number_prefix_sale)
+        return f"{prefix}-{datetime.utcnow().year}-{invoice_id:05d}"
+
+
 class Setting(db.Model):
     __tablename__ = "settings"
 
