@@ -2,7 +2,8 @@ from datetime import date
 from decimal import Decimal
 
 from flask_wtf import FlaskForm
-from wtforms import DateField, DecimalField, SelectField, StringField, SubmitField, TextAreaField
+from flask_wtf.file import FileAllowed, FileField, FileSize
+from wtforms import DateField, DecimalField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 from app.models.finance import Expense
@@ -125,3 +126,91 @@ class AccountTransferForm(FlaskForm):
     transfer_date = DateField("تاريخ التحويل", validators=[DataRequired()], default=date.today)
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("تنفيذ التحويل")
+
+
+# ==================== PHASE 11 — company profile ====================
+
+class CompanyProfileForm(FlaskForm):
+    """YAS-SET-2: fills the CompanyProfile singleton row.
+
+    Every field is Optional except `name` — the client fills in what
+    they have; missing pieces just don't render on the invoice."""
+
+    # ---- Public identity ----
+    name = StringField("اسم الشركة (الاسم التجاري)",
+                        validators=[DataRequired(), Length(max=150)])
+    logo = FileField(
+        "شعار الشركة (PNG/JPG/SVG، ≤ 2 ميجا)",
+        validators=[
+            Optional(),
+            FileAllowed(["png", "jpg", "jpeg", "svg"],
+                        "امتداد الملف لازم يكون PNG أو JPG أو SVG."),
+            FileSize(max_size=2 * 1024 * 1024, message="الملف أكبر من 2 ميجا."),
+        ],
+    )
+    base_currency = SelectField(
+        "العملة الأساسية",
+        choices=[("EGP", "جنيه مصري (EGP)"),
+                 ("SAR", "ريال سعودي (SAR)"),
+                 ("USD", "دولار (USD)"),
+                 ("EUR", "يورو (EUR)")],
+        default="EGP",
+    )
+    tax_rate_pct = DecimalField(
+        "نسبة الضريبة الافتراضية %",
+        places=2, default=0,
+        validators=[Optional(), NumberRange(min=0, max=100)],
+    )
+    region = StringField("المنطقة / المحافظة",
+                          validators=[Optional(), Length(max=120)])
+
+    # ---- Legal identity — printed on the invoice ----
+    legal_name = StringField(
+        "الاسم القانوني (الاسم الرسمي على الفاتورة)",
+        validators=[Optional(), Length(max=200)],
+    )
+    commercial_register_no = StringField(
+        "رقم السجل التجاري",
+        validators=[Optional(), Length(max=60)],
+    )
+    tax_registration_no = StringField(
+        "الرقم الضريبي (البطاقة الضريبية)",
+        validators=[Optional(), Length(max=60)],
+    )
+    address = TextAreaField("العنوان",
+                             validators=[Optional(), Length(max=500)])
+
+    # ---- Bank info ----
+    bank_account_holder = StringField(
+        "اسم صاحب الحساب",
+        validators=[Optional(), Length(max=150)],
+    )
+    bank_name = StringField("اسم البنك",
+                             validators=[Optional(), Length(max=150)])
+    bank_account_no = StringField(
+        "رقم الحساب",
+        validators=[Optional(), Length(max=60)],
+    )
+    bank_iban = StringField("رقم IBAN",
+                             validators=[Optional(), Length(max=60)])
+
+    # ---- Invoice numbering (YAS-SET-4) ----
+    invoice_number_prefix_sale = StringField(
+        "بادئة رقم فواتير البيع",
+        default="INV",
+        validators=[DataRequired(), Length(max=20)],
+    )
+    invoice_number_prefix_purchase = StringField(
+        "بادئة رقم فواتير الشراء",
+        default="PUR",
+        validators=[DataRequired(), Length(max=20)],
+    )
+
+    # ---- Operational (dormant — reminders come later) ----
+    reminder_days_before_due = IntegerField(
+        "إشعار الاستحقاق قبله بكام يوم",
+        default=3,
+        validators=[Optional(), NumberRange(min=0, max=90)],
+    )
+
+    submit = SubmitField("حفظ بيانات الشركة")
