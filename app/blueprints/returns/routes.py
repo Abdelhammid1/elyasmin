@@ -12,7 +12,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.forms.returns import PurchaseReturnForm, SalesReturnForm
-from app.models.finance import Account
+from app.models.finance import TreasuryAccount
 from app.models.sales import Customer, MilkInvoice, SalesReturn
 from app.models.suppliers import PurchaseInvoice, PurchaseReturn, Supplier
 from app.services import autoposting

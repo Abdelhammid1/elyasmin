@@ -6,8 +6,8 @@ deployment, one currency (EGP).
 
 Every money event in the app auto-posts one balanced entry through
 `app.services.ledger.post_journal`. The old rows (Supplier.balance_due,
-Customer.balance, Account.current_balance, Expense) keep working; new screens
-read from these journals.
+Customer.balance, TreasuryAccount.current_balance, Expense) keep working;
+new screens read from these journals.
 """
 import enum
 from datetime import date, datetime
@@ -62,9 +62,9 @@ class LedgerAccount(db.Model):
     is_postable = db.Column(db.Boolean, nullable=False, default=True, server_default="1")
     is_active = db.Column(db.Boolean, nullable=False, default=True, server_default="1")
 
-    # Optional link back to a treasury Account (app.models.finance.Account) —
-    # one COA leaf per real cash/bank drawer, so treasury movements know which
-    # leaf to hit. Nullable so non-treasury accounts have nothing to link.
+    # Optional link back to a TreasuryAccount (app.models.finance.TreasuryAccount)
+    # — one COA leaf per real cash/bank drawer, so treasury movements know
+    # which leaf to hit. Nullable so non-treasury accounts have nothing to link.
     treasury_account_id = db.Column(
         db.Integer, db.ForeignKey("accounts.id"), nullable=True, index=True
     )
@@ -74,7 +74,7 @@ class LedgerAccount(db.Model):
     parent = db.relationship("LedgerAccount", remote_side=[id], backref="children")
 
     def __repr__(self) -> str:
-        return f"<Account {self.code} {self.name}>"
+        return f"<LedgerAccount {self.code} {self.name}>"
 
     @property
     def display_name(self) -> str:

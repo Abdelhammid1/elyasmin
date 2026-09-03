@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.forms.suppliers import PurchaseInvoiceForm
-from app.models.finance import Account, Expense
+from app.models.finance import TreasuryAccount, Expense
 from app.models.inventory import Ingredient, StockMovement
 from app.models.suppliers import PurchaseInvoice, PurchaseInvoiceCharge, PurchaseLine, Supplier
 from app.utils import accounts as acc
@@ -342,7 +342,7 @@ def create_invoice():
                 cat = Expense.CAT_OTHER
             # TREASURY: a cash invoice is a real outflow with no payment model
             # behind it, so its Expense IS the cash event and posts the movement.
-            cash_account = db.session.get(Account, form.account_id.data or 0)
+            cash_account = db.session.get(TreasuryAccount, form.account_id.data or 0)
             cash_expense = Expense(
                 category=cat,
                 amount=total,

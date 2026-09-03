@@ -4,7 +4,7 @@ Five routes move money — supplier payments, customer collections, worker
 payments, expenses and transfers — so the posting rules are kept in one place
 rather than repeated in each.
 
-`Account.current_balance` is always `opening_balance` plus the sum of that
+`TreasuryAccount.current_balance` is always `opening_balance` plus the sum of that
 account's movements. Nothing here commits; the calling route owns the
 transaction.
 
@@ -14,7 +14,7 @@ negative.
 from decimal import Decimal
 
 from app.extensions import db
-from app.models.finance import Account, AccountMovement, AccountTransfer
+from app.models.finance import TreasuryAccount, AccountMovement, AccountTransfer
 
 MONEY = Decimal("0.01")
 
@@ -124,6 +124,6 @@ def recompute_balance(account) -> Decimal:
 def active_choices():
     """(id, label) pairs for the account picker on every payment form."""
     accounts = (
-        Account.query.filter_by(is_archived=False).order_by(Account.name).all()
+        TreasuryAccount.query.filter_by(is_archived=False).order_by(TreasuryAccount.name).all()
     )
     return [(a.id, f"{a.display_name} ({a.current_balance})") for a in accounts]

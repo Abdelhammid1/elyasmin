@@ -17,7 +17,7 @@ from decimal import Decimal
 from typing import Optional
 
 from app.extensions import db
-from app.models.accounting import LedgerAccount as Account
+from app.models.accounting import LedgerAccount
 from app.models.finance import Expense
 from app.services.ledger import get_account_by_code, post_journal, LedgerError
 
@@ -61,11 +61,12 @@ def _d(v) -> Decimal:
     return Decimal(str(v or 0))
 
 
-def _treasury_leaf(treasury_account) -> Account:
+def _treasury_leaf(treasury_account) -> LedgerAccount:
     """The COA leaf that represents this real cash/bank drawer. Every
-    treasury Account is wired to a leaf by wire_treasury_accounts(); if this
-    lookup fails, the chart is out of sync and the JE cannot be posted."""
-    leaf = Account.query.filter_by(treasury_account_id=treasury_account.id).first()
+    TreasuryAccount row is wired to a leaf by wire_treasury_accounts();
+    if this lookup fails, the chart is out of sync and the JE cannot
+    be posted."""
+    leaf = LedgerAccount.query.filter_by(treasury_account_id=treasury_account.id).first()
     if leaf is None:
         raise LedgerError(
             f"الحساب البنكي '{treasury_account.name}' مش مربوط بحساب في دليل الحسابات — "
@@ -74,7 +75,7 @@ def _treasury_leaf(treasury_account) -> Account:
     return leaf
 
 
-def _code(code: str) -> Account:
+def _code(code: str) -> LedgerAccount:
     acc = get_account_by_code(code)
     if acc is None:
         raise LedgerError(f"الحساب {code} مش موجود في دليل الحسابات.")

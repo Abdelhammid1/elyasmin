@@ -103,7 +103,7 @@ class Expense(db.Model):
         return self.LABELS.get(self.category, self.category)
 
 
-class Account(db.Model):
+class TreasuryAccount(db.Model):
     """TREASURY: a real place money sits — the cash drawer or a bank account.
 
     Any number of bank accounts can exist; each is an ordinary row added from
@@ -191,7 +191,7 @@ class AccountMovement(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    account = db.relationship("Account", back_populates="movements")
+    account = db.relationship("TreasuryAccount", back_populates="movements")
 
     @property
     def type_label(self) -> str:
@@ -224,5 +224,5 @@ class AccountTransfer(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    from_account = db.relationship("Account", foreign_keys=[from_account_id])
-    to_account = db.relationship("Account", foreign_keys=[to_account_id])
+    from_account = db.relationship("TreasuryAccount", foreign_keys=[from_account_id])
+    to_account = db.relationship("TreasuryAccount", foreign_keys=[to_account_id])

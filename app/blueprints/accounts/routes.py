@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.finance import AccountForm, AccountTransferForm
-from app.models.finance import Account, AccountMovement, AccountTransfer
+from app.models.finance import TreasuryAccount, AccountMovement, AccountTransfer
 from app.utils import accounts as acc
 from app.utils.audit import log_action
 
@@ -15,19 +15,19 @@ bp = Blueprint("accounts", __name__, template_folder="../../templates/accounts")
 
 
 def _account_choices():
-    rows = Account.query.filter_by(is_archived=False).order_by(Account.name).all()
+    rows = TreasuryAccount.query.filter_by(is_archived=False).order_by(TreasuryAccount.name).all()
     return [(a.id, f"{a.display_name} ({a.current_balance})") for a in rows]
 
 
 @bp.route("/")
 @login_required
 def list_accounts():
-    rows = Account.query.filter_by(is_archived=False).order_by(
-        Account.account_type, Account.name
+    rows = TreasuryAccount.query.filter_by(is_archived=False).order_by(
+        TreasuryAccount.account_type, TreasuryAccount.name
     ).all()
     total = sum((Decimal(str(a.current_balance)) for a in rows), Decimal("0"))
     cash_total = sum(
-        (Decimal(str(a.current_balance)) for a in rows if a.account_type == Account.TYPE_CASH),
+        (Decimal(str(a.current_balance)) for a in rows if a.account_type == TreasuryAccount.TYPE_CASH),
         Decimal("0"),
     )
     bank_total = total - cash_total
@@ -43,12 +43,12 @@ def create_account():
     form = AccountForm()
     if form.validate_on_submit():
         name = form.name.data.strip()
-        if Account.query.filter(func.lower(Account.name) == name.lower()).first():
+        if TreasuryAccount.query.filter(func.lower(TreasuryAccount.name) == name.lower()).first():
             flash("فيه حساب بنفس الاسم مسجّل قبل كده.", "error")
             return render_template("accounts/form.html", form=form, mode="create")
 
         opening = Decimal(str(form.opening_balance.data or 0))
-        account = Account(
+        account = TreasuryAccount(
             name=name,
             account_type=form.account_type.data,
             bank_name=(form.bank_name.data or "").strip() or None,
@@ -81,12 +81,12 @@ def create_account():
                         {"account_id": equity.id, "credit": opening,
                          "memo": f"مقابل افتتاحي {account.name}"},
                     ],
-                    source_type="OpeningBalance:Account",
+                    source_type="OpeningBalance:TreasuryAccount",
                     source_id=account.id,
                     created_by=current_user.id,
                 )
 
-        log_action("account_created", "Account", account.id,
+        log_action("account_created", "TreasuryAccount", account.id,
                    details=f"type={account.account_type} opening={opening}")
         db.session.commit()
         flash(f"تم إضافة الحساب {account.display_name} برصيد افتتاحي {opening} جنيه.", "success")
@@ -98,15 +98,15 @@ def create_account():
 @bp.route("/<int:account_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_account(account_id: int):
-    account = db.session.get(Account, account_id)
+    account = db.session.get(TreasuryAccount, account_id)
     if not account or account.is_archived:
         abort(404)
 
     form = AccountForm(obj=account)
     if form.validate_on_submit():
         name = form.name.data.strip()
-        clash = Account.query.filter(
-            func.lower(Account.name) == name.lower(), Account.id != account.id
+        clash = TreasuryAccount.query.filter(
+            func.lower(TreasuryAccount.name) == name.lower(), TreasuryAccount.id != account.id
         ).first()
         if clash:
             flash("فيه حساب بنفس الاسم مسجّل قبل كده.", "error")
@@ -124,10 +124,10 @@ def edit_account(account_id: int):
             old = account.opening_balance
             account.opening_balance = new_opening
             acc.recompute_balance(account)
-            log_action("account_opening_balance_changed", "Account", account.id,
+            log_action("account_opening_balance_changed", "TreasuryAccount", account.id,
                        details=f"{old} -> {new_opening}")
 
-        log_action("account_updated", "Account", account.id)
+        log_action("account_updated", "TreasuryAccount", account.id)
         db.session.commit()
         flash("تم تحديث بيانات الحساب.", "success")
         return redirect(url_for("accounts.list_accounts"))
@@ -138,7 +138,7 @@ def edit_account(account_id: int):
 @bp.route("/<int:account_id>/archive", methods=["POST"])
 @login_required
 def archive_account(account_id: int):
-    account = db.session.get(Account, account_id)
+    account = db.session.get(TreasuryAccount, account_id)
     if not account or account.is_archived:
         abort(404)
     if Decimal(str(account.current_balance)) != 0:
@@ -150,7 +150,7 @@ def archive_account(account_id: int):
         return redirect(url_for("accounts.list_accounts"))
 
     account.is_archived = True
-    log_action("account_archived", "Account", account.id)
+    log_action("account_archived", "TreasuryAccount", account.id)
     db.session.commit()
     flash(f"تم أرشفة الحساب {account.name}.", "success")
     return redirect(url_for("accounts.list_accounts"))
@@ -161,7 +161,7 @@ def archive_account(account_id: int):
 def statement(account_id: int):
     """Movements in date order with a running balance — the same shape as the
     feed tank statement."""
-    account = db.session.get(Account, account_id)
+    account = db.session.get(TreasuryAccount, account_id)
     if not account:
         abort(404)
 
@@ -190,8 +190,8 @@ def transfer():
         return redirect(url_for("accounts.list_accounts"))
 
     if form.validate_on_submit():
-        src = db.session.get(Account, form.from_account_id.data)
-        dst = db.session.get(Account, form.to_account_id.data)
+        src = db.session.get(TreasuryAccount, form.from_account_id.data)
+        dst = db.session.get(TreasuryAccount, form.to_account_id.data)
         if not src or not dst or src.is_archived or dst.is_archived:
             flash("حساب غير صالح.", "error")
             return render_template("accounts/transfer.html", form=form)

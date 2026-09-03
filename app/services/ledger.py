@@ -14,7 +14,7 @@ from typing import Iterable, Optional
 from sqlalchemy import func
 
 from app.extensions import db
-from app.models.accounting import LedgerAccount as Account, JournalEntry, JournalLine
+from app.models.accounting import LedgerAccount, JournalEntry, JournalLine
 
 MONEY = Decimal("0.0001")   # ledger precision is 4 decimals; UI rounds to 2
 TOL = Decimal("0.005")      # balance tolerance — half a piastre
@@ -94,7 +94,7 @@ def post_journal(
     account_ids = {int(l["account_id"]) for l in lines}
     accounts = {
         a.id: a
-        for a in Account.query.filter(Account.id.in_(account_ids)).all()
+        for a in LedgerAccount.query.filter(LedgerAccount.id.in_(account_ids)).all()
     }
     for aid in account_ids:
         acc = accounts.get(aid)
@@ -141,8 +141,8 @@ def post_journal(
 
 # ---------- read helpers everything else in the app reuses ----------
 
-def get_account_by_code(code: str) -> Optional[Account]:
-    return Account.query.filter_by(code=code).first()
+def get_account_by_code(code: str) -> Optional[LedgerAccount]:
+    return LedgerAccount.query.filter_by(code=code).first()
 
 
 def party_balance(party_type: str, party_id: int) -> Decimal:
@@ -191,7 +191,7 @@ def trial_balance(as_of: Optional[_date] = None):
 
     rows = []
     for aid, debit, credit in q.all():
-        acc = db.session.get(Account, aid)
+        acc = db.session.get(LedgerAccount, aid)
         if acc is None:
             continue
         debit = Decimal(str(debit))

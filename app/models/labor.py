@@ -116,7 +116,7 @@ class WorkerPayment(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     worker = db.relationship("Worker", back_populates="payments")
-    account = db.relationship("Account")
+    account = db.relationship("TreasuryAccount")
 
     @property
     def reason_label(self) -> str:

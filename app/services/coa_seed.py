@@ -1,7 +1,7 @@
 """ACCOUNTING FOUNDATION — the default farm chart of accounts.
 
 Idempotent: running seed_default_coa() a second time is a no-op. Every
-existing treasury Account row is wired to its matching COA leaf so payments
+existing TreasuryAccount row is wired to its matching COA leaf so payments
 route to the right sub-account.
 
 Codes are numeric strings, hierarchical by prefix (1100 is a child of 1).
@@ -12,7 +12,7 @@ from typing import Optional
 
 from app.extensions import db
 from app.models.accounting import (
-    LedgerAccount as Account, AccountType, NormalSide, NORMAL_SIDE_FOR_TYPE,
+    LedgerAccount, AccountType, NormalSide, NORMAL_SIDE_FOR_TYPE,
 )
 
 
@@ -64,14 +64,14 @@ DEFAULT_COA = [
 
 def seed_default_coa() -> dict:
     """Create every account in DEFAULT_COA that does not already exist. Never
-    updates or renames — safe to re-run on any DB. Returns a `{code: Account}`
+    updates or renames — safe to re-run on any DB. Returns a `{code: LedgerAccount}`
     dict for every account in the chart, seeded or pre-existing."""
-    existing = {a.code: a for a in Account.query.all()}
+    existing = {a.code: a for a in LedgerAccount.query.all()}
     for code, name_ar, name_en, atype, postable, parent_code in DEFAULT_COA:
         if code in existing:
             continue
         parent = existing.get(parent_code) if parent_code else None
-        acc = Account(
+        acc = LedgerAccount(
             code=code,
             name=name_ar,
             name_en=name_en,
@@ -88,22 +88,22 @@ def seed_default_coa() -> dict:
 
 
 def wire_treasury_accounts(coa: Optional[dict] = None) -> int:
-    """Attach every treasury row (app.models.finance.Account) to a COA leaf.
+    """Attach every treasury row (app.models.finance.TreasuryAccount) to a COA leaf.
 
     Cash accounts fall under 1110, bank accounts fall under 1120. If a treasury
     row has no COA link yet, create a per-account leaf named after it and hang
     it under the right parent. Returns the number of new leaves created."""
-    from app.models.finance import Account as TreasuryAccount
+    from app.models.finance import TreasuryAccount
 
     if coa is None:
-        coa = {a.code: a for a in Account.query.all()}
+        coa = {a.code: a for a in LedgerAccount.query.all()}
 
     parent_by_kind = {"cash": coa.get("1110"), "bank": coa.get("1120")}
     created = 0
 
     for treasury in TreasuryAccount.query.filter_by(is_archived=False).all():
         already = (
-            Account.query
+            LedgerAccount.query
             .filter_by(treasury_account_id=treasury.id)
             .first()
         )
@@ -116,10 +116,10 @@ def wire_treasury_accounts(coa: Optional[dict] = None) -> int:
 
         # Code = parent_code + serial suffix so codes stay unique.
         base = parent.code
-        siblings = Account.query.filter(Account.parent_id == parent.id).count()
+        siblings = LedgerAccount.query.filter(LedgerAccount.parent_id == parent.id).count()
         code = f"{base}-{siblings + 1:02d}"
 
-        leaf = Account(
+        leaf = LedgerAccount(
             code=code,
             name=treasury.display_name,
             type=AccountType.ASSET,

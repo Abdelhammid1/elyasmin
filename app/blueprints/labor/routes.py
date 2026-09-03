@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.labor import WorkerForm, WorkerPaymentForm
-from app.models.finance import Account, Expense
+from app.models.finance import TreasuryAccount, Expense
 from app.models.labor import Attendance, Worker, WorkerPayment
 from app.utils import accounts as acc
 from app.utils.audit import log_action
@@ -240,7 +240,7 @@ def record_payment(worker_id: int):
                 flash(e, "error")
         return redirect(url_for("labor.worker_detail", worker_id=worker.id))
 
-    account = db.session.get(Account, form.account_id.data)
+    account = db.session.get(TreasuryAccount, form.account_id.data)
     if not account or account.is_archived:
         flash("الحساب غير صالح.", "error")
         return redirect(url_for("labor.worker_detail", worker_id=worker.id))

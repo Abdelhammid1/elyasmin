@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.suppliers import SupplierForm, SupplierPaymentForm
-from app.models.finance import Account, Expense
+from app.models.finance import TreasuryAccount, Expense
 from app.models.sales import Customer
 from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
 from app.utils import accounts as acc
@@ -217,7 +217,7 @@ def record_payment(supplier_id: int):
         )
         return redirect(url_for("suppliers.supplier_detail", supplier_id=supplier.id))
 
-    account = db.session.get(Account, form.account_id.data)
+    account = db.session.get(TreasuryAccount, form.account_id.data)
     if not account or account.is_archived:
         flash("الحساب غير صالح.", "error")
         return redirect(url_for("suppliers.supplier_detail", supplier_id=supplier.id))

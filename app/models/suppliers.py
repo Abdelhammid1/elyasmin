@@ -269,7 +269,7 @@ class SupplierPayment(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     supplier = db.relationship("Supplier", back_populates="payments")
-    account = db.relationship("Account")
+    account = db.relationship("TreasuryAccount")
     allocations = db.relationship(
         "SupplierPaymentAllocation", back_populates="payment",
         cascade="all, delete-orphan",
@@ -364,7 +364,7 @@ class PurchaseReturn(db.Model):
         backref=db.backref("returns", lazy="dynamic"))
     invoice = db.relationship("PurchaseInvoice",
         backref=db.backref("returns", lazy="dynamic"))
-    treasury_account = db.relationship("Account")
+    treasury_account = db.relationship("TreasuryAccount")
     created_by = db.relationship("User", foreign_keys=[created_by_id])
 
     @property

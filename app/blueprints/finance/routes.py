@@ -8,7 +8,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.forms.finance import ExpenseForm, ReportFilterForm, SettingsForm
 from app.models.feed import FeedingSession, FeedTank, FeedTankMovement
-from app.models.finance import Account, Expense, Setting
+from app.models.finance import TreasuryAccount, Expense, Setting
 from app.models.herd import AnimalSale, CattleGroup
 from app.models.labor import Attendance, Worker, WorkerPayment
 from app.models.sales import Customer, DailyProduction, MilkDelivery
@@ -116,7 +116,7 @@ def create_expense():
                 return render_template("finance/expense_form.html", form=form)
             cat = "custom:" + custom
 
-        account = db.session.get(Account, form.account_id.data)
+        account = db.session.get(TreasuryAccount, form.account_id.data)
         if not account or account.is_archived:
             flash("الحساب غير صالح.", "error")
             return render_template("finance/expense_form.html", form=form)
