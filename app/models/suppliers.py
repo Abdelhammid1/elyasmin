@@ -101,6 +101,13 @@ class PurchaseInvoice(db.Model):
     total = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))  # subtotal - discounts + taxes
     paid_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0"))
 
+    # PHASE 10 (YAS-UX-3): future scheduling flags. The "كرر" duplicate
+    # button works today via a one-off duplicate flow (no schedule);
+    # a scheduler that reads these columns lands later.
+    is_recurring = db.Column(db.Boolean, nullable=False, default=False,
+                              server_default="0")
+    recurrence_interval = db.Column(db.String(20), nullable=True)
+
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

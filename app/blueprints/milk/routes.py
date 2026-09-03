@@ -482,7 +482,158 @@ def view_invoice(invoice_id: int):
     invoice = db.session.get(MilkInvoice, invoice_id)
     if not invoice or invoice.is_archived:
         return render_template("errors/404.html"), 404
-    return render_template("milk/invoice_view.html", invoice=invoice)
+    # PHASE 10 (YAS-UX-4): the "تحصيل الآن" modal needs the treasury
+    # accounts + today's date pre-populated.
+    from datetime import date
+    from app.utils import accounts as acc
+    return render_template(
+        "milk/invoice_view.html",
+        invoice=invoice,
+        treasury_choices=acc.active_choices(),
+        today_iso=date.today().isoformat(),
+    )
+
+
+# ==================== PHASE 10 — invoice actions ====================
+
+@bp.route("/invoices/<int:invoice_id>/collect", methods=["POST"])
+@login_required
+def collect_invoice(invoice_id: int):
+    """YAS-UX-4: collect payment for a specific milk invoice from a modal
+    on its own page. Mirror of `purchases.pay_invoice`."""
+    from datetime import date as _date
+    from decimal import Decimal, InvalidOperation
+    from flask import flash, redirect, request, url_for
+    from app.extensions import db
+    from app.models.finance import TreasuryAccount, Expense  # noqa: F401
+    from app.models.sales import CustomerPayment
+    from app.services.allocations import allocate_payment, AllocationError
+    from app.services import autoposting
+    from app.utils import accounts as acc
+    from app.utils.audit import log_action
+
+    invoice = db.session.get(MilkInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        return render_template("errors/404.html"), 404
+
+    if invoice.outstanding_amount <= 0:
+        flash("الفاتورة دي مُحصّلة بالكامل — مفيش متبقّي.", "info")
+        return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+
+    try:
+        amount = Decimal(str(request.form.get("amount", "0")))
+    except (InvalidOperation, ValueError):
+        flash("مبلغ غير صالح.", "error")
+        return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+    if amount <= 0:
+        flash("المبلغ لازم أكبر من صفر.", "error")
+        return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+    if amount > invoice.outstanding_amount:
+        amount = invoice.outstanding_amount
+
+    account_id = request.form.get("account_id", type=int)
+    account = db.session.get(TreasuryAccount, account_id) if account_id else None
+    if not account or account.is_archived:
+        flash("لازم تختار حساب صحيح.", "error")
+        return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+
+    method = request.form.get("method") or "cash"
+    notes = (request.form.get("notes") or "").strip() or None
+    payment_date_raw = request.form.get("payment_date") or _date.today().isoformat()
+    try:
+        payment_date = _date.fromisoformat(payment_date_raw)
+    except ValueError:
+        payment_date = _date.today()
+
+    payment = CustomerPayment(
+        customer_id=invoice.customer_id,
+        amount=amount,
+        payment_date=payment_date,
+        method=method,
+        account_id=account.id,
+        notes=notes,
+        created_by_id=current_user.id,
+    )
+    db.session.add(payment)
+    db.session.flush()
+
+    # Treasury cash-in
+    acc.money_in(
+        account, amount, payment_date,
+        ref_type="customer_payment", ref_id=payment.id, user_id=current_user.id,
+        notes=f"تحصيل من {invoice.customer.name} (فاتورة #{invoice.id})",
+    )
+    # Double-entry JE
+    autoposting.on_customer_payment(payment, account, created_by=current_user.id)
+
+    # Allocate 1:1 to this invoice
+    try:
+        allocate_payment(payment, [(invoice.id, amount)], created_by=current_user.id)
+    except AllocationError as e:
+        db.session.rollback()
+        flash(str(e), "error")
+        return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+
+    log_action("customer_payment", "CustomerPayment", payment.id,
+               details=f"invoice={invoice.id} amount={amount}")
+    db.session.commit()
+    flash(
+        f"تم تحصيل {amount} جنيه من {invoice.customer.name} على فاتورة #{invoice.id}. "
+        f"رصيد {account.name} بقى {account.current_balance}.",
+        "success",
+    )
+    return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+
+
+@bp.route("/invoices/<int:invoice_id>/delete", methods=["POST"])
+@login_required
+def delete_invoice(invoice_id: int):
+    """YAS-UX-2: soft-delete a milk invoice. Reverses the JE, unlinks
+    the deliveries (they stop being invoice-bound), archives the row.
+    Admin-only, guarded when allocations/returns exist."""
+    from flask import abort, flash, redirect, request, url_for
+    from app.extensions import db
+    from app.services.autoposting import _delete_prior_je
+    from app.utils.audit import log_action
+
+    if not current_user.is_admin:
+        abort(403)
+
+    invoice = db.session.get(MilkInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        return render_template("errors/404.html"), 404
+
+    force = request.args.get("force") == "1"
+    linked_allocs = invoice.allocations
+    linked_returns = list(invoice.returns.filter_by(is_archived=False))
+    if (linked_allocs or linked_returns) and not force:
+        flash(
+            f"الفاتورة عليها {len(linked_allocs)} دفعة مخصصة "
+            f"و {len(linked_returns)} مرتجع. لو متأكد أضف ?force=1 على الرابط.",
+            "warning",
+        )
+        return redirect(url_for("milk.view_invoice", invoice_id=invoice.id))
+
+    # 1) reverse the JE (autoposter for milk delivery pricing / milk invoice)
+    _delete_prior_je("MilkInvoice", invoice.id)
+
+    # 2) unlink deliveries — they stay in the DB, just no longer tied
+    # to this invoice, so they're free for a future re-invoice
+    for d in invoice.deliveries:
+        d.invoice_id = None
+
+    # 3) archive the invoice
+    invoice.is_archived = True
+
+    log_action("invoice_deleted", "MilkInvoice", invoice.id,
+               details=f"forced={force} allocs={len(linked_allocs)} returns={len(linked_returns)}")
+    db.session.commit()
+    flash(
+        f"تم حذف الفاتورة #{invoice.id}. القيد المحاسبي رجع، والتوريدات "
+        f"اترجعت متاحة لإصدار فاتورة جديدة.",
+        "success",
+    )
+    return redirect(url_for("milk.list_invoices"))
 
 
 @bp.route("/invoices/<int:invoice_id>/excel")

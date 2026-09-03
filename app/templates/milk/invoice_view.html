@@ -1,27 +1,89 @@
 {% extends "base.html" %}
-{% block title %}فاتورة #{{ invoice.id }}{% endblock %}
+{% block title %}فاتورة بيع {{ company.format_invoice_number('sale', invoice.id) if company else '#' ~ invoice.id }}{% endblock %}
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
-  <div>
-    <h1><i class="bi bi-receipt-cutoff"></i> فاتورة بيع اللبن #{{ invoice.id }}</h1>
-    <p class="text-muted mb-0">
-      العميل: <strong>{{ invoice.customer.name }}</strong> ·
-      الفترة: <span dir="ltr">{{ invoice.period_from }} → {{ invoice.period_to }}</span>
-      {% if invoice.invoice_number %}· الرقم الخارجي: <span dir="ltr">{{ invoice.invoice_number }}</span>{% endif %}
-    </p>
-    <span class="badge bg-{{ 'success' if invoice.status == 'issued' else 'warning text-dark' }}">{{ invoice.status_label }}</span>
-  </div>
-  <div class="d-flex gap-2">
-    <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> طباعة / حفظ PDF</button>
-    <a href="{{ url_for('milk.invoice_excel', invoice_id=invoice.id) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
-    {% if invoice.status == 'draft' %}
-    <form method="post" action="{{ url_for('milk.issue_invoice', invoice_id=invoice.id) }}" class="d-inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> اعتماد</button>
-    </form>
+{# PHASE 10 (YAS-UX-1): action bar mirroring the purchase invoice — same
+   shape, same buttons, so the two invoice types feel like the same app. #}
+<div class="invoice-actions no-print">
+  <span class="actions-label"><i class="bi bi-lightning-charge"></i> إجراءات</span>
+
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+    <i class="bi bi-printer"></i> طباعة / PDF
+  </button>
+  <a href="{{ url_for('milk.invoice_excel', invoice_id=invoice.id) }}"
+     class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-excel"></i> Excel
+  </a>
+
+  {% if invoice.status == 'draft' %}
+  <form method="post" action="{{ url_for('milk.issue_invoice', invoice_id=invoice.id) }}" class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> اعتماد</button>
+  </form>
+  {% endif %}
+
+  {% if invoice.status != 'draft' %}
+    {% if invoice.outstanding_amount > 0 %}
+    <button type="button" class="btn btn-primary btn-sm"
+            data-bs-toggle="modal" data-bs-target="#collectInvoiceModal">
+      <i class="bi bi-cash-coin"></i> تحصيل الآن
+    </button>
+    {% else %}
+    <button type="button" class="btn btn-outline-success btn-sm" disabled
+            title="الفاتورة مُحصّلة بالكامل">
+      <i class="bi bi-check-circle"></i> مُحصّلة بالكامل
+    </button>
     {% endif %}
-  </div>
+
+    <a href="{{ url_for('returns.sales_new', customer_id=invoice.customer_id) }}"
+       class="btn btn-outline-warning btn-sm">
+      <i class="bi bi-arrow-return-left"></i> مرتجع
+    </a>
+  {% endif %}
+
+  {% set je = find_journal_entry_for('MilkInvoice', invoice.id) %}
+  {% if je %}
+  <a href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-journal-bookmark"></i> القيد المحاسبي
+  </a>
+  {% endif %}
+
+  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+          title="قريبًا — يحتاج تفعيل خدمة الإيميل (Resend)">
+    <i class="bi bi-envelope"></i> إيميل
+  </button>
+
+  {% if current_user.is_admin %}
+  <form method="post"
+        action="{{ url_for('milk.delete_invoice', invoice_id=invoice.id) }}"
+        onsubmit="return confirm('تأكيد حذف الفاتورة؟ العملية دي بتعكس القيد المحاسبي تلقائيًا.');"
+        class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-trash"></i> حذف
+    </button>
+  </form>
+  {% endif %}
 </div>
+
+{# Shared invoice header — reads CompanyProfile (YAS-SET-3) #}
+{% from "_invoice_header.html" import render_invoice_header, render_bank_strip %}
+{{ render_invoice_header(
+    kind="sale",
+    number=invoice.id,
+    formatted_number=(company.format_invoice_number('sale', invoice.id) if company else '#' ~ invoice.id),
+    issue_date=invoice.issue_date,
+    party_name=invoice.customer.name,
+    party_url=url_for('customers.customer_detail', customer_id=invoice.customer.id),
+    party_phone=invoice.customer.phone,
+    status_text=invoice.status_label,
+    status_tone='success' if invoice.status == 'issued' else 'warning',
+    company=company,
+) }}
+<p class="text-muted small text-center no-print mb-3">
+  الفترة: <span dir="ltr">{{ invoice.period_from }} → {{ invoice.period_to }}</span>
+  {% if invoice.invoice_number %}· الرقم الخارجي: <span dir="ltr">{{ invoice.invoice_number }}</span>{% endif %}
+</p>
 
 <div class="print-only text-center mb-3" style="display:none;">
   <h2>فاتورة بيع اللبن #{{ invoice.id }}</h2>
@@ -159,6 +221,78 @@
   </div>
   {% endif %}
 </div>
+
+{# ============ BANK STRIP (YAS-SET-3) ============ #}
+{{ render_bank_strip(company) }}
+
+{# PHASE 10 (YAS-UX-4): collect-payment modal for milk invoices — mirrors
+   the purchase invoice's "سدّد الآن" flow. Reuses the customer payment +
+   allocation service so the JE + treasury movement fire the normal way. #}
+{% if invoice.status != 'draft' and invoice.outstanding_amount > 0 %}
+<div class="modal fade" id="collectInvoiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('milk.collect_invoice', invoice_id=invoice.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-cash-coin text-primary"></i> تحصيل فاتورة #{{ invoice.id }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">
+            العميل: <b>{{ invoice.customer.name }}</b> ·
+            المتبقّي: <b dir="ltr" class="text-danger">{{ invoice.outstanding_amount }}</b> جنيه
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">المبلغ</label>
+            <input type="number" name="amount" step="0.01" min="0.01"
+                   value="{{ invoice.outstanding_amount }}"
+                   class="form-control" dir="ltr" required>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold">تاريخ التحصيل</label>
+              <input type="date" name="payment_date" class="form-control" dir="ltr"
+                     value="{{ today_iso }}" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">طريقة الدفع</label>
+              <select name="method" class="form-select" required>
+                <option value="cash">نقدي</option>
+                <option value="transfer">تحويل بنكي</option>
+                <option value="check">شيك</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">الحساب</label>
+            <select name="account_id" class="form-select" required>
+              <option value="">— اختار الحساب —</option>
+              {% for id, label in treasury_choices %}
+              <option value="{{ id }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">ملاحظات (اختياري)</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> تسجيل التحصيل
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <style>
 @media print {

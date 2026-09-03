@@ -26,6 +26,7 @@ from app.services.ledger import party_balance, trial_balance
 from app.services.statements import (
     balance_sheet, cash_flow, income_statement, milk_cost_by_group,
 )
+from app.utils.reports import excel_response, pdf_from_current_page
 
 bp = Blueprint("accounting", __name__, template_folder="../../templates/accounting")
 
@@ -143,20 +144,26 @@ def _source_url(source_type, source_id):
 
 
 # ---------- Party ledger ----------
-@bp.route("/party/<party_type>/<int:party_id>")
-@login_required
-def party_ledger(party_type, party_id):
+def _party_or_404(party_type, party_id):
     if party_type not in ("customer", "supplier"):
         abort(404)
-
     party = (
         db.session.get(Customer, party_id) if party_type == "customer"
         else db.session.get(Supplier, party_id)
     )
     if party is None:
         abort(404)
+    return party
 
-    lines = (
+
+def _party_statement_rows(party_type, party_id, d_from, d_to):
+    """Build a chronological statement — one row per journal line tagged
+    to the party. Returns (opening, rows, closing) where opening is the
+    running balance carried in from before d_from and each row carries the
+    balance *after* that movement was applied. Rows include a source_url
+    so the template can link back to the invoice/payment that produced
+    the JE."""
+    Q = (
         JournalLine.query
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
         .filter(
@@ -164,24 +171,97 @@ def party_ledger(party_type, party_id):
             JournalLine.party_id == party_id,
             JournalEntry.is_active.is_(True),
         )
-        .order_by(JournalEntry.date, JournalEntry.id, JournalLine.id)
-        .all()
     )
-
-    # Running balance, one row at a time
+    # Opening = fold every line strictly before the window
+    before = Q.filter(JournalEntry.date < d_from).all()
+    opening = sum(
+        (Decimal(str(l.debit or 0)) - Decimal(str(l.credit or 0)) for l in before),
+        Decimal("0"),
+    )
+    # In-period lines
+    lines = (
+        Q.filter(JournalEntry.date >= d_from, JournalEntry.date <= d_to)
+         .order_by(JournalEntry.date, JournalEntry.id, JournalLine.id)
+         .all()
+    )
+    running = opening
     rows = []
-    running = Decimal("0")
     for l in lines:
         delta = Decimal(str(l.debit or 0)) - Decimal(str(l.credit or 0))
         running += delta
-        rows.append({"line": l, "delta": delta.quantize(Decimal("0.01")),
-                     "running": running.quantize(Decimal("0.01"))})
+        rows.append({
+            "line": l,
+            "delta": delta.quantize(Decimal("0.01")),
+            "running": running.quantize(Decimal("0.01")),
+            "source_url": _source_url(l.entry.source_type, l.entry.source_id),
+        })
+    return (
+        opening.quantize(Decimal("0.01")),
+        rows,
+        running.quantize(Decimal("0.01")),
+    )
 
+
+@bp.route("/party/<party_type>/<int:party_id>")
+@login_required
+def party_ledger(party_type, party_id):
+    party = _party_or_404(party_type, party_id)
+    d_from, d_to = _period()
+    opening, rows, closing = _party_statement_rows(party_type, party_id, d_from, d_to)
     return render_template(
         "accounting/party_ledger.html",
-        party=party, party_type=party_type, rows=rows,
+        party=party, party_type=party_type,
+        rows=rows, opening=opening, closing=closing,
+        d_from=d_from, d_to=d_to,
         balance=party_balance(party_type, party_id),
     )
+
+
+@bp.route("/party/<party_type>/<int:party_id>/statement.xlsx")
+@login_required
+def party_ledger_excel(party_type, party_id):
+    party = _party_or_404(party_type, party_id)
+    d_from, d_to = _period()
+    opening, rows, closing = _party_statement_rows(party_type, party_id, d_from, d_to)
+
+    # Emit an opening row, then one row per movement, then a closing row —
+    # matches the on-screen table so the file reads the same as the page.
+    xrows = [[d_from.isoformat(), "", "رصيد افتتاحي", "", "", float(opening)]]
+    for r in rows:
+        xrows.append([
+            r["line"].entry.date.isoformat(),
+            r["line"].entry.number or "",
+            (r["line"].entry.description or "") + (
+                f" — {r['line'].memo}" if r["line"].memo else ""
+            ),
+            float(r["line"].debit or 0),
+            float(r["line"].credit or 0),
+            float(r["running"]),
+        ])
+    xrows.append([d_to.isoformat(), "", "رصيد ختامي", "", "", float(closing)])
+
+    fname = f"statement_{party_type}_{party.id}_{d_from}_{d_to}.xlsx"
+    return excel_response(
+        f"Statement {party.name}"[:30],
+        ["التاريخ", "قيد", "البيان", "مدين", "دائن", "الرصيد"],
+        xrows,
+        fname,
+    )
+
+
+@bp.route("/party/<party_type>/<int:party_id>/statement.pdf")
+@login_required
+def party_ledger_pdf(party_type, party_id):
+    party = _party_or_404(party_type, party_id)
+    d_from, d_to = _period()
+    target = url_for(
+        "accounting.party_ledger",
+        party_type=party_type, party_id=party_id,
+        date_from=d_from.isoformat(), date_to=d_to.isoformat(),
+        _external=True,
+    )
+    fname = f"statement_{party_type}_{party.id}_{d_from}_{d_to}.pdf"
+    return pdf_from_current_page(target, fname)
 
 
 # ---------- Trial Balance ----------

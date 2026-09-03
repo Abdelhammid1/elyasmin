@@ -1,76 +1,182 @@
 {% extends "base.html" %}
 {% block title %}كشف حساب — {{ party.name }}{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>
-    <i class="bi bi-{{ 'person-lines-fill' if party_type == 'customer' else 'truck' }}"></i>
-    كشف حساب محاسبي — {{ party.name }}
-  </h1>
-  <p class="text-muted mb-0">
-    {% if party_type == 'customer' %}عميل{% else %}مورد{% endif %}
-    — كل قيد اتسجّل عليه على مدار عمر الحساب.
-  </p>
+
+{# PHASE 13 (YAS-ACC-2): unified party statement.
+   Same shape as accounts/statement.html (treasury statement), but the
+   data source is JournalLine rows tagged with party_type+party_id
+   (see accounting.routes._party_statement_rows). #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-{{ 'person-lines-fill' if party_type == 'customer' else 'truck' }}"></i>
+      كشف حساب — {{ party.name }}
+    </h1>
+    <p class="text-muted mb-0">
+      {% if party_type == 'customer' %}عميل{% else %}مورد{% endif %}
+      — كل حركة مالية على الحساب من دفتر اليومية، مع الرصيد الجاري بعد كل حركة.
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('accounting.party_ledger_excel',
+                        party_type=party_type, party_id=party.id,
+                        date_from=d_from.isoformat(), date_to=d_to.isoformat()) }}"
+       class="btn btn-outline-success">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+    <a href="{{ url_for('accounting.party_ledger_pdf',
+                        party_type=party_type, party_id=party.id,
+                        date_from=d_from.isoformat(), date_to=d_to.isoformat()) }}"
+       class="btn btn-outline-danger">
+      <i class="bi bi-file-earmark-pdf"></i> PDF
+    </a>
+    <a href="{% if party_type == 'customer' %}{{ url_for('customers.customer_detail', customer_id=party.id) }}{% else %}{{ url_for('suppliers.supplier_detail', supplier_id=party.id) }}{% endif %}"
+       class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i>
+      رجوع لصفحة {% if party_type == 'customer' %}العميل{% else %}المورد{% endif %}
+    </a>
+  </div>
 </div>
 
+<form method="get" class="card p-3 mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small mb-1">من تاريخ</label>
+      <input type="date" name="date_from" value="{{ d_from.isoformat() }}"
+             class="form-control form-control-sm" dir="ltr">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small mb-1">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ d_to.isoformat() }}"
+             class="form-control form-control-sm" dir="ltr">
+    </div>
+    <div class="col-md-3">
+      <button class="btn btn-sm btn-primary">
+        <i class="bi bi-funnel"></i> تحديث الفترة
+      </button>
+    </div>
+    <div class="col-md-3 text-md-end">
+      <span class="badge text-bg-light">{{ rows|length }} حركة في الفترة</span>
+    </div>
+  </div>
+</form>
+
+{# Balance cards: JE closing vs model balance + match indicator #}
+{% set diff = (closing - balance)|abs %}
+{% set matched = diff < 0.05 %}
 <div class="row g-3 mb-3">
   <div class="col-md-4">
     <div class="card stat-card">
-      <div class="stat-label">الرصيد الحالي</div>
-      <div class="stat-value {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}"
-           dir="ltr">{{ balance }}</div>
+      <div class="stat-label">رصيد افتتاحي (قبل {{ d_from }})</div>
+      <div class="stat-value {% if opening > 0 %}text-danger{% elif opening < 0 %}text-success{% endif %}"
+           dir="ltr">{{ opening }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">رصيد ختامي (بعد {{ d_to }})</div>
+      <div class="stat-value {% if closing > 0 %}text-danger{% elif closing < 0 %}text-success{% endif %}"
+           dir="ltr">{{ closing }}</div>
       <small class="text-muted">
         {% if party_type == 'customer' %}
-          {% if balance > 0 %}العميل مدين لينا بالمبلغ ده{% elif balance < 0 %}العميل دفع زيادة — رصيده لينا{% else %}لا شيء مستحق{% endif %}
+          {% if closing > 0 %}العميل مدين لنا بالمبلغ ده{% elif closing < 0 %}العميل دفع زيادة — رصيده لينا{% else %}لا شيء مستحق{% endif %}
         {% else %}
-          {% if balance > 0 %}المورد دفع زيادة — رصيده علينا{% elif balance < 0 %}احنا مدينين للمورد بالمبلغ ده{% else %}لا شيء مستحق{% endif %}
+          {% if closing > 0 %}المورد دفع زيادة — رصيده علينا{% elif closing < 0 %}احنا مدينين للمورد بالمبلغ ده{% else %}لا شيء مستحق{% endif %}
         {% endif %}
       </small>
     </div>
   </div>
-  <div class="col-md-8">
-    <div class="card p-3 h-100 d-flex flex-column justify-content-center">
-      <div class="d-flex justify-content-between align-items-center">
-        <a href="{% if party_type == 'customer' %}{{ url_for('customers.customer_detail', customer_id=party.id) }}{% else %}{{ url_for('suppliers.supplier_detail', supplier_id=party.id) }}{% endif %}"
-           class="btn btn-outline-secondary">
-          <i class="bi bi-arrow-left"></i> رجوع لصفحة {% if party_type == 'customer' %}العميل{% else %}المورد{% endif %}
-        </a>
-        <div class="small text-muted">
-          {{ rows|length }} حركة على الكشف
-        </div>
-      </div>
+  <div class="col-md-4">
+    <div class="card stat-card {% if not matched %}tone-warning{% endif %}">
+      <div class="stat-label">رصيد دفتر {{ 'العميل' if party_type == 'customer' else 'المورد' }}</div>
+      <div class="stat-value {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}"
+           dir="ltr">{{ balance }}</div>
+      <small>
+        {% if matched %}
+          <span class="text-success"><i class="bi bi-check-circle"></i> مطابق للكشف</span>
+        {% else %}
+          <span class="text-warning"><i class="bi bi-exclamation-triangle"></i>
+            فرق {{ diff }} — راجع الحركات</span>
+        {% endif %}
+      </small>
     </div>
   </div>
 </div>
 
 <div class="card">
   <div class="table-responsive">
-    <table class="table mb-0">
+    <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
           <th>التاريخ</th>
           <th>قيد</th>
-          <th>الوصف</th>
+          <th>البيان</th>
           <th class="text-end">مدين</th>
           <th class="text-end">دائن</th>
           <th class="text-end">الرصيد الجاري</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
+        {# Opening row — the carry-in balance so the first row's balance
+           reads correctly on its own. Muted style so it doesn't look
+           like a real movement. #}
+        <tr class="table-light">
+          <td dir="ltr">{{ d_from }}</td>
+          <td class="text-muted">—</td>
+          <td class="text-muted"><em>رصيد افتتاحي</em></td>
+          <td></td>
+          <td></td>
+          <td dir="ltr" class="num fw-bold {% if opening > 0 %}text-danger{% elif opening < 0 %}text-success{% endif %}">
+            {{ opening }}
+          </td>
+          <td></td>
+        </tr>
         {% for r in rows %}
         <tr>
           <td dir="ltr">{{ r.line.entry.date }}</td>
           <td class="font-monospace">
-            <a href="{{ url_for('accounting.journal_detail', entry_id=r.line.entry.id) }}">{{ r.line.entry.number }}</a>
+            <a href="{{ url_for('accounting.journal_detail', entry_id=r.line.entry.id) }}">
+              {{ r.line.entry.number }}
+            </a>
           </td>
-          <td>{{ r.line.entry.description }}<div class="small text-muted">{{ r.line.memo or '' }}</div></td>
+          <td>
+            {{ r.line.entry.description }}
+            {% if r.line.memo %}<div class="small text-muted">{{ r.line.memo }}</div>{% endif %}
+          </td>
           <td dir="ltr" class="num">{{ r.line.debit if r.line.debit else '' }}</td>
           <td dir="ltr" class="num">{{ r.line.credit if r.line.credit else '' }}</td>
-          <td dir="ltr" class="num fw-bold {% if r.running > 0 %}text-danger{% elif r.running < 0 %}text-success{% endif %}">{{ r.running }}</td>
+          <td dir="ltr" class="num fw-bold {% if r.running > 0 %}text-danger{% elif r.running < 0 %}text-success{% endif %}">
+            {{ r.running }}
+          </td>
+          <td>
+            {% if r.source_url %}
+              <a href="{{ r.source_url }}" title="افتح المستند المصدر"
+                 class="text-muted">
+                <i class="bi bi-arrow-up-right-square"></i>
+              </a>
+            {% endif %}
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center text-muted py-4">مفيش قيود على الحساب ده لسه.</td></tr>
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">
+            <i class="bi bi-inbox display-6 d-block mb-2"></i>
+            مفيش حركات على الحساب في الفترة دي — جرّب توسّع نطاق التاريخ.
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
+      <tfoot class="table-light">
+        <tr class="fw-bold">
+          <td colspan="5" class="text-end">رصيد ختامي</td>
+          <td dir="ltr" class="num {% if closing > 0 %}text-danger{% elif closing < 0 %}text-success{% endif %}">
+            {{ closing }}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 </div>

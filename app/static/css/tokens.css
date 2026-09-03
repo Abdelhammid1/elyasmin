@@ -1,114 +1,161 @@
-/* UI-REFACTOR: design tokens — single source of truth for every colour,
-   radius, shadow, and typography step used across the app. Every component
-   consumes these vars. To rebrand, change values here and nowhere else. */
+/* PHASE 9 UI: design tokens — sky-blue rebrand + marsoud-shape naming.
+   Every colour, radius, shadow, and typography step lives here. Every
+   component reads from these vars. To rebrand: change --ms-brand and
+   nowhere else. The old --brand-* aliases stay so the rest of the app
+   keeps working while we roll out marsoud shape page-by-page. */
 
 :root {
-  /* ---- Brand — the client's two colours, extended into a working ramp ---- */
-  --brand:            #00BF63;
-  --brand-dark:       #00A552;
-  --brand-mid:        #33CD82;
-  --brand-tint:       #E6F9EF;   /* selected rows, chip fills, nav-item hover */
-  --brand-soft:       #D8F4E5;   /* stat-tile brand tone bg */
+  /* ---- Brand — sky blue, replaces the old emerald ---- */
+  --ms-brand:          #43b9e9;   /* client-picked */
+  --ms-brand-dark:     #2b95c2;
+  --ms-brand-mid:      #5cc6ef;
+  --ms-brand-tint:     #E6F4FB;   /* nav-item hover, chip fills */
+  --ms-brand-soft:     #D6EDF9;   /* stat-tile brand tone bg */
 
-  /* ---- Neutral — the grey the client named ---- */
-  --neutral:          #D2D1D7;   /* borders, dividers */
-  --neutral-soft:     #EAEAED;   /* table stripes, inactive fills */
-  --neutral-bg:       #F5F5F7;   /* page ground */
+  /* ---- Semantic (used inside dashboard tiles + panels) ---- */
+  --ms-success:        #16a34a;
+  --ms-success-soft:   #dcfce7;
+  --ms-warning:        #d97706;
+  --ms-warning-soft:   #fef3c7;
+  --ms-danger:         #dc2626;
+  --ms-danger-soft:    #fee2e2;
+  --ms-info:           #2563eb;
+  --ms-info-soft:      #dbeafe;
+  --ms-teal:           #0e9b86;
+  --ms-teal-soft:      #e3f6f2;
+  --ms-violet:         #6a52c4;
+  --ms-violet-soft:    #efebfb;
+  --ms-amber:          var(--ms-warning);
+  --ms-amber-soft:     var(--ms-warning-soft);
 
-  /* ---- Ink — 4-step text hierarchy, sampled from the logo outline ---- */
-  --ink-1:            #1C1D2E;   /* strongest — headings, values */
-  --ink-2:            #3F4155;   /* body text */
-  --ink-3:            #6B6D80;   /* meta / muted */
-  --ink-4:            #9598A6;   /* placeholders / hints (AA-safe on white) */
+  /* ---- Ink — 4-step text hierarchy ---- */
+  --ms-ink-1:          #0f172a;   /* strongest — headings, values */
+  --ms-ink-2:          #334155;   /* body text */
+  --ms-ink-3:          #64748b;   /* meta / muted */
+  --ms-ink-4:          #94a3b8;   /* placeholders */
 
   /* ---- Surfaces ---- */
-  --surface:          #FFFFFF;   /* cards */
-  --surface-soft:     #FAFAFB;   /* table header, subtle panels */
+  --ms-surface:        #ffffff;
+  --ms-surface-soft:   #f8fafc;
+  --ms-bg:             #f5f7f9;
+  /* Signature sky gradient — blue variant of marsoud's white→sky-blue */
+  --ms-app-bg:         linear-gradient(180deg, #ffffff 0%, #e8f4fc 100%);
 
-  /* ---- Semantic — chosen so they don't collide with the green primary ---- */
-  --success:          var(--brand);
-  --success-soft:     var(--brand-tint);
-  --warning:          #E8A317;
-  --warning-soft:     #FCF3D9;
-  --danger:           #E53E3E;   /* echoes the logo's mouth accent */
-  --danger-soft:      #FDE1E1;
-  --info:             #3B82F6;
-  --info-soft:        #DBEAFE;
+  /* ---- Lines ---- */
+  --ms-line:           #e5e7eb;
+  --ms-line-strong:    #cbd5e1;
 
   /* ---- Structure ---- */
-  --radius-sm:        8px;
-  --radius:           12px;
-  --radius-lg:        16px;
-  --shadow-sm:        0 1px 2px rgba(28, 29, 46, 0.04);
-  --shadow:           0 2px 8px -2px rgba(28, 29, 46, 0.08),
-                      0 4px 16px -4px rgba(28, 29, 46, 0.05);
-  --shadow-lg:        0 4px 16px -4px rgba(28, 29, 46, 0.10),
-                      0 8px 32px -8px rgba(28, 29, 46, 0.08);
+  --ms-radius-sm:      8px;
+  --ms-radius-md:      12px;
+  --ms-radius-lg:      16px;
+  --ms-radius-pill:    9999px;
+  --ms-shadow-sm:      0 1px 2px rgba(15, 23, 42, 0.05);
+  --ms-shadow-md:      0 4px 12px rgba(15, 23, 42, 0.06);
+  --ms-shadow-lg:      0 10px 30px rgba(15, 23, 42, 0.09);
 
-  /* ---- Shell measurements — kept here so a re-layout is one edit ---- */
-  --sidebar-w:        264px;
-  --topbar-h:         64px;
+  /* ---- Typography ---- */
+  --ms-font-sans:      "Cairo", "Tajawal", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ms-font-mono:      ui-monospace, "SF Mono", Menlo, monospace;
+  --ms-fs-xs:          11.5px;
+  --ms-fs-sm:          12.5px;
+  --ms-fs-base:        13.5px;
+  --ms-fs-lg:          15px;
+  --ms-fs-xl:          18px;
+  --ms-fs-h1:          22px;
+
+  /* ---- Shell measurements ---- */
+  --sidebar-w:         264px;
+  --topbar-h:          64px;
+
+  /* ---- Back-compat aliases — the rest of the app still reads these.
+         Every consumer of --brand* now automatically wears the new blue. ---- */
+  --brand:             var(--ms-brand);
+  --brand-dark:        var(--ms-brand-dark);
+  --brand-mid:         var(--ms-brand-mid);
+  --brand-tint:        var(--ms-brand-tint);
+  --brand-soft:        var(--ms-brand-soft);
+  --neutral:           var(--ms-line);
+  --neutral-soft:      var(--ms-line);
+  --neutral-bg:        var(--ms-bg);
+  --ink-1:             var(--ms-ink-1);
+  --ink-2:             var(--ms-ink-2);
+  --ink-3:             var(--ms-ink-3);
+  --ink-4:             var(--ms-ink-4);
+  --surface:           var(--ms-surface);
+  --surface-soft:      var(--ms-surface-soft);
+  --success:           var(--ms-brand);        /* semantic success = brand */
+  --success-soft:      var(--ms-brand-tint);
+  --warning:           var(--ms-warning);
+  --warning-soft:      var(--ms-warning-soft);
+  --danger:            var(--ms-danger);
+  --danger-soft:       var(--ms-danger-soft);
+  --info:              var(--ms-info);
+  --info-soft:         var(--ms-info-soft);
+  --radius-sm:         var(--ms-radius-sm);
+  --radius:            var(--ms-radius-md);
+  --radius-lg:         var(--ms-radius-lg);
+  --shadow-sm:         var(--ms-shadow-sm);
+  --shadow:            var(--ms-shadow-md);
+  --shadow-lg:         var(--ms-shadow-lg);
 
   /* ---- Bootstrap 5 variable overrides ----
-     70 templates use Bootstrap classes (.btn-primary, .alert-*, .badge-*,
-     .table, .form-control). Overriding Bootstrap's own vars here means those
-     classes wear the new palette without editing a single template. */
-  --bs-primary:        var(--brand);
-  --bs-primary-rgb:    0, 191, 99;
-  --bs-success:        var(--brand);
-  --bs-success-rgb:    0, 191, 99;
-  --bs-danger:         var(--danger);
-  --bs-danger-rgb:     229, 62, 62;
-  --bs-warning:        var(--warning);
-  --bs-warning-rgb:    232, 163, 23;
-  --bs-info:           var(--info);
-  --bs-info-rgb:       59, 130, 246;
+     70 templates use Bootstrap classes. Overriding Bootstrap's own vars
+     here means those classes wear the new palette without editing a
+     single template. */
+  --bs-primary:        var(--ms-brand);
+  --bs-primary-rgb:    67, 185, 233;
+  --bs-success:        var(--ms-success);
+  --bs-success-rgb:    22, 163, 74;
+  --bs-danger:         var(--ms-danger);
+  --bs-danger-rgb:     220, 38, 38;
+  --bs-warning:        var(--ms-warning);
+  --bs-warning-rgb:    217, 119, 6;
+  --bs-info:           var(--ms-info);
+  --bs-info-rgb:       37, 99, 235;
 
-  --bs-body-bg:        var(--neutral-bg);
-  --bs-body-color:     var(--ink-2);
-  --bs-heading-color:  var(--ink-1);
-  --bs-border-color:   var(--neutral);
-  --bs-border-radius:  var(--radius);
-  --bs-border-radius-sm: var(--radius-sm);
-  --bs-link-color:     var(--brand-dark);
-  --bs-link-hover-color: var(--brand);
+  --bs-body-bg:        var(--ms-bg);
+  --bs-body-color:     var(--ms-ink-2);
+  --bs-heading-color:  var(--ms-ink-1);
+  --bs-border-color:   var(--ms-line);
+  --bs-border-radius:  var(--ms-radius-md);
+  --bs-border-radius-sm: var(--ms-radius-sm);
+  --bs-link-color:     var(--ms-brand-dark);
+  --bs-link-hover-color: var(--ms-brand);
 
-  --bs-font-sans-serif: "Tajawal", "Cairo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bs-font-sans-serif: var(--ms-font-sans);
 
-  /* Bootstrap 5.3 component-specific vars — the primary override alone
-     doesn't reach these because they were baked at build time as hex
-     literals ("Bootstrap primary blue"). Re-point them at the brand. */
-  --bs-nav-pills-link-active-bg: var(--brand);
+  --bs-nav-pills-link-active-bg: var(--ms-brand);
   --bs-nav-pills-link-active-color: #fff;
-  --bs-nav-link-color: var(--ink-2);
-  --bs-nav-link-hover-color: var(--brand-dark);
-  --bs-focus-ring-color: rgba(0, 191, 99, 0.25);
-  --bs-secondary: var(--ink-3);
-  --bs-secondary-rgb: 107, 109, 128;
+  --bs-nav-link-color: var(--ms-ink-2);
+  --bs-nav-link-hover-color: var(--ms-brand-dark);
+  --bs-focus-ring-color: rgba(67, 185, 233, 0.25);
+  --bs-secondary: var(--ms-ink-3);
+  --bs-secondary-rgb: 100, 116, 139;
 }
 
 /* Bootstrap `.btn-primary` computes hover/active from CSS vars we don't touch —
-   force the green explicitly so the hover state matches the rest of the app. */
+   force the sky blue explicitly so the hover state matches the rest of the app. */
 .btn-primary,
 .btn-primary:focus {
-  background-color: var(--brand);
-  border-color: var(--brand);
+  background-color: var(--ms-brand);
+  border-color: var(--ms-brand);
   color: #fff;
 }
 .btn-primary:hover,
 .btn-primary:active,
 .btn-primary.active {
-  background-color: var(--brand-dark) !important;
-  border-color: var(--brand-dark) !important;
+  background-color: var(--ms-brand-dark) !important;
+  border-color: var(--ms-brand-dark) !important;
   color: #fff !important;
 }
 .btn-outline-primary {
-  color: var(--brand-dark);
-  border-color: var(--brand);
+  color: var(--ms-brand-dark);
+  border-color: var(--ms-brand);
 }
 .btn-outline-primary:hover,
 .btn-outline-primary:focus {
-  background-color: var(--brand);
-  border-color: var(--brand);
+  background-color: var(--ms-brand);
+  border-color: var(--ms-brand);
   color: #fff;
 }

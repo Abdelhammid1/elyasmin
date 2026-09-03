@@ -6,9 +6,14 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.extensions import db
-from app.forms.finance import ExpenseForm, ReportFilterForm, SettingsForm
+from app.forms.finance import (
+    CompanyProfileForm,
+    ExpenseForm,
+    ReportFilterForm,
+    SettingsForm,
+)
 from app.models.feed import FeedingSession, FeedTank, FeedTankMovement
-from app.models.finance import TreasuryAccount, Expense, Setting
+from app.models.finance import CompanyProfile, TreasuryAccount, Expense, Setting
 from app.models.herd import AnimalSale, CattleGroup
 from app.models.sales import MilkDelivery
 from app.utils import accounts as acc
@@ -19,46 +24,138 @@ from app.utils.reports import excel_response, pdf_from_current_page
 bp = Blueprint("finance", __name__, template_folder="../../templates/finance")
 
 
-# ---------- Settings ----------
+# ---------- Settings — tabbed page (PHASE 11 YAS-SET-2) ----------
 @bp.route("/settings", methods=["GET", "POST"])
 @login_required
 @admin_required
 def settings():
-    form = SettingsForm()
+    """Tabbed settings page. Which tab was submitted is carried in a
+    hidden `_tab` field so we only validate + save the form that was
+    actually filled in.
+
+    Tabs:
+      - company   → CompanyProfileForm (YAS-SET-1..4)
+      - pricing   → existing SettingsForm (milk pricing / cost split)
+      - reminders → placeholder for a later phase
+    """
+    active_tab = request.args.get("tab") or request.form.get("_tab") or "company"
+
+    # ---- always-loaded forms ----
+    pricing_form = SettingsForm()
+    company_form = CompanyProfileForm()
+    profile = CompanyProfile.current()
+
     if request.method == "GET":
-        form.cost_split_milk_pct.data = Setting.get_decimal(Setting.KEY_COST_SPLIT_MILK_PCT, Decimal("80"))
-        form.cost_split_others_pct.data = Setting.get_decimal(Setting.KEY_COST_SPLIT_OTHERS_PCT, Decimal("20"))
-        form.quality_price_base.data = Setting.get_decimal(Setting.KEY_QUALITY_PRICE_BASE, Decimal("6"))
-        form.quality_protein_adj.data = Setting.get_decimal(Setting.KEY_QUALITY_PROTEIN_ADJ, Decimal("0.5"))
-        form.quality_bacteria_penalty.data = Setting.get_decimal(Setting.KEY_QUALITY_BACTERIA_PENALTY, Decimal("0.25"))
-        form.quality_fat_ref.data = Setting.get_decimal(Setting.KEY_QUALITY_FAT_REF, Decimal("3.0"))
-        form.quality_fat_adj.data = Setting.get_decimal(Setting.KEY_QUALITY_FAT_ADJ, Decimal("0"))
+        # Pricing (unchanged) — read from Setting table
+        pricing_form.cost_split_milk_pct.data = Setting.get_decimal(Setting.KEY_COST_SPLIT_MILK_PCT, Decimal("80"))
+        pricing_form.cost_split_others_pct.data = Setting.get_decimal(Setting.KEY_COST_SPLIT_OTHERS_PCT, Decimal("20"))
+        pricing_form.quality_price_base.data = Setting.get_decimal(Setting.KEY_QUALITY_PRICE_BASE, Decimal("6"))
+        pricing_form.quality_protein_adj.data = Setting.get_decimal(Setting.KEY_QUALITY_PROTEIN_ADJ, Decimal("0.5"))
+        pricing_form.quality_bacteria_penalty.data = Setting.get_decimal(Setting.KEY_QUALITY_BACTERIA_PENALTY, Decimal("0.25"))
+        pricing_form.quality_fat_ref.data = Setting.get_decimal(Setting.KEY_QUALITY_FAT_REF, Decimal("3.0"))
+        pricing_form.quality_fat_adj.data = Setting.get_decimal(Setting.KEY_QUALITY_FAT_ADJ, Decimal("0"))
 
-    if form.validate_on_submit():
-        milk_pct = Decimal(str(form.cost_split_milk_pct.data))
-        others_pct = Decimal(str(form.cost_split_others_pct.data))
-        if milk_pct + others_pct != Decimal("100"):
-            flash("مجموع النسبتين لازم يساوي 100.", "error")
-        else:
-            Setting.set(Setting.KEY_COST_SPLIT_MILK_PCT, str(milk_pct), "نسبة تحميل التكاليف على الحليب")
-            Setting.set(Setting.KEY_COST_SPLIT_OTHERS_PCT, str(others_pct), "نسبة تحميل التكاليف على باقي المجموعات")
-            Setting.set(Setting.KEY_QUALITY_PRICE_BASE, str(form.quality_price_base.data), "سعر أساس اللبن بالتحليل")
-            Setting.set(Setting.KEY_QUALITY_PROTEIN_ADJ, str(form.quality_protein_adj.data), "زيادة السعر لكل +1% بروتين")
-            Setting.set(Setting.KEY_QUALITY_BACTERIA_PENALTY, str(form.quality_bacteria_penalty.data), "خصم لكل +100k بكتيريا")
-            # TICKET-A: default to 0/3.0 rather than None if the box was cleared,
-            # so a blank field can never turn into a NULL the formula must guess at
-            Setting.set(Setting.KEY_QUALITY_FAT_REF,
-                        str(form.quality_fat_ref.data if form.quality_fat_ref.data is not None else Decimal("3.0")),
-                        "نسبة الدهن اللي الزيادة بتبدأ فوقها")
-            Setting.set(Setting.KEY_QUALITY_FAT_ADJ,
-                        str(form.quality_fat_adj.data if form.quality_fat_adj.data is not None else Decimal("0")),
-                        "زيادة السعر لكل +1% دهن")
-            log_action("settings_updated", "Setting", 0)
+        # Company — read from CompanyProfile
+        company_form.name.data = profile.name
+        company_form.base_currency.data = profile.base_currency
+        company_form.tax_rate_pct.data = profile.tax_rate_pct
+        company_form.region.data = profile.region
+        company_form.legal_name.data = profile.legal_name
+        company_form.commercial_register_no.data = profile.commercial_register_no
+        company_form.tax_registration_no.data = profile.tax_registration_no
+        company_form.address.data = profile.address
+        company_form.bank_account_holder.data = profile.bank_account_holder
+        company_form.bank_name.data = profile.bank_name
+        company_form.bank_account_no.data = profile.bank_account_no
+        company_form.bank_iban.data = profile.bank_iban
+        company_form.invoice_number_prefix_sale.data = profile.invoice_number_prefix_sale
+        company_form.invoice_number_prefix_purchase.data = profile.invoice_number_prefix_purchase
+        company_form.reminder_days_before_due.data = profile.reminder_days_before_due
+
+    # ---- POST → save whichever tab was submitted ----
+    if request.method == "POST" and active_tab == "pricing":
+        if pricing_form.validate_on_submit():
+            milk_pct = Decimal(str(pricing_form.cost_split_milk_pct.data))
+            others_pct = Decimal(str(pricing_form.cost_split_others_pct.data))
+            if milk_pct + others_pct != Decimal("100"):
+                flash("مجموع النسبتين لازم يساوي 100.", "error")
+            else:
+                Setting.set(Setting.KEY_COST_SPLIT_MILK_PCT, str(milk_pct), "نسبة تحميل التكاليف على الحليب")
+                Setting.set(Setting.KEY_COST_SPLIT_OTHERS_PCT, str(others_pct), "نسبة تحميل التكاليف على باقي المجموعات")
+                Setting.set(Setting.KEY_QUALITY_PRICE_BASE, str(pricing_form.quality_price_base.data), "سعر أساس اللبن بالتحليل")
+                Setting.set(Setting.KEY_QUALITY_PROTEIN_ADJ, str(pricing_form.quality_protein_adj.data), "زيادة السعر لكل +1% بروتين")
+                Setting.set(Setting.KEY_QUALITY_BACTERIA_PENALTY, str(pricing_form.quality_bacteria_penalty.data), "خصم لكل +100k بكتيريا")
+                Setting.set(Setting.KEY_QUALITY_FAT_REF,
+                            str(pricing_form.quality_fat_ref.data if pricing_form.quality_fat_ref.data is not None else Decimal("3.0")),
+                            "نسبة الدهن اللي الزيادة بتبدأ فوقها")
+                Setting.set(Setting.KEY_QUALITY_FAT_ADJ,
+                            str(pricing_form.quality_fat_adj.data if pricing_form.quality_fat_adj.data is not None else Decimal("0")),
+                            "زيادة السعر لكل +1% دهن")
+                log_action("settings_updated", "Setting", 0)
+                db.session.commit()
+                flash("تم حفظ إعدادات التسعير.", "success")
+                return redirect(url_for("finance.settings", tab="pricing"))
+
+    if request.method == "POST" and active_tab == "company":
+        if company_form.validate_on_submit():
+            profile.name = company_form.name.data.strip()
+            profile.base_currency = company_form.base_currency.data
+            profile.tax_rate_pct = Decimal(str(company_form.tax_rate_pct.data or 0))
+            profile.region = (company_form.region.data or "").strip() or None
+            profile.legal_name = (company_form.legal_name.data or "").strip() or None
+            profile.commercial_register_no = (company_form.commercial_register_no.data or "").strip() or None
+            profile.tax_registration_no = (company_form.tax_registration_no.data or "").strip() or None
+            profile.address = (company_form.address.data or "").strip() or None
+            profile.bank_account_holder = (company_form.bank_account_holder.data or "").strip() or None
+            profile.bank_name = (company_form.bank_name.data or "").strip() or None
+            profile.bank_account_no = (company_form.bank_account_no.data or "").strip() or None
+            profile.bank_iban = (company_form.bank_iban.data or "").strip() or None
+            profile.invoice_number_prefix_sale = (company_form.invoice_number_prefix_sale.data or "INV").strip()
+            profile.invoice_number_prefix_purchase = (company_form.invoice_number_prefix_purchase.data or "PUR").strip()
+            profile.reminder_days_before_due = int(company_form.reminder_days_before_due.data or 3)
+            profile.updated_by_id = current_user.id
+
+            # ---- logo upload handling ----
+            uploaded = request.files.get("logo") if request.files else None
+            if uploaded and uploaded.filename:
+                import os
+                from werkzeug.utils import secure_filename
+                from flask import current_app
+
+                target_dir = os.path.join(
+                    current_app.root_path, "static", "img", "company",
+                )
+                os.makedirs(target_dir, exist_ok=True)
+                # Delete the old file if it was ours (best-effort)
+                if profile.logo_path:
+                    old = os.path.join(current_app.root_path, "static",
+                                       profile.logo_path.lstrip("/"))
+                    try:
+                        if os.path.isfile(old):
+                            os.remove(old)
+                    except OSError:
+                        pass
+                ext = uploaded.filename.rsplit(".", 1)[-1].lower()
+                fname = f"logo_{profile.id}.{ext}"
+                path_abs = os.path.join(target_dir, secure_filename(fname))
+                uploaded.save(path_abs)
+                profile.logo_path = f"img/company/{secure_filename(fname)}"
+
+            log_action("company_profile_updated", "CompanyProfile", profile.id)
             db.session.commit()
-            flash("تم حفظ الإعدادات.", "success")
-            return redirect(url_for("finance.settings"))
+            flash("تم حفظ بيانات الشركة.", "success")
+            return redirect(url_for("finance.settings", tab="company"))
 
-    return render_template("finance/settings.html", form=form)
+    return render_template(
+        "finance/settings.html",
+        company_form=company_form,
+        pricing_form=pricing_form,
+        profile=profile,
+        active_tab=active_tab,
+        # Keep legacy `form` name pointing at pricing_form so any external
+        # link that expects the old shape still works.
+        form=pricing_form,
+    )
 
 
 # ---------- Expenses ----------

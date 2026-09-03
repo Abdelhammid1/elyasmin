@@ -3,28 +3,177 @@
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-gear"></i> إعدادات النظام</h1>
-  <p class="text-muted mb-0">النسب والمعادلات دي بيتم استخدامها في حسابات التكلفة والتسعير. أي تعديل يسري فوراً بدون تغيير كود.</p>
+  <p class="text-muted mb-0">بيانات الشركة، معادلة تسعير اللبن، ونسبة توزيع التكاليف. أي تعديل يسري فوراً بدون تغيير كود.</p>
 </div>
 
 <div class="row justify-content-center">
-  <div class="col-lg-7">
-    <div class="card p-4">
-      <form method="post" novalidate>
-        {{ form.hidden_tag() }}
+  <div class="col-lg-10">
 
-        <h5 class="mb-3"><i class="bi bi-percent"></i> توزيع التكاليف غير المباشرة</h5>
+    {# Bootstrap 5 tabbed layout. Active tab preserved via ?tab= #}
+    <ul class="nav nav-tabs mb-3" role="tablist">
+      <li class="nav-item" role="presentation">
+        <a href="{{ url_for('finance.settings', tab='company') }}"
+           class="nav-link {% if active_tab == 'company' %}active{% endif %}">
+          <i class="bi bi-building"></i> بيانات الشركة
+        </a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a href="{{ url_for('finance.settings', tab='pricing') }}"
+           class="nav-link {% if active_tab == 'pricing' %}active{% endif %}">
+          <i class="bi bi-calculator"></i> التسعير والتكاليف
+        </a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a href="{{ url_for('finance.settings', tab='reminders') }}"
+           class="nav-link {% if active_tab == 'reminders' %}active{% endif %}">
+          <i class="bi bi-alarm"></i> العطلات والتذكيرات
+        </a>
+      </li>
+    </ul>
+
+    {# ============ TAB: COMPANY (YAS-SET-2) ============ #}
+    {% if active_tab == 'company' %}
+    <div class="card p-4">
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {{ company_form.hidden_tag() }}
+        <input type="hidden" name="_tab" value="company">
+
+        {# ---- الهوية العامة ---- #}
+        <h5 class="mb-3"><i class="bi bi-info-circle"></i> الهوية العامة</h5>
         <div class="row g-3">
           <div class="col-md-6">
-            {{ form.cost_split_milk_pct.label(class="form-label fw-bold") }}
+            {{ company_form.name.label(class="form-label fw-bold") }}
+            {{ company_form.name(class="form-control") }}
+            {% for e in company_form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            {{ company_form.base_currency.label(class="form-label fw-bold") }}
+            {{ company_form.base_currency(class="form-select") }}
+          </div>
+          <div class="col-md-3">
+            {{ company_form.tax_rate_pct.label(class="form-label fw-bold") }}
             <div class="input-group">
-              {{ form.cost_split_milk_pct(class="form-control", dir="ltr", step="0.01") }}
+              {{ company_form.tax_rate_pct(class="form-control", dir="ltr", step="0.01") }}
               <span class="input-group-text">%</span>
             </div>
           </div>
           <div class="col-md-6">
-            {{ form.cost_split_others_pct.label(class="form-label fw-bold") }}
+            {{ company_form.region.label(class="form-label fw-bold") }}
+            {{ company_form.region(class="form-control") }}
+          </div>
+          <div class="col-md-6">
+            {{ company_form.logo.label(class="form-label fw-bold") }}
+            {{ company_form.logo(class="form-control") }}
+            {% for e in company_form.logo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            {% if profile.logo_path %}
+            <div class="mt-2 d-flex align-items-center gap-2">
+              <img src="{{ url_for('static', filename=profile.logo_path) }}"
+                   alt="الشعار الحالي"
+                   style="height:40px; width:auto; object-fit:contain; border:1px solid var(--ms-line); border-radius:4px; padding:2px;">
+              <small class="text-muted">الشعار الحالي — ارفع ملفًا جديدًا ليحل محله.</small>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {# ---- البيانات الرسمية ---- #}
+        <hr class="my-4">
+        <h5 class="mb-3"><i class="bi bi-file-earmark-text"></i> البيانات الرسمية (بتظهر على الفاتورة)</h5>
+        <div class="row g-3">
+          <div class="col-12">
+            {{ company_form.legal_name.label(class="form-label fw-bold") }}
+            {{ company_form.legal_name(class="form-control") }}
+            <small class="text-muted">لو مافيش، بيظهر اسم الشركة العام أعلاه بدلًا منه.</small>
+          </div>
+          <div class="col-md-6">
+            {{ company_form.commercial_register_no.label(class="form-label fw-bold") }}
+            {{ company_form.commercial_register_no(class="form-control", dir="ltr") }}
+          </div>
+          <div class="col-md-6">
+            {{ company_form.tax_registration_no.label(class="form-label fw-bold") }}
+            {{ company_form.tax_registration_no(class="form-control", dir="ltr") }}
+          </div>
+          <div class="col-12">
+            {{ company_form.address.label(class="form-label fw-bold") }}
+            {{ company_form.address(class="form-control", rows=2) }}
+          </div>
+        </div>
+
+        {# ---- الحساب البنكي ---- #}
+        <hr class="my-4">
+        <h5 class="mb-3"><i class="bi bi-bank"></i> الحساب البنكي (بيظهر على الفاتورة للتحويل)</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ company_form.bank_account_holder.label(class="form-label fw-bold") }}
+            {{ company_form.bank_account_holder(class="form-control") }}
+          </div>
+          <div class="col-md-6">
+            {{ company_form.bank_name.label(class="form-label fw-bold") }}
+            {{ company_form.bank_name(class="form-control") }}
+          </div>
+          <div class="col-md-6">
+            {{ company_form.bank_account_no.label(class="form-label fw-bold") }}
+            {{ company_form.bank_account_no(class="form-control", dir="ltr") }}
+          </div>
+          <div class="col-md-6">
+            {{ company_form.bank_iban.label(class="form-label fw-bold") }}
+            {{ company_form.bank_iban(class="form-control", dir="ltr") }}
+          </div>
+        </div>
+
+        {# ---- ترقيم الفواتير + التذكير ---- #}
+        <hr class="my-4">
+        <h5 class="mb-3"><i class="bi bi-hash"></i> ترقيم الفواتير</h5>
+        <p class="small text-muted">
+          الرقم على الفاتورة بيتكوّن من: <b>البادئة - السنة - رقم الفاتورة (5 خانات)</b>.
+          مثال: <span dir="ltr">PUR-2026-00042</span>. الرقم الداخلي في قاعدة البيانات مايتغيرش.
+        </p>
+        <div class="row g-3">
+          <div class="col-md-4">
+            {{ company_form.invoice_number_prefix_sale.label(class="form-label fw-bold") }}
+            {{ company_form.invoice_number_prefix_sale(class="form-control", dir="ltr") }}
+            <small class="text-muted">مثال: INV → INV-{{ profile.updated_at.year if profile.updated_at else "2026" }}-00001</small>
+          </div>
+          <div class="col-md-4">
+            {{ company_form.invoice_number_prefix_purchase.label(class="form-label fw-bold") }}
+            {{ company_form.invoice_number_prefix_purchase(class="form-control", dir="ltr") }}
+            <small class="text-muted">مثال: PUR → PUR-{{ profile.updated_at.year if profile.updated_at else "2026" }}-00001</small>
+          </div>
+          <div class="col-md-4">
+            {{ company_form.reminder_days_before_due.label(class="form-label fw-bold") }}
             <div class="input-group">
-              {{ form.cost_split_others_pct(class="form-control", dir="ltr", step="0.01") }}
+              {{ company_form.reminder_days_before_due(class="form-control", dir="ltr", min=0) }}
+              <span class="input-group-text">يوم</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          {{ company_form.submit(class="btn btn-primary") }}
+        </div>
+      </form>
+    </div>
+
+    {# ============ TAB: PRICING (existing SettingsForm) ============ #}
+    {% elif active_tab == 'pricing' %}
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ pricing_form.hidden_tag() }}
+        <input type="hidden" name="_tab" value="pricing">
+
+        <h5 class="mb-3"><i class="bi bi-percent"></i> توزيع التكاليف غير المباشرة</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ pricing_form.cost_split_milk_pct.label(class="form-label fw-bold") }}
+            <div class="input-group">
+              {{ pricing_form.cost_split_milk_pct(class="form-control", dir="ltr", step="0.01") }}
+              <span class="input-group-text">%</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            {{ pricing_form.cost_split_others_pct.label(class="form-label fw-bold") }}
+            <div class="input-group">
+              {{ pricing_form.cost_split_others_pct(class="form-control", dir="ltr", step="0.01") }}
               <span class="input-group-text">%</span>
             </div>
           </div>
@@ -40,24 +189,24 @@
         </p>
         <div class="row g-3">
           <div class="col-md-4">
-            {{ form.quality_price_base.label(class="form-label fw-bold") }}
-            {{ form.quality_price_base(class="form-control", dir="ltr", step="0.001") }}
+            {{ pricing_form.quality_price_base.label(class="form-label fw-bold") }}
+            {{ pricing_form.quality_price_base(class="form-control", dir="ltr", step="0.001") }}
           </div>
           <div class="col-md-4">
-            {{ form.quality_protein_adj.label(class="form-label fw-bold") }}
-            {{ form.quality_protein_adj(class="form-control", dir="ltr", step="0.001") }}
+            {{ pricing_form.quality_protein_adj.label(class="form-label fw-bold") }}
+            {{ pricing_form.quality_protein_adj(class="form-control", dir="ltr", step="0.001") }}
           </div>
           <div class="col-md-4">
-            {{ form.quality_bacteria_penalty.label(class="form-label fw-bold") }}
-            {{ form.quality_bacteria_penalty(class="form-control", dir="ltr", step="0.001") }}
+            {{ pricing_form.quality_bacteria_penalty.label(class="form-label fw-bold") }}
+            {{ pricing_form.quality_bacteria_penalty(class="form-control", dir="ltr", step="0.001") }}
           </div>
           <div class="col-md-4">
-            {{ form.quality_fat_ref.label(class="form-label fw-bold") }}
-            {{ form.quality_fat_ref(class="form-control", dir="ltr", step="0.01") }}
+            {{ pricing_form.quality_fat_ref.label(class="form-label fw-bold") }}
+            {{ pricing_form.quality_fat_ref(class="form-control", dir="ltr", step="0.01") }}
           </div>
           <div class="col-md-8">
-            {{ form.quality_fat_adj.label(class="form-label fw-bold") }}
-            {{ form.quality_fat_adj(class="form-control", dir="ltr", step="0.001") }}
+            {{ pricing_form.quality_fat_adj.label(class="form-label fw-bold") }}
+            {{ pricing_form.quality_fat_adj(class="form-control", dir="ltr", step="0.001") }}
             <small class="text-muted">
               سايبينها <span dir="ltr">0</span> عشان الدهن ما يغيّرش أي سعر متسجّل قبل كده.
               أول ما تحط رقم هنا، الدهن يبدأ يأثر على السعر زي البروتين بالظبط.
@@ -66,21 +215,30 @@
         </div>
 
         <div class="d-flex gap-2 mt-4">
-          {{ form.submit(class="btn btn-primary") }}
+          {{ pricing_form.submit(class="btn btn-primary") }}
         </div>
       </form>
     </div>
-  </div>
-</div>
 
-<div class="row justify-content-center">
-  <div class="col-lg-8">
+    {# ============ TAB: REMINDERS (placeholder) ============ #}
+    {% else %}
+    <div class="card p-5 text-center">
+      <div style="font-size: 3rem; opacity: 0.4;">🔔</div>
+      <h5 class="mt-3">قريبًا — العطلات والتذكيرات</h5>
+      <p class="text-muted mb-0">
+        هنا هيتحكم في أيام العطلة الأسبوعية والتذكيرات على الفواتير المستحقة.
+        الميزة دي محتاجة تفعيل خدمة الإيميل (Resend) عشان تشتغل بشكل كامل.
+      </p>
+    </div>
+    {% endif %}
+
     <div class="card p-3 mt-3">
       <h6 class="mb-2"><i class="bi bi-robot"></i> المساعد الذكي</h6>
       <a href="{{ url_for('assistant.usage_dashboard') }}" class="btn btn-sm btn-outline-primary">
         استهلاك وتكلفة المساعد
       </a>
     </div>
+
   </div>
 </div>
 {% endblock %}
