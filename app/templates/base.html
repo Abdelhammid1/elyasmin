@@ -57,6 +57,12 @@
         <i class="bi bi-speedometer2"></i> لوحة التحكم
       </a>
 
+      {# PHASE 12 (YAS-NAV-1..4): sidebar re-organised by workflow.
+         - "الإنتاج والتغذية" gathers everything that happens ON the farm floor
+         - "المبيعات والعملاء" is the sales side only
+         - Every report moved into a dedicated "التقارير" section so
+           the accountant has one place to look #}
+
       <div class="sidebar-section-title">القطيع</div>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('herd') and 'group' not in (request.endpoint or '') and 'birth' not in (request.endpoint or '') %}active{% endif %}"
          href="{{ url_for('herd.list_cows') }}"><i class="bi bi-heart-pulse"></i> الأبقار</a>
@@ -65,7 +71,7 @@
       <a class="sidebar-item {% if 'birth' in (request.endpoint or '') %}active{% endif %}"
          href="{{ url_for('herd.births') }}"><i class="bi bi-egg"></i> المواليد</a>
 
-      <div class="sidebar-section-title">التغذية</div>
+      <div class="sidebar-section-title">الإنتاج والتغذية</div>
       <a class="sidebar-item {% if request.endpoint == 'feed.list_recipes' %}active{% endif %}"
          href="{{ url_for('feed.list_recipes') }}"><i class="bi bi-basket"></i> وصفات العلف</a>
       <a class="sidebar-item {% if request.endpoint == 'feed.create_run' %}active{% endif %}"
@@ -74,34 +80,30 @@
          href="{{ url_for('feed.list_runs') }}"><i class="bi bi-clock-history"></i> سجل التشغيلات</a>
       <a class="sidebar-item {% if request.endpoint == 'feed.list_tanks' %}active{% endif %}"
          href="{{ url_for('feed.list_tanks') }}"><i class="bi bi-database"></i> خزانات العلف</a>
-
-      <div class="sidebar-section-title">اللبن والعملاء</div>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('milk.list_deliveries') %}active{% endif %}"
          href="{{ url_for('milk.list_deliveries') }}"><i class="bi bi-droplet"></i> توريدات اللبن</a>
-      <a class="sidebar-item {% if request.endpoint and 'invoice' in request.endpoint %}active{% endif %}"
-         href="{{ url_for('milk.list_invoices') }}"><i class="bi bi-receipt-cutoff"></i> فواتير البيع</a>
       <a class="sidebar-item {% if request.endpoint == 'milk.daily_production' %}active{% endif %}"
          href="{{ url_for('milk.daily_production') }}"><i class="bi bi-clipboard-data"></i> الإنتاج والفاقد</a>
-      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('customers') and 'settle' not in request.endpoint %}active{% endif %}"
+
+      <div class="sidebar-section-title">المبيعات والعملاء</div>
+      <a class="sidebar-item {% if request.endpoint and 'invoice' in request.endpoint and request.endpoint.startswith('milk') %}active{% endif %}"
+         href="{{ url_for('milk.list_invoices') }}"><i class="bi bi-receipt-cutoff"></i> فواتير البيع</a>
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('customers') and 'settle' not in request.endpoint and 'dues' not in request.endpoint and 'report' not in request.endpoint %}active{% endif %}"
          href="{{ url_for('customers.list_customers') }}"><i class="bi bi-person-lines-fill"></i> العملاء</a>
       <a class="sidebar-item {% if request.endpoint == 'customers.weekly_settlement' %}active{% endif %}"
-         href="{{ url_for('customers.weekly_settlement') }}"><i class="bi bi-calendar-week"></i> التسوية الأسبوعية</a>
-      <a class="sidebar-item {% if request.endpoint == 'customers.dues' %}active{% endif %}"
-         href="{{ url_for('customers.dues') }}"><i class="bi bi-alarm"></i> المستحقات</a>
+         href="{{ url_for('customers.weekly_settlement') }}"><i class="bi bi-calendar-week"></i> تسوية فواتير العملاء الأسبوعية</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('returns.sales') %}active{% endif %}"
          href="{{ url_for('returns.sales_list') }}"><i class="bi bi-file-earmark-minus"></i> مرتجعات المبيعات</a>
 
       <div class="sidebar-section-title">المخزون والموردون</div>
-      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('inventory') %}active{% endif %}"
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('inventory') and 'valuation' not in request.endpoint %}active{% endif %}"
          href="{{ url_for('inventory.list_ingredients') }}"><i class="bi bi-boxes"></i> المخزون</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('medicine') %}active{% endif %}"
          href="{{ url_for('medicine.list_dispenses') }}"><i class="bi bi-capsule"></i> الأدوية</a>
-      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('suppliers') and 'report' not in request.endpoint %}active{% endif %}"
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('suppliers') and 'report' not in request.endpoint and 'dues' not in request.endpoint %}active{% endif %}"
          href="{{ url_for('suppliers.list_suppliers') }}"><i class="bi bi-truck"></i> الموردون</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('purchases') %}active{% endif %}"
          href="{{ url_for('purchases.list_invoices') }}"><i class="bi bi-receipt"></i> المشتريات</a>
-      <a class="sidebar-item {% if request.endpoint == 'suppliers.dues' %}active{% endif %}"
-         href="{{ url_for('suppliers.dues') }}"><i class="bi bi-alarm"></i> مستحقات الموردين</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('returns.purchases') %}active{% endif %}"
          href="{{ url_for('returns.purchases_list') }}"><i class="bi bi-file-earmark-plus"></i> مرتجعات المشتريات</a>
       <a class="sidebar-item {% if request.endpoint == 'inventory.valuation' %}active{% endif %}"
@@ -114,36 +116,50 @@
          href="{{ url_for('assets.list_assets') }}"><i class="bi bi-gear-wide-connected"></i> الأصول الثابتة</a>
 
       <div class="sidebar-section-title">المالية</div>
-      <a class="sidebar-item {% if request.endpoint == 'finance.milk_cost' %}active{% endif %}"
-         href="{{ url_for('finance.milk_cost') }}"><i class="bi bi-droplet-half"></i> تكلفة كيلو اللبن</a>
-      <a class="sidebar-item {% if request.endpoint == 'finance.pnl' %}active{% endif %}"
-         href="{{ url_for('finance.pnl') }}"><i class="bi bi-graph-up"></i> الأرباح والخسائر</a>
-      <a class="sidebar-item {% if request.endpoint and 'expense' in request.endpoint %}active{% endif %}"
-         href="{{ url_for('finance.list_expenses') }}"><i class="bi bi-cash-stack"></i> المصروفات</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('accounts') %}active{% endif %}"
          href="{{ url_for('accounts.list_accounts') }}"><i class="bi bi-safe"></i> الخزنة والحسابات</a>
-      <a class="sidebar-item {% if request.endpoint and 'suppliers_report' in request.endpoint %}active{% endif %}"
-         href="{{ url_for('suppliers.suppliers_report') }}"><i class="bi bi-file-earmark-text"></i> تقرير الموردين</a>
 
       <div class="sidebar-section-title">المحاسبة</div>
       <a class="sidebar-item {% if request.endpoint == 'accounting.chart_of_accounts' %}active{% endif %}"
          href="{{ url_for('accounting.chart_of_accounts') }}"><i class="bi bi-diagram-3"></i> دليل الحسابات</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('accounting.journal') %}active{% endif %}"
          href="{{ url_for('accounting.journal_list') }}"><i class="bi bi-journal-text"></i> دفتر اليومية</a>
-      <a class="sidebar-item {% if request.endpoint == 'accounting.trial_balance_view' %}active{% endif %}"
-         href="{{ url_for('accounting.trial_balance_view') }}"><i class="bi bi-clipboard-data"></i> ميزان المراجعة</a>
+
+      <div class="sidebar-section-title">التقارير</div>
+      <a class="sidebar-item {% if request.endpoint == 'reports.index' %}active{% endif %}"
+         href="{{ url_for('reports.index') }}"><i class="bi bi-list-check"></i> كل التقارير</a>
+      <a class="sidebar-item {% if request.endpoint == 'finance.pnl' %}active{% endif %}"
+         href="{{ url_for('finance.pnl') }}"><i class="bi bi-graph-up"></i> الأرباح والخسائر</a>
       <a class="sidebar-item {% if request.endpoint == 'accounting.income_statement_view' %}active{% endif %}"
          href="{{ url_for('accounting.income_statement_view') }}"><i class="bi bi-graph-up-arrow"></i> قائمة الدخل</a>
       <a class="sidebar-item {% if request.endpoint == 'accounting.balance_sheet_view' %}active{% endif %}"
          href="{{ url_for('accounting.balance_sheet_view') }}"><i class="bi bi-book"></i> الميزانية العمومية</a>
       <a class="sidebar-item {% if request.endpoint == 'accounting.cash_flow_view' %}active{% endif %}"
          href="{{ url_for('accounting.cash_flow_view') }}"><i class="bi bi-cash-coin"></i> التدفقات النقدية</a>
+      <a class="sidebar-item {% if request.endpoint == 'accounting.trial_balance_view' %}active{% endif %}"
+         href="{{ url_for('accounting.trial_balance_view') }}"><i class="bi bi-clipboard-data"></i> ميزان المراجعة</a>
+      <a class="sidebar-item {% if request.endpoint == 'finance.milk_cost' %}active{% endif %}"
+         href="{{ url_for('finance.milk_cost') }}"><i class="bi bi-droplet-half"></i> تكلفة كيلو اللبن</a>
       <a class="sidebar-item {% if request.endpoint == 'accounting.milk_cost_by_group_view' %}active{% endif %}"
-         href="{{ url_for('accounting.milk_cost_by_group_view') }}"><i class="bi bi-droplet-half"></i> تكلفة اللبن (بالمجموعة)</a>
+         href="{{ url_for('accounting.milk_cost_by_group_view') }}"><i class="bi bi-diagram-2"></i> تكلفة اللبن (بالمجموعة)</a>
+      <a class="sidebar-item {% if request.endpoint == 'customers.dues' %}active{% endif %}"
+         href="{{ url_for('customers.dues') }}"><i class="bi bi-alarm"></i> أعمار الديون (العملاء)</a>
+      <a class="sidebar-item {% if request.endpoint == 'suppliers.dues' %}active{% endif %}"
+         href="{{ url_for('suppliers.dues') }}"><i class="bi bi-alarm"></i> أعمار الديون (الموردين)</a>
+      <a class="sidebar-item {% if request.endpoint and 'customers_report' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('customers.customers_report') }}"><i class="bi bi-file-earmark-text"></i> تقرير العملاء</a>
+      <a class="sidebar-item {% if request.endpoint and 'suppliers_report' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('suppliers.suppliers_report') }}"><i class="bi bi-file-earmark-text"></i> تقرير الموردين</a>
+      <a class="sidebar-item {% if request.endpoint == 'labor.report' %}active{% endif %}"
+         href="{{ url_for('labor.report') }}"><i class="bi bi-people-fill"></i> تقرير العمالة</a>
+      <a class="sidebar-item {% if request.endpoint == 'reports.herd_ages' %}active{% endif %}"
+         href="{{ url_for('reports.herd_ages') }}"><i class="bi bi-calendar3"></i> أعمار القطيع</a>
 
       <div class="sidebar-section-title">الإدارة</div>
-      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('labor') %}active{% endif %}"
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('labor') and request.endpoint != 'labor.report' %}active{% endif %}"
          href="{{ url_for('labor.list_workers') }}"><i class="bi bi-people-fill"></i> العمالة</a>
+      <a class="sidebar-item {% if request.endpoint and 'expense' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('finance.list_expenses') }}"><i class="bi bi-cash-stack"></i> المصروفات</a>
       {% if current_user.is_admin %}
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('users') %}active{% endif %}"
          href="{{ url_for('users.list_users') }}"><i class="bi bi-people"></i> المستخدمون</a>
