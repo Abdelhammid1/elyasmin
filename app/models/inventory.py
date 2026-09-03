@@ -24,9 +24,12 @@ class Ingredient(db.Model):
 
     current_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
     min_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
-    # `last_price` is retained as a reference field ("آخر سعر شراء") — nothing
-    # in the ledger or valuation reads it any more; PHASE 6 replaced it with
-    # `avg_cost` (weighted-average, blended in `app/utils/inventory_cost.py`).
+    # `last_price` is the latest single purchase price — used to prefill
+    # the price input on a new-purchase form (so the user sees the most
+    # recent number) and shown on the ingredient detail as a reference.
+    # The ledger, stock valuation, and feed-run cost projections all
+    # read `avg_cost` — the weighted-average blended in
+    # `app/utils/inventory_cost.py`.
     last_price = db.Column(db.Numeric(12, 2), nullable=False, default=Decimal("0"))
     avg_cost = db.Column(db.Numeric(12, 4), nullable=False, default=Decimal("0"))
 

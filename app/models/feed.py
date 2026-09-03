@@ -37,9 +37,13 @@ class FeedRecipe(db.Model):
 
     @property
     def batch_cost(self) -> Decimal:
+        # PHASE 7: value at weighted-average cost so the projection matches
+        # what the feed-run autoposter will actually book (it also reads
+        # avg_cost). last_price was a rough proxy that drifted every time
+        # a purchase came in at a new price.
         return sum(
             (
-                (l.kg_per_batch * (l.ingredient.last_price or Decimal("0")))
+                (l.kg_per_batch * (l.ingredient.avg_cost or Decimal("0")))
                 for l in self.lines
             ),
             Decimal("0"),
@@ -66,7 +70,8 @@ class FeedRecipeLine(db.Model):
 
     @property
     def batch_line_cost(self) -> Decimal:
-        return (self.kg_per_batch * (self.ingredient.last_price or Decimal("0"))).quantize(Decimal("0.01"))
+        # PHASE 7: match FeedRecipe.batch_cost — value at avg_cost, not last_price
+        return (self.kg_per_batch * (self.ingredient.avg_cost or Decimal("0"))).quantize(Decimal("0.01"))
 
 
 class FeedRun(db.Model):
