@@ -20,7 +20,6 @@ typo on a cleared check without rebooking the whole trail.
 """
 from decimal import Decimal
 
-from app.extensions import db
 from app.models.checks import Check
 from app.services.autoposting import (
     CODE_TRADE_PAYABLE,

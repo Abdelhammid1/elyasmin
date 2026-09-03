@@ -22,7 +22,6 @@ Notes:
   invoices.
 """
 from datetime import date, datetime
-from decimal import Decimal
 
 from app.extensions import db
 

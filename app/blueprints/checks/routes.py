@@ -202,7 +202,7 @@ def received_bounce(check_id):
         chk.notes = ((chk.notes or "") + "\n" + form.notes.data).strip()
     chk.status = Check.STATUS_BOUNCED
     checks_service.on_check_bounced_received(chk, created_by=current_user.id)
-    log_action("check_bounced", "Check", chk.id, details=f"received")
+    log_action("check_bounced", "Check", chk.id, details="received")
     db.session.commit()
     flash("تم تسجيل ارتداد الشيك — الرصيد رجع للعميل.", "warning")
     return redirect(url_for("checks.received_detail", check_id=chk.id))
