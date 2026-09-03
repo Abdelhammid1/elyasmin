@@ -143,8 +143,18 @@ class PurchaseInvoice(db.Model):
         ).quantize(Decimal("0.01"))
 
     @property
+    def returned_amount(self) -> Decimal:
+        """PHASE 5: total returns against this invoice."""
+        return sum(
+            (Decimal(str(r.amount or 0))
+             for r in self.returns if not r.is_archived),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+
+    @property
     def outstanding_amount(self) -> Decimal:
-        settled = Decimal(str(self.paid_amount or 0)) + self.allocated_amount
+        settled = (Decimal(str(self.paid_amount or 0))
+                   + self.allocated_amount + self.returned_amount)
         return (Decimal(str(self.total or 0)) - settled).quantize(Decimal("0.01"))
 
     @property
@@ -153,7 +163,8 @@ class PurchaseInvoice(db.Model):
         total = Decimal(str(self.total or 0))
         if total <= 0:
             return "paid"
-        settled = Decimal(str(self.paid_amount or 0)) + self.allocated_amount
+        settled = (Decimal(str(self.paid_amount or 0))
+                   + self.allocated_amount + self.returned_amount)
         if settled >= total - Decimal("0.005"):
             return "paid"
         if settled > 0:
@@ -317,3 +328,44 @@ class SupplierPaymentAllocation(db.Model):
     __table_args__ = (
         db.UniqueConstraint("payment_id", "invoice_id", name="uq_supplier_payment_invoice"),
     )
+
+
+class PurchaseReturn(db.Model):
+    """PHASE 5 — a purchase return (كنوت مدين / مرتجع نقدي).
+
+    Mirror of SalesReturn on the vendor side. Two modes:
+      credit — reduces the supplier's payable, no cash moves
+      cash   — money comes back into a treasury account
+    """
+
+    __tablename__ = "purchase_returns"
+
+    MODE_CREDIT = "credit"
+    MODE_CASH = "cash"
+    MODE_LABELS = {MODE_CREDIT: "كنوت مدين (خصم من الرصيد)", MODE_CASH: "مرتجع نقدي"}
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"),
+                            nullable=False, index=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("purchase_invoices.id"),
+                           nullable=True, index=True)
+    return_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    reason = db.Column(db.Text, nullable=True)
+    mode = db.Column(db.String(10), nullable=False, default=MODE_CREDIT)
+    treasury_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"),
+                                    nullable=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    is_archived = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    supplier = db.relationship("Supplier",
+        backref=db.backref("returns", lazy="dynamic"))
+    invoice = db.relationship("PurchaseInvoice",
+        backref=db.backref("returns", lazy="dynamic"))
+    treasury_account = db.relationship("Account")
+
+    @property
+    def mode_label(self) -> str:
+        return self.MODE_LABELS.get(self.mode, self.mode)

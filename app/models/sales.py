@@ -230,8 +230,19 @@ class MilkInvoice(db.Model):
         ).quantize(Decimal("0.01"))
 
     @property
+    def returned_amount(self) -> Decimal:
+        """PHASE 5: total returns tied to this invoice — treated as a
+        settlement (customer no longer owes for the returned portion)."""
+        return sum(
+            (Decimal(str(r.amount or 0))
+             for r in self.returns if not r.is_archived),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+
+    @property
     def outstanding_amount(self) -> Decimal:
-        return (Decimal(str(self.grand_total or 0)) - self.paid_amount).quantize(Decimal("0.01"))
+        settled = self.paid_amount + self.returned_amount
+        return (Decimal(str(self.grand_total or 0)) - settled).quantize(Decimal("0.01"))
 
     @property
     def payment_status(self) -> str:
@@ -239,13 +250,13 @@ class MilkInvoice(db.Model):
         chips render. Draft invoices are always 'unpaid' regardless."""
         if self.status != self.STATUS_ISSUED:
             return "unpaid"
-        paid = self.paid_amount
+        settled = self.paid_amount + self.returned_amount
         grand = Decimal(str(self.grand_total or 0))
         if grand <= 0:
             return "paid"
-        if paid >= grand - Decimal("0.005"):
+        if settled >= grand - Decimal("0.005"):
             return "paid"
-        if paid > 0:
+        if settled > 0:
             return "partial"
         return "unpaid"
 
@@ -358,3 +369,49 @@ class DailyProduction(db.Model):
     def waste_kg(self) -> Decimal:
         w = self.total_kg - self.total_delivered_kg
         return w if w > 0 else Decimal("0")
+
+
+class SalesReturn(db.Model):
+    """PHASE 5 — a customer return (كنوت دائن / مرتجع نقدي).
+
+    Two modes:
+      credit — reduces the customer's receivable, no cash moves
+      cash   — money leaves a treasury account (physical refund)
+
+    Optional invoice link so the return can be reconciled against a
+    specific sale; nullable because returns of un-invoiced deliveries
+    also happen. Idempotent JE by (source_type='SalesReturn', source_id).
+    """
+
+    __tablename__ = "sales_returns"
+
+    MODE_CREDIT = "credit"
+    MODE_CASH = "cash"
+    MODE_LABELS = {MODE_CREDIT: "كنوت دائن (خصم من الرصيد)", MODE_CASH: "مرتجع نقدي"}
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"),
+                            nullable=False, index=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("milk_invoices.id"),
+                           nullable=True, index=True)
+    return_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    reason = db.Column(db.Text, nullable=True)
+    mode = db.Column(db.String(10), nullable=False, default=MODE_CREDIT)
+    # required for MODE_CASH — the drawer money leaves from
+    treasury_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"),
+                                    nullable=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    is_archived = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    customer = db.relationship("Customer",
+        backref=db.backref("returns", lazy="dynamic"))
+    invoice = db.relationship("MilkInvoice",
+        backref=db.backref("returns", lazy="dynamic"))
+    treasury_account = db.relationship("Account")
+
+    @property
+    def mode_label(self) -> str:
+        return self.MODE_LABELS.get(self.mode, self.mode)
