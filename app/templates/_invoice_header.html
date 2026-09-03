@@ -1,49 +1,89 @@
 {#
   Shared invoice header — used by both purchase (فاتورة شراء) and milk
-  (فاتورة بيع). Exposed as a macro so callers pass params explicitly
-  (which sidesteps Jinja's include-vs-set scoping surprise).
+  (فاتورة بيع). Exposed as a macro so callers pass params explicitly.
+
+  PHASE 11 (YAS-SET-3): now reads from `CompanyProfile` — legal_name,
+  tax_registration_no, commercial_register_no, logo_path, address —
+  all print on the invoice header the moment the client fills them in
+  from /finance/settings?tab=company.
+
+  Backward compatible: when `company` is None (pre-migration deploys,
+  or a caller that hasn't been updated yet), falls back to the elyasmin
+  brand + built-in cow logo so the invoice still renders.
 
   Usage:
     {% from "_invoice_header.html" import render_invoice_header %}
     {{ render_invoice_header(
         kind="purchase",
-        number=invoice.id,
+        number=invoice.id,                 # or company.format_invoice_number(...)
         issue_date=invoice.invoice_date,
         party_name=invoice.supplier.name,
         party_url=url_for('suppliers.supplier_detail', supplier_id=invoice.supplier.id),
         party_phone=invoice.supplier.phone,
         status_text=invoice.payment_label,
         status_tone='success' if invoice.payment_type == 'cash' else 'warning',
+        company=company,                   # CompanyProfile.current()
+        formatted_number=company.format_invoice_number('purchase', invoice.id),
     ) }}
-
-  When PHASE-2 CompanyProfile ships, the top block reads legal_name +
-  tax registration + logo from that model. For now it reads app_name.
 #}
 {% macro render_invoice_header(kind, number, issue_date, party_name,
                                party_url, party_phone=None,
-                               status_text=None, status_tone=None) %}
+                               status_text=None, status_tone=None,
+                               company=None,
+                               formatted_number=None) %}
 <div class="invoice-header-box card p-3 mb-3">
   <div class="row g-3 align-items-center">
+    {# ---- LEFT (RTL start): company identity ---- #}
     <div class="col-md-4">
       <div class="d-flex align-items-center gap-2">
-        <img src="{{ url_for('static', filename='img/logo-256.png') }}"
-             alt="{{ app_name }}"
-             style="height:44px; width:44px; object-fit:contain;">
+        {% if company and company.logo_path %}
+          <img src="{{ url_for('static', filename=company.logo_path) }}"
+               alt="{{ company.name }}"
+               style="height:52px; width:52px; object-fit:contain;">
+        {% else %}
+          <img src="{{ url_for('static', filename='img/logo-256.png') }}"
+               alt="{{ app_name }}"
+               style="height:44px; width:44px; object-fit:contain;">
+        {% endif %}
         <div>
-          <div class="fw-bold" style="font-size:1.05rem;">{{ app_name }}</div>
+          <div class="fw-bold" style="font-size:1.05rem;">
+            {{ (company.legal_name if company and company.legal_name
+                else (company.name if company else app_name)) }}
+          </div>
           <div class="text-muted small">نظام إدارة المزرعة</div>
+          {% if company and company.address %}
+          <div class="text-muted" style="font-size:0.75rem; margin-top:2px;">
+            {{ company.address }}
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
 
+    {# ---- CENTER: invoice number + date ---- #}
     <div class="col-md-4 text-center">
       <div class="text-muted small">
         {% if kind == "purchase" %}فاتورة شراء{% else %}فاتورة بيع{% endif %}
       </div>
-      <div class="fw-bold" style="font-size:1.35rem;">#{{ number }}</div>
+      <div class="fw-bold" style="font-size:1.35rem;" dir="ltr">
+        {{ formatted_number or ('#' ~ number) }}
+      </div>
       <div class="text-muted small" dir="ltr">{{ issue_date }}</div>
+
+      {# Tax + commercial register — the reason Zakaria complained #}
+      {% if company and (company.tax_registration_no or company.commercial_register_no) %}
+      <div class="text-muted" style="font-size:0.75rem; margin-top:6px;">
+        {% if company.tax_registration_no %}
+          <div>ض.م: <span dir="ltr">{{ company.tax_registration_no }}</span></div>
+        {% endif %}
+        {% if company.commercial_register_no %}
+          <div>س.ت: <span dir="ltr">{{ company.commercial_register_no }}</span></div>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
 
+    {# ---- RIGHT (RTL end): party ---- #}
     <div class="col-md-4">
       <div class="text-end">
         <div class="text-muted small">
@@ -60,4 +100,44 @@
     </div>
   </div>
 </div>
+{% endmacro %}
+
+
+{# =========================================================
+   BANK STRIP — printed below the line-items table so the party
+   can pay by transfer. Only rendered when the client has filled
+   bank_account_no on the CompanyProfile.
+   ========================================================= #}
+{% macro render_bank_strip(company) %}
+{% if company and company.bank_account_no %}
+<div class="invoice-bank-strip card p-3 mt-3">
+  <div class="row g-2">
+    <div class="col-12">
+      <h6 class="mb-2 text-muted"><i class="bi bi-bank"></i> بيانات التحويل البنكي</h6>
+    </div>
+    {% if company.bank_account_holder %}
+    <div class="col-md-3">
+      <div class="text-muted small">اسم صاحب الحساب</div>
+      <div class="fw-bold">{{ company.bank_account_holder }}</div>
+    </div>
+    {% endif %}
+    {% if company.bank_name %}
+    <div class="col-md-3">
+      <div class="text-muted small">البنك</div>
+      <div class="fw-bold">{{ company.bank_name }}</div>
+    </div>
+    {% endif %}
+    <div class="col-md-3">
+      <div class="text-muted small">رقم الحساب</div>
+      <div class="fw-bold" dir="ltr">{{ company.bank_account_no }}</div>
+    </div>
+    {% if company.bank_iban %}
+    <div class="col-md-3">
+      <div class="text-muted small">IBAN</div>
+      <div class="fw-bold" dir="ltr">{{ company.bank_iban }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 {% endmacro %}

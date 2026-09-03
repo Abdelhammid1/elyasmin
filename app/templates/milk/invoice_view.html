@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}فاتورة #{{ invoice.id }}{% endblock %}
+{% block title %}فاتورة بيع {{ company.format_invoice_number('sale', invoice.id) if company else '#' ~ invoice.id }}{% endblock %}
 {% block content %}
 {# PHASE 10 (YAS-UX-1): action bar mirroring the purchase invoice — same
    shape, same buttons, so the two invoice types feel like the same app. #}
@@ -66,17 +66,19 @@
   {% endif %}
 </div>
 
-{# Shared invoice header — same macro used on purchase invoice #}
-{% from "_invoice_header.html" import render_invoice_header %}
+{# Shared invoice header — reads CompanyProfile (YAS-SET-3) #}
+{% from "_invoice_header.html" import render_invoice_header, render_bank_strip %}
 {{ render_invoice_header(
     kind="sale",
     number=invoice.id,
+    formatted_number=(company.format_invoice_number('sale', invoice.id) if company else '#' ~ invoice.id),
     issue_date=invoice.issue_date,
     party_name=invoice.customer.name,
     party_url=url_for('customers.customer_detail', customer_id=invoice.customer.id),
     party_phone=invoice.customer.phone,
     status_text=invoice.status_label,
     status_tone='success' if invoice.status == 'issued' else 'warning',
+    company=company,
 ) }}
 <p class="text-muted small text-center no-print mb-3">
   الفترة: <span dir="ltr">{{ invoice.period_from }} → {{ invoice.period_to }}</span>
@@ -219,6 +221,9 @@
   </div>
   {% endif %}
 </div>
+
+{# ============ BANK STRIP (YAS-SET-3) ============ #}
+{{ render_bank_strip(company) }}
 
 {# PHASE 10 (YAS-UX-4): collect-payment modal for milk invoices — mirrors
    the purchase invoice's "سدّد الآن" flow. Reuses the customer payment +

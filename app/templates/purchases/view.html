@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}فاتورة شراء #{{ invoice.id }}{% endblock %}
+{% block title %}فاتورة شراء {{ company.format_invoice_number('purchase', invoice.id) if company else '#' ~ invoice.id }}{% endblock %}
 {% block content %}
 
 {# ============ ACTION BAR ============ #}
@@ -68,17 +68,19 @@
   {% endif %}
 </div>
 
-{# ============ SHARED HEADER ============ #}
-{% from "_invoice_header.html" import render_invoice_header %}
+{# ============ SHARED HEADER — reads CompanyProfile (YAS-SET-3) ============ #}
+{% from "_invoice_header.html" import render_invoice_header, render_bank_strip %}
 {{ render_invoice_header(
     kind="purchase",
     number=invoice.id,
+    formatted_number=(company.format_invoice_number('purchase', invoice.id) if company else '#' ~ invoice.id),
     issue_date=invoice.invoice_date,
     party_name=invoice.supplier.name,
     party_url=url_for('suppliers.supplier_detail', supplier_id=invoice.supplier.id),
     party_phone=invoice.supplier.phone,
     status_text=invoice.payment_label,
     status_tone='success' if invoice.payment_type == 'cash' else 'warning',
+    company=company,
 ) }}
 
 {# ============ LINE ITEMS ============ #}
@@ -259,6 +261,9 @@
   <p class="mb-0" style="white-space: pre-wrap;">{{ invoice.notes }}</p>
 </div>
 {% endif %}
+
+{# ============ BANK STRIP (YAS-SET-3) ============ #}
+{{ render_bank_strip(company) }}
 
 {# ============ PAY MODAL (YAS-UX-4 — wired in commit 3) ============ #}
 {% if invoice.outstanding_amount > 0 %}

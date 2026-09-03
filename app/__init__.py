@@ -105,6 +105,22 @@ def create_app(config_name: str | None = None) -> Flask:
     app.jinja_env.globals["find_journal_entry_for"] = find_journal_entry_for
 
     @app.context_processor
+    def inject_company_profile():
+        # PHASE 11 (YAS-SET-3): every logged-in page can read the current
+        # company profile without route glue. The `.current()` helper
+        # auto-creates the singleton row on first access, so this never
+        # returns None on a booted app. Guarded to skip the auth pages
+        # where the DB session may not be ready.
+        from flask_login import current_user
+        try:
+            if not current_user.is_authenticated:
+                return {"company": None}
+            from app.models.finance import CompanyProfile
+            return {"company": CompanyProfile.current()}
+        except Exception:  # noqa: BLE001
+            return {"company": None}
+
+    @app.context_processor
     def inject_globals():
         # BRAND: the four values are env-driven so a deployment can rebrand or hide
         # the attribution without a code change. BRAND_SHOW=0 removes it everywhere.
