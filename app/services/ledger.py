@@ -132,6 +132,7 @@ def post_journal(
                 memo=l.get("memo"),
                 party_type=l.get("party_type"),
                 party_id=l.get("party_id"),
+                cost_center_id=l.get("cost_center_id"),
             )
         )
 

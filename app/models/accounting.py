@@ -192,5 +192,17 @@ class JournalLine(db.Model):
     party_type = db.Column(db.String(20), nullable=True, index=True)   # 'customer' | 'supplier'
     party_id = db.Column(db.Integer, nullable=True, index=True)
 
+    # PHASE 2 — cost centre. Points at a herd group (cattle_groups.id) so
+    # feed cost, milk revenue and any manually-tagged JE line can be sliced
+    # by group without a shadow calculation. Nullable — a line that isn't
+    # meaningfully tied to a group (e.g. an owner's capital injection, a
+    # bank-to-bank transfer, a rent expense that covers the whole farm)
+    # stays untagged.
+    cost_center_id = db.Column(
+        db.Integer, db.ForeignKey("cattle_groups.id"),
+        nullable=True, index=True,
+    )
+
     entry = db.relationship("JournalEntry", back_populates="lines")
     account = db.relationship("LedgerAccount", backref=db.backref("lines", lazy="dynamic"))
+    cost_center = db.relationship("CattleGroup", foreign_keys=[cost_center_id])
