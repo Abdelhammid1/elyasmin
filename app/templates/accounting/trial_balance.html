@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}ميزان المراجعة{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clipboard-data"></i> ميزان المراجعة</h1>
+    <p class="text-muted mb-0">مجموع المدين لازم يساوي مجموع الدائن — دليل إن الدفتر متوازن.</p>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-end">
+    <div>
+      <label class="form-label small fw-bold mb-1">حتى تاريخ</label>
+      <input type="date" name="as_of" value="{{ as_of.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <button class="btn btn-primary">تحديث</button>
+  </form>
+</div>
+
+<div class="card mb-3 p-3 d-flex flex-row justify-content-between align-items-center
+            {% if is_balanced %}alert-success{% else %}alert-danger{% endif %}"
+     style="border-radius: var(--radius);">
+  <div>
+    {% if is_balanced %}
+      <i class="bi bi-check-circle-fill fs-4"></i>
+      <span class="fw-bold">الدفتر متوازن</span> — مدين = دائن.
+    {% else %}
+      <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+      <span class="fw-bold">الدفتر غير متوازن!</span> الفرق =
+      <span dir="ltr">{{ (total_debit - total_credit)|abs }}</span> جنيه.
+    {% endif %}
+  </div>
+  <div class="d-flex gap-4">
+    <div><div class="small text-muted">إجمالي مدين</div><div class="fw-bold" dir="ltr">{{ total_debit }}</div></div>
+    <div><div class="small text-muted">إجمالي دائن</div><div class="fw-bold" dir="ltr">{{ total_credit }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>الحساب</th>
+          <th>النوع</th>
+          <th class="text-end">مدين</th>
+          <th class="text-end">دائن</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acc, debit, credit in rows %}
+        <tr>
+          <td>
+            <span class="font-monospace text-muted small">{{ acc.code }}</span>
+            &nbsp;{{ acc.name }}
+          </td>
+          <td class="small text-muted">{{ acc.type.value }}</td>
+          <td dir="ltr" class="num">{{ debit if debit else '' }}</td>
+          <td dir="ltr" class="num">{{ credit if credit else '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-center text-muted py-4">مفيش أرصدة لحد التاريخ ده.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="2" class="text-end">الإجمالي</td>
+          <td dir="ltr" class="num">{{ total_debit }}</td>
+          <td dir="ltr" class="num">{{ total_credit }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

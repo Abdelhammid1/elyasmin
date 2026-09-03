@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}دفتر اليومية{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-journal-text"></i> دفتر اليومية</h1>
+  <p class="text-muted mb-0">كل قيد في المزرعة، بمصدره وسطوره — من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span></p>
+</div>
+
+<div class="card p-3 mb-3">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">من تاريخ</label>
+      <input type="date" name="date_from" value="{{ date_from.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ date_to.isoformat() }}" class="form-control" dir="ltr">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-bold">المصدر</label>
+      <select name="source_type" class="form-select">
+        <option value="">— كل المصادر —</option>
+        {% for s in source_choices %}
+          <option value="{{ s }}" {% if source_type == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-bold">بحث بالوصف</label>
+      <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="…">
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">تحديث</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>التاريخ</th>
+          <th>الوصف</th>
+          <th>المصدر</th>
+          <th class="text-end">مدين</th>
+          <th class="text-end">دائن</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for je in entries %}
+        <tr>
+          <td class="font-monospace"><a href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}">{{ je.number }}</a></td>
+          <td dir="ltr">{{ je.date }}</td>
+          <td>{{ je.description }}</td>
+          <td class="small text-muted">{{ je.source_type or '—' }}{% if je.source_id %} #{{ je.source_id }}{% endif %}</td>
+          <td dir="ltr" class="num">{{ je.total_debit }}</td>
+          <td dir="ltr" class="num">{{ je.total_credit }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">مفيش قيود في الفترة دي.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if entries %}
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="4" class="text-end">إجمالي {{ entries|length }} قيد</td>
+          <td dir="ltr" class="num">{{ total_debit }}</td>
+          <td dir="ltr" class="num">{{ total_credit }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% if entries|length >= 500 %}
+<p class="text-muted small mt-2">
+  <i class="bi bi-info-circle"></i> بيظهر أول ٥٠٠ قيد — ضيّق الفترة أو استخدم البحث لو محتاج تشوف أكتر.
+</p>
+{% endif %}
+{% endblock %}

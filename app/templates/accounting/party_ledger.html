@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}كشف حساب — {{ party.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>
+    <i class="bi bi-{{ 'person-lines-fill' if party_type == 'customer' else 'truck' }}"></i>
+    كشف حساب محاسبي — {{ party.name }}
+  </h1>
+  <p class="text-muted mb-0">
+    {% if party_type == 'customer' %}عميل{% else %}مورد{% endif %}
+    — كل قيد اتسجّل عليه على مدار عمر الحساب.
+  </p>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الرصيد الحالي</div>
+      <div class="stat-value {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}"
+           dir="ltr">{{ balance }}</div>
+      <small class="text-muted">
+        {% if party_type == 'customer' %}
+          {% if balance > 0 %}العميل مدين لينا بالمبلغ ده{% elif balance < 0 %}العميل دفع زيادة — رصيده لينا{% else %}لا شيء مستحق{% endif %}
+        {% else %}
+          {% if balance > 0 %}المورد دفع زيادة — رصيده علينا{% elif balance < 0 %}احنا مدينين للمورد بالمبلغ ده{% else %}لا شيء مستحق{% endif %}
+        {% endif %}
+      </small>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card p-3 h-100 d-flex flex-column justify-content-center">
+      <div class="d-flex justify-content-between align-items-center">
+        <a href="{% if party_type == 'customer' %}{{ url_for('customers.customer_detail', customer_id=party.id) }}{% else %}{{ url_for('suppliers.supplier_detail', supplier_id=party.id) }}{% endif %}"
+           class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i> رجوع لصفحة {% if party_type == 'customer' %}العميل{% else %}المورد{% endif %}
+        </a>
+        <div class="small text-muted">
+          {{ rows|length }} حركة على الكشف
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>قيد</th>
+          <th>الوصف</th>
+          <th class="text-end">مدين</th>
+          <th class="text-end">دائن</th>
+          <th class="text-end">الرصيد الجاري</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td dir="ltr">{{ r.line.entry.date }}</td>
+          <td class="font-monospace">
+            <a href="{{ url_for('accounting.journal_detail', entry_id=r.line.entry.id) }}">{{ r.line.entry.number }}</a>
+          </td>
+          <td>{{ r.line.entry.description }}<div class="small text-muted">{{ r.line.memo or '' }}</div></td>
+          <td dir="ltr" class="num">{{ r.line.debit if r.line.debit else '' }}</td>
+          <td dir="ltr" class="num">{{ r.line.credit if r.line.credit else '' }}</td>
+          <td dir="ltr" class="num fw-bold {% if r.running > 0 %}text-danger{% elif r.running < 0 %}text-success{% endif %}">{{ r.running }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">مفيش قيود على الحساب ده لسه.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

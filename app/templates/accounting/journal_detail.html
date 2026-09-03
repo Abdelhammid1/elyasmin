@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}قيد {{ entry.number }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1 class="d-flex align-items-center gap-2">
+      <i class="bi bi-journal-check"></i>
+      <span class="font-monospace">{{ entry.number }}</span>
+      {% if not entry.is_active %}<span class="badge bg-warning-subtle text-warning" style="background:var(--warning-soft)!important;color:var(--warning)!important;">موقوف</span>{% endif %}
+      {% if entry.is_reversal %}<span class="badge bg-info-subtle text-info" style="background:var(--info-soft)!important;color:var(--info)!important;">قيد عكسي</span>{% endif %}
+    </h1>
+    <p class="text-muted mb-0">{{ entry.date }} — {{ entry.description }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if source_url %}
+    <a href="{{ source_url }}" class="btn btn-outline-primary">
+      <i class="bi bi-box-arrow-up-left"></i> فتح المصدر ({{ entry.source_type }})
+    </a>
+    {% endif %}
+    <a href="{{ url_for('accounting.journal_list') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> رجوع لدفتر اليومية
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">المصدر</div>
+      <div class="stat-value" style="font-size:1.05rem;">{{ entry.source_type or '—' }}{% if entry.source_id %} #{{ entry.source_id }}{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">مرجع</div>
+      <div class="stat-value" style="font-size:1.05rem;">{{ entry.reference or '—' }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي مدين</div>
+      <div class="stat-value" dir="ltr">{{ entry.total_debit }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card {% if entry.is_balanced %}tone-brand{% else %}tone-danger{% endif %}">
+      <div class="stat-label">إجمالي دائن</div>
+      <div class="stat-value" dir="ltr">{{ entry.total_credit }}</div>
+      <small class="text-{{ 'success' if entry.is_balanced else 'danger' }}">
+        {{ 'متوازن' if entry.is_balanced else 'غير متوازن!' }}
+      </small>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>الحساب</th>
+          <th>الطرف</th>
+          <th>ملاحظة</th>
+          <th class="text-end">مدين</th>
+          <th class="text-end">دائن</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in entry.lines %}
+        <tr>
+          <td>
+            <span class="font-monospace text-muted small">{{ l.account.code }}</span>
+            &nbsp;{{ l.account.name }}
+          </td>
+          <td>
+            {% if l.party_type == 'customer' %}
+              <a href="{{ url_for('accounting.party_ledger', party_type='customer', party_id=l.party_id) }}"
+                 class="badge bg-info-subtle text-info text-decoration-none"
+                 style="background:var(--info-soft)!important;color:var(--info)!important;">عميل #{{ l.party_id }}</a>
+            {% elif l.party_type == 'supplier' %}
+              <a href="{{ url_for('accounting.party_ledger', party_type='supplier', party_id=l.party_id) }}"
+                 class="badge bg-warning-subtle text-warning text-decoration-none"
+                 style="background:var(--warning-soft)!important;color:var(--warning)!important;">مورد #{{ l.party_id }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-muted small">{{ l.memo or '' }}</td>
+          <td dir="ltr" class="num">{{ l.debit if l.debit else '' }}</td>
+          <td dir="ltr" class="num">{{ l.credit if l.credit else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -106,6 +106,14 @@
       <a class="sidebar-item {% if request.endpoint and 'suppliers_report' in request.endpoint %}active{% endif %}"
          href="{{ url_for('suppliers.suppliers_report') }}"><i class="bi bi-file-earmark-text"></i> تقرير الموردين</a>
 
+      <div class="sidebar-section-title">المحاسبة</div>
+      <a class="sidebar-item {% if request.endpoint == 'accounting.chart_of_accounts' %}active{% endif %}"
+         href="{{ url_for('accounting.chart_of_accounts') }}"><i class="bi bi-diagram-3"></i> دليل الحسابات</a>
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('accounting.journal') %}active{% endif %}"
+         href="{{ url_for('accounting.journal_list') }}"><i class="bi bi-journal-text"></i> دفتر اليومية</a>
+      <a class="sidebar-item {% if request.endpoint == 'accounting.trial_balance_view' %}active{% endif %}"
+         href="{{ url_for('accounting.trial_balance_view') }}"><i class="bi bi-clipboard-data"></i> ميزان المراجعة</a>
+
       <div class="sidebar-section-title">الإدارة</div>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('labor') %}active{% endif %}"
          href="{{ url_for('labor.list_workers') }}"><i class="bi bi-people-fill"></i> العمالة</a>
