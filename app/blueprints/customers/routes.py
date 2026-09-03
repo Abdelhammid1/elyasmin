@@ -129,6 +129,16 @@ def customer_detail(customer_id: int):
     from app.services.allocations import open_invoices_for
     open_invoices = open_invoices_for(customer.id)
 
+    # PHASE 5: recent sales returns for this customer
+    from app.models.sales import SalesReturn
+    customer_returns = (
+        SalesReturn.query
+        .filter_by(customer_id=customer.id)
+        .order_by(SalesReturn.return_date.desc(), SalesReturn.id.desc())
+        .limit(20)
+        .all()
+    )
+
     return render_template(
         "customers/detail.html",
         customer=customer,
@@ -142,6 +152,7 @@ def customer_detail(customer_id: int):
         linked_invoices=linked_invoices,
         linked_supplier_payments=linked_supplier_payments,
         open_invoices=open_invoices,
+        customer_returns=customer_returns,
     )
 
 

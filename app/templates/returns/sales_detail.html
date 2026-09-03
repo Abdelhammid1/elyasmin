@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}مرتجع مبيعات #{{ ret.id }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-file-earmark-minus"></i>
+      مرتجع مبيعات #{{ ret.id }}
+      {% if ret.is_archived %}<span class="badge badge-muted">ملغي</span>{% endif %}
+    </h1>
+    <p class="text-muted mb-0">
+      <span dir="ltr">{{ ret.return_date }}</span> · {{ ret.customer.name }}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('returns.sales_list') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-right"></i> رجوع للقائمة
+    </a>
+    {% if current_user.is_admin and not ret.is_archived %}
+    <form method="post" action="{{ url_for('returns.sales_archive', ret_id=ret.id) }}"
+          onsubmit="return confirm('تأكيد إلغاء المرتجع؟ الأرصدة هترجع لما قبله.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> إلغاء المرتجع</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-info-circle"></i> التفاصيل</h5>
+      <dl class="row mb-0">
+        <dt class="col-4">العميل</dt>
+        <dd class="col-8"><a href="{{ url_for('customers.detail', customer_id=ret.customer.id) }}">{{ ret.customer.name }}</a></dd>
+        <dt class="col-4">التاريخ</dt><dd class="col-8" dir="ltr">{{ ret.return_date }}</dd>
+        <dt class="col-4">المبلغ</dt><dd class="col-8" dir="ltr" class="num fw-bold">{{ ret.amount }} جنيه</dd>
+        <dt class="col-4">النوع</dt>
+        <dd class="col-8"><span class="badge {% if ret.mode == 'cash' %}badge-info{% else %}badge-brand{% endif %}">{{ ret.mode_label }}</span></dd>
+        {% if ret.invoice %}
+        <dt class="col-4">الفاتورة</dt>
+        <dd class="col-8"><a href="{{ url_for('milk.view_invoice', invoice_id=ret.invoice.id) }}">فاتورة #{{ ret.invoice.id }}</a></dd>
+        {% endif %}
+        {% if ret.mode == 'cash' and ret.treasury_account %}
+        <dt class="col-4">حساب النقد</dt>
+        <dd class="col-8">{{ ret.treasury_account.name }}</dd>
+        {% endif %}
+        {% if ret.reason %}<dt class="col-4">السبب</dt><dd class="col-8">{{ ret.reason }}</dd>{% endif %}
+        {% if ret.notes %}<dt class="col-4">ملاحظات</dt><dd class="col-8">{{ ret.notes }}</dd>{% endif %}
+        <dt class="col-4">أنشأه</dt>
+        <dd class="col-8">{{ ret.created_by.username if ret.created_by else '—' }}
+          <span class="text-muted" dir="ltr">({{ ret.created_at.strftime('%Y-%m-%d %H:%M') if ret.created_at else '' }})</span>
+        </dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-journal-bookmark"></i> القيد المحاسبي</h5>
+      {% if je %}
+      <p class="text-muted mb-2 small">قيد رقم #{{ je.id }} — <span dir="ltr">{{ je.date }}</span></p>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>الحساب</th><th class="text-end">مدين</th><th class="text-end">دائن</th></tr></thead>
+          <tbody>
+          {% for l in je.lines %}
+            <tr>
+              <td>{{ l.account.code }} — {{ l.account.name }}</td>
+              <td dir="ltr" class="num text-end">{{ l.debit or '' }}</td>
+              <td dir="ltr" class="num text-end">{{ l.credit or '' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">مفيش قيد نشط — يمكن يكون المرتجع اتلغى.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -85,6 +85,8 @@
          href="{{ url_for('customers.weekly_settlement') }}"><i class="bi bi-calendar-week"></i> التسوية الأسبوعية</a>
       <a class="sidebar-item {% if request.endpoint == 'customers.dues' %}active{% endif %}"
          href="{{ url_for('customers.dues') }}"><i class="bi bi-alarm"></i> المستحقات</a>
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('returns.sales') %}active{% endif %}"
+         href="{{ url_for('returns.sales_list') }}"><i class="bi bi-file-earmark-minus"></i> مرتجعات المبيعات</a>
 
       <div class="sidebar-section-title">المخزون والموردون</div>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('inventory') %}active{% endif %}"
@@ -97,6 +99,8 @@
          href="{{ url_for('purchases.list_invoices') }}"><i class="bi bi-receipt"></i> المشتريات</a>
       <a class="sidebar-item {% if request.endpoint == 'suppliers.dues' %}active{% endif %}"
          href="{{ url_for('suppliers.dues') }}"><i class="bi bi-alarm"></i> مستحقات الموردين</a>
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('returns.purchases') %}active{% endif %}"
+         href="{{ url_for('returns.purchases_list') }}"><i class="bi bi-file-earmark-plus"></i> مرتجعات المشتريات</a>
 
       <div class="sidebar-section-title">المالية</div>
       <a class="sidebar-item {% if request.endpoint == 'finance.milk_cost' %}active{% endif %}"

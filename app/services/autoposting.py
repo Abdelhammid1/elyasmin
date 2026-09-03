@@ -398,3 +398,147 @@ def on_purchase_invoice(invoice, *, created_by=None):
         source_id=invoice.id,
         created_by=created_by,
     )
+
+
+# ==================== PHASE 5 — returns ====================
+
+def _delete_prior_je(source_type: str, source_id: int):
+    """Idempotence helper for returns — same pattern the milk-delivery and
+    feeding autoposters use."""
+    from app.models.accounting import JournalEntry
+    for je in JournalEntry.query.filter_by(
+        source_type=source_type, source_id=source_id,
+    ).all():
+        db.session.delete(je)
+
+
+def on_sales_return(ret, *, created_by=None):
+    """A customer return. Reverses revenue; releases either the receivable
+    (credit mode) or the treasury (cash mode).
+
+    Credit: DR 4100 إيرادات اللبن / CR 1300 ذمم العملاء
+    Cash:   DR 4100 إيرادات اللبن / CR treasury_leaf
+
+    The credit-side line is tagged with the customer so the party ledger
+    shows the reversal next to the original sale.
+
+    Skipped for archived returns; caller deletes the JE via the archive
+    route by calling this after flipping is_archived=True (idempotent
+    prior-JE cleanup means it just removes the JE and posts nothing).
+    """
+    _delete_prior_je("SalesReturn", ret.id)
+    if ret.is_archived:
+        return None
+
+    amount = _d(ret.amount)
+    if amount <= 0:
+        return None
+
+    revenue = _code(CODE_MILK_REVENUE)
+
+    dr_line = {
+        "account_id": revenue.id, "debit": amount,
+        "memo": f"مرتجع #{ret.id} — {ret.reason or ''}",
+    }
+    if ret.mode == "cash":
+        if ret.treasury_account is None:
+            raise LedgerError(
+                "المرتجع النقدي محتاج حساب خزنة/بنك — اختر واحد من الإعدادات."
+            )
+        treasury = _treasury_leaf(ret.treasury_account)
+        cr_line = {"account_id": treasury.id, "credit": amount,
+                   "memo": f"مرتجع نقدي — {ret.customer.name}"}
+    else:
+        receivable = _code(CODE_TRADE_RECEIVABLE)
+        cr_line = {
+            "account_id": receivable.id, "credit": amount,
+            "party_type": "customer", "party_id": ret.customer_id,
+            "memo": f"مرتجع #{ret.id} — {ret.customer.name}",
+        }
+
+    return post_journal(
+        description=f"مرتجع مبيعات — {ret.customer.name} ({ret.mode_label})",
+        lines=[dr_line, cr_line],
+        entry_date=ret.return_date,
+        source_type="SalesReturn",
+        source_id=ret.id,
+        created_by=created_by,
+    )
+
+
+def on_purchase_return(ret, *, created_by=None):
+    """A return TO a supplier. Reduces inventory; releases either the
+    payable (credit mode) or receives cash back (cash mode).
+
+    Credit: DR 2100 ذمم الموردين / CR inventory (by category)
+    Cash:   DR treasury_leaf     / CR inventory (by category)
+
+    If the return is tied to a purchase invoice, credit follows that
+    invoice's inventory-code split (feed / medicine / raw); otherwise
+    everything goes to generic raw stock (1200).
+    """
+    _delete_prior_je("PurchaseReturn", ret.id)
+    if ret.is_archived:
+        return None
+
+    amount = _d(ret.amount)
+    if amount <= 0:
+        return None
+
+    # Inventory credit split — mirror the linked invoice's shape if any.
+    inv_split: dict[str, Decimal] = {}
+    if ret.invoice and ret.invoice.lines:
+        total_lines = sum(
+            (_d(l.line_total) for l in ret.invoice.lines), Decimal("0")
+        )
+        if total_lines > 0:
+            for line in ret.invoice.lines:
+                code = INVENTORY_CODE_BY_CATEGORY.get(
+                    (line.ingredient.category or "").split(":", 1)[0]
+                    if line.ingredient else "",
+                    INVENTORY_DEFAULT_CODE,
+                )
+                share = (_d(line.line_total) / total_lines) * amount
+                inv_split[code] = inv_split.get(code, Decimal("0")) + share
+
+    if not inv_split:
+        inv_split[INVENTORY_DEFAULT_CODE] = amount
+
+    # rounding residual: any diff goes to the default bucket
+    posted = sum(inv_split.values(), Decimal("0"))
+    diff = amount - posted
+    if abs(diff) > Decimal("0.005"):
+        inv_split[INVENTORY_DEFAULT_CODE] = (
+            inv_split.get(INVENTORY_DEFAULT_CODE, Decimal("0")) + diff
+        )
+
+    credit_lines = [
+        {"account_id": _code(code).id, "credit": amt,
+         "memo": f"إخراج مرتجع #{ret.id}"}
+        for code, amt in inv_split.items() if amt != 0
+    ]
+
+    if ret.mode == "cash":
+        if ret.treasury_account is None:
+            raise LedgerError(
+                "المرتجع النقدي محتاج حساب خزنة/بنك."
+            )
+        treasury = _treasury_leaf(ret.treasury_account)
+        dr_line = {"account_id": treasury.id, "debit": amount,
+                   "memo": f"مرتجع نقدي من {ret.supplier.name}"}
+    else:
+        payable = _code(CODE_TRADE_PAYABLE)
+        dr_line = {
+            "account_id": payable.id, "debit": amount,
+            "party_type": "supplier", "party_id": ret.supplier_id,
+            "memo": f"مرتجع #{ret.id} — {ret.supplier.name}",
+        }
+
+    return post_journal(
+        description=f"مرتجع مشتريات — {ret.supplier.name} ({ret.mode_label})",
+        lines=[dr_line, *credit_lines],
+        entry_date=ret.return_date,
+        source_type="PurchaseReturn",
+        source_id=ret.id,
+        created_by=created_by,
+    )

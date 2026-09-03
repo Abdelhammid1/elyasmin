@@ -111,6 +111,16 @@ def supplier_detail(supplier_id: int):
     from app.services.allocations import open_supplier_invoices_for
     open_invoices = open_supplier_invoices_for(supplier.id)
 
+    # PHASE 5: recent purchase returns for this supplier
+    from app.models.suppliers import PurchaseReturn
+    supplier_returns = (
+        PurchaseReturn.query
+        .filter_by(supplier_id=supplier.id)
+        .order_by(PurchaseReturn.return_date.desc(), PurchaseReturn.id.desc())
+        .limit(20)
+        .all()
+    )
+
     return render_template(
         "suppliers/detail.html",
         supplier=supplier,
@@ -120,6 +130,7 @@ def supplier_detail(supplier_id: int):
         linked_deliveries=linked_deliveries,
         linked_customer_payments=linked_customer_payments,
         open_invoices=open_invoices,
+        supplier_returns=supplier_returns,
     )
 
 

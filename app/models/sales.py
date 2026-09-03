@@ -32,6 +32,8 @@ class Customer(db.Model):
     deliveries = db.relationship("MilkDelivery", back_populates="customer", lazy="dynamic")
     payments = db.relationship("CustomerPayment", back_populates="customer", lazy="dynamic")
     linked_supplier = db.relationship("Supplier", foreign_keys=[linked_supplier_id])
+    # PHASE 5: sales returns (credit notes) issued to this customer come
+    # from the backref on SalesReturn.customer, exposed as `customer.returns`.
 
     @property
     def contract_label(self) -> str:
@@ -411,6 +413,7 @@ class SalesReturn(db.Model):
     invoice = db.relationship("MilkInvoice",
         backref=db.backref("returns", lazy="dynamic"))
     treasury_account = db.relationship("Account")
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
 
     @property
     def mode_label(self) -> str:

@@ -365,6 +365,7 @@ class PurchaseReturn(db.Model):
     invoice = db.relationship("PurchaseInvoice",
         backref=db.backref("returns", lazy="dynamic"))
     treasury_account = db.relationship("Account")
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
 
     @property
     def mode_label(self) -> str:

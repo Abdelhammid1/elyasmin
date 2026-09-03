@@ -9,6 +9,7 @@
   <div class="d-flex gap-2">
     <a href="{{ url_for('accounting.party_ledger', party_type='supplier', party_id=supplier.id) }}" class="btn btn-outline-secondary"><i class="bi bi-journal-text"></i> كشف حساب محاسبي</a>
     <a href="{{ url_for('suppliers.edit_supplier', supplier_id=supplier.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+    <a href="{{ url_for('returns.purchases_new', supplier_id=supplier.id) }}" class="btn btn-outline-warning"><i class="bi bi-arrow-return-left"></i> مرتجع</a>
     <a href="{{ url_for('purchases.create_invoice', supplier_id=supplier.id) }}" class="btn btn-primary"><i class="bi bi-receipt"></i> فاتورة شراء جديدة</a>
   </div>
 </div>
@@ -162,6 +163,27 @@
       </table>
       {% else %}<p class="text-muted mb-0">مفيش دفعات بعد.</p>{% endif %}
     </div>
+
+    {# PHASE 5: purchase returns for this supplier #}
+    {% if supplier_returns %}
+    <div class="card p-3 mt-3">
+      <h5 class="mb-3"><i class="bi bi-arrow-return-left text-warning"></i> المرتجعات</h5>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>#</th><th>التاريخ</th><th>المبلغ</th><th>النوع</th><th>السبب</th></tr></thead>
+        <tbody>
+          {% for r in supplier_returns %}
+          <tr>
+            <td><a href="{{ url_for('returns.purchases_detail', ret_id=r.id) }}">#{{ r.id }}</a></td>
+            <td dir="ltr">{{ r.return_date }}</td>
+            <td dir="ltr" class="fw-bold text-warning">{{ r.amount }}</td>
+            <td><span class="badge {% if r.mode == 'cash' %}badge-info{% else %}badge-brand{% endif %}">{{ r.mode_label }}</span></td>
+            <td class="small text-muted">{{ r.reason or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
   </div>
 
   <div class="col-lg-5">
