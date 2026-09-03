@@ -609,6 +609,13 @@ def create_feeding(group_id=None):
         session.additions_cost = additions_cost.quantize(Decimal("0.01"))
         session.total_cost = (feed_cost + additions_cost).quantize(Decimal("0.01"))
 
+        # ACCOUNTING P2: post the feeding as feed-cost against the herd group.
+        # This is what turns "تكلفة كيلو اللبن" from an 80/20 shadow calc into
+        # a real ledger query — every meal is DR 5100 (تكلفة الأعلاف) tagged
+        # with the group being fed, CR the raw-material accounts.
+        from app.services import autoposting
+        autoposting.on_feeding_session(session, created_by=current_user.id)
+
         log_action(
             "feeding_recorded", "FeedingSession", session.id,
             details=f"group={group.id} meal={session.meal} feed={feed_qty} "

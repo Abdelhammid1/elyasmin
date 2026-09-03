@@ -129,6 +129,70 @@ def on_customer_payment(payment, treasury_account, *, created_by=None):
     )
 
 
+def on_feeding_session(session, *, created_by=None):
+    """A feeding session was recorded. Records the feed cost + additions
+    against the group being fed — the ledger-native answer to "what did
+    this group cost to feed?".
+
+    DR تكلفة الأعلاف   (5100)      total_cost          [tagged: session.group_id]
+    CR مخزون العلف     (1210)      feed_cost
+    CR مخزون المواد الخام (1200)   additions_cost      (if any)
+
+    Additions are booked against the generic raw-materials account
+    because they cover several buckets (silage, hay, straw) that don't
+    have their own COA leaf yet. That's fine — later phases can split
+    inventory by ingredient category if needed.
+
+    Idempotent by session id — an existing JE for this session is
+    deleted before the fresh one is posted, so an edit-and-recompute
+    stays a clean swap.
+    """
+    from app.models.accounting import JournalEntry
+    from app.models.feed import FeedingSession
+    prior = JournalEntry.query.filter_by(
+        source_type="FeedingSession", source_id=session.id
+    ).all()
+    for je in prior:
+        db.session.delete(je)
+
+    total = _d(session.total_cost)
+    if total <= 0:
+        return None
+
+    feed_cost = _d(session.feed_cost)
+    additions_cost = _d(session.additions_cost)
+
+    feed_expense = _code(EXPENSE_CODE_BY_CATEGORY[Expense.CAT_FEED_PURCHASE])
+    feed_inventory = _code(INVENTORY_CODE_BY_CATEGORY["feed"])
+    raw_inventory = _code(INVENTORY_DEFAULT_CODE)
+
+    lines = [
+        # single expense line, tagged with the herd group
+        {"account_id": feed_expense.id, "debit": total,
+         "cost_center_id": session.group_id,
+         "memo": f"وجبة {session.meal} — {session.group.name}"},
+    ]
+    if feed_cost > 0:
+        lines.append({
+            "account_id": feed_inventory.id, "credit": feed_cost,
+            "memo": "من خزان الوصفة",
+        })
+    if additions_cost > 0:
+        lines.append({
+            "account_id": raw_inventory.id, "credit": additions_cost,
+            "memo": "إضافات من المخزن العام",
+        })
+
+    return post_journal(
+        description=f"تغذية — {session.group.name} ({session.meal})",
+        lines=lines,
+        entry_date=session.session_date,
+        source_type="FeedingSession",
+        source_id=session.id,
+        created_by=created_by,
+    )
+
+
 def on_milk_delivery_priced(delivery, *, created_by=None):
     """A milk delivery gained (or had recomputed) its net value. Records the
     sale on the ledger.
