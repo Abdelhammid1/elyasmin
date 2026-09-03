@@ -33,8 +33,9 @@ from app.services.ledger import LedgerError, post_journal
 
 # Deliberately kept as module-level constants so P8c can flip them
 # alongside the autoposting ones with a single find/replace.
-CODE_CHECKS_RECEIVABLE = "1130"    # شيكات تحت التحصيل
-CODE_CHECKS_PAYABLE    = "2110"    # شيكات تحت الدفع
+# PHASE 8c — codes match Ibrahim's spec: 1030/2020.
+CODE_CHECKS_RECEIVABLE = "1030"    # شيكات تحت التحصيل
+CODE_CHECKS_PAYABLE    = "2020"    # شيكات تحت الدفع
 
 
 def _d(v) -> Decimal:

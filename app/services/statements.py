@@ -156,18 +156,22 @@ def _classify_cashflow(other_account: LedgerAccount) -> str:
     """The category a cash-touching line falls into, decided by the OTHER
     side of the entry. Direct-method categorisation.
 
-    - INVESTING: assets under 1500 (fixed assets) — buying/selling equipment
+    - INVESTING: assets under 1300 (fixed assets) — buying/selling equipment
     - FINANCING: equity or long-term liabilities — capital injections, loans
     - OPERATING: everything else touching a treasury account — day-to-day
       running of the farm, which is most of it.
     """
+    # PHASE 8c — codes renumbered to Ibrahim's spec.
     code = other_account.code or ""
-    if code.startswith("1500") or code.startswith("1510"):
+    if code.startswith("13"):
+        # Fixed assets (1300 header, 1310 equipment, 1320 accum. dep.)
         return "investing"
     if other_account.type == AccountType.EQUITY:
         return "financing"
-    if other_account.type == AccountType.LIABILITY and code.startswith("29"):
-        return "financing"   # long-term liabilities live under 2900+ in this chart
+    if other_account.type == AccountType.LIABILITY and (
+        code.startswith("2040") or code.startswith("209")
+    ):
+        return "financing"   # loans + other long-term liabilities
     return "operating"
 
 

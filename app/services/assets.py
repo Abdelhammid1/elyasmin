@@ -26,11 +26,12 @@ from app.services.autoposting import (
 )
 from app.services.ledger import LedgerError, post_journal
 
-CODE_FIXED_ASSETS       = "1510"   # معدات وآلات
-CODE_ACCUM_DEPRECIATION = "1520"   # مجمع إهلاك المعدات
-CODE_DEPRECIATION_EXP   = "5600"   # مصروف الإهلاك
-CODE_OTHER_REVENUE      = "4900"   # إيرادات أخرى (used for gain-on-sale)
-CODE_MISC_EXPENSE       = "5900"   # مصروفات متنوعة (used for loss-on-disposal)
+# PHASE 8c — codes match Ibrahim's spec.
+CODE_FIXED_ASSETS       = "1310"   # معدات وآلات
+CODE_ACCUM_DEPRECIATION = "1320"   # مجمع إهلاك المعدات
+CODE_DEPRECIATION_EXP   = "5070"   # مصروف الإهلاك
+CODE_OTHER_REVENUE      = "4090"   # إيرادات أخرى (used for gain-on-sale)
+CODE_MISC_EXPENSE       = "5080"   # مصروفات متنوعة (used for loss-on-disposal)
 
 
 def _d(v) -> Decimal:

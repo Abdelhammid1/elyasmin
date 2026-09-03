@@ -23,27 +23,28 @@ from app.services.ledger import get_account_by_code, post_journal, LedgerError
 # The COA codes every event routes to. Keeping them in one place means the
 # chart can be renumbered by editing DEFAULT_COA + this constant, not every
 # route.
-CODE_TRADE_PAYABLE   = "2100"    # ذمم الموردين — owed to suppliers
-CODE_TRADE_RECEIVABLE = "1300"   # ذمم العملاء  — owed by customers
-CODE_MILK_REVENUE    = "4100"
-CODE_LIVESTOCK_REV   = "4200"
-CODE_WAGES_PAYABLE   = "2200"
-CODE_LABOUR_EXPENSE  = "5200"
-CODE_OPENING_EQUITY  = "3900"    # equity offset for backfilled openings
-CODE_MEDICINE_INVENTORY = "1220" # مخزون الأدوية
-CODE_MEDICINE_EXPENSE   = "5400" # أدوية بيطرية
+# PHASE 8c — codes match Ibrahim's spec: 1010/2010/4010/5010 numbering.
+CODE_TRADE_PAYABLE   = "2010"    # ذمم الموردين — owed to suppliers
+CODE_TRADE_RECEIVABLE = "1100"   # ذمم العملاء  — owed by customers
+CODE_MILK_REVENUE    = "4010"
+CODE_LIVESTOCK_REV   = "4020"
+CODE_WAGES_PAYABLE   = "2030"
+CODE_LABOUR_EXPENSE  = "5030"
+CODE_OPENING_EQUITY  = "3090"    # equity offset for backfilled openings
+CODE_MEDICINE_INVENTORY = "1220" # مخزون الأدوية (matched spec already)
+CODE_MEDICINE_EXPENSE   = "5020" # أدوية بيطرية
 
 # Expense-category → COA-code mapping, one place instead of a switch spread
 # across every autoposting callsite.
 EXPENSE_CODE_BY_CATEGORY = {
-    Expense.CAT_ELECTRICITY:      "5300",
-    Expense.CAT_MAINTENANCE:      "5310",
-    Expense.CAT_RENT:             "5320",
-    Expense.CAT_FEED_PURCHASE:    "5100",
-    Expense.CAT_MEDICINE_PURCHASE: "5400",
+    Expense.CAT_ELECTRICITY:      "5040",
+    Expense.CAT_MAINTENANCE:      "5050",
+    Expense.CAT_RENT:             "5060",
+    Expense.CAT_FEED_PURCHASE:    "5010",
+    Expense.CAT_MEDICINE_PURCHASE: "5020",
     Expense.CAT_SUPPLIER_PAYMENT: None,   # mirror of a payment — no JE here
     Expense.CAT_WORKER_WAGE:      None,   # mirror of a payment — no JE here
-    Expense.CAT_OTHER:            "5900",
+    Expense.CAT_OTHER:            "5080",
 }
 
 # The COA code for a raw-material inventory account, by ingredient category.

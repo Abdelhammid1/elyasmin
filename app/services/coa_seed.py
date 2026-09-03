@@ -16,61 +16,59 @@ from app.models.accounting import (
 )
 
 
+# PHASE 8c — codes match Ibrahim's spec throughout.
 # (code, name_ar, name_en, type, is_postable, parent_code)
 DEFAULT_COA = [
     # ---- ASSETS ----
     ("1",    "الأصول",                    "Assets",              AccountType.ASSET,     False, None),
-    ("1100", "الأصول المتداولة",           "Current Assets",      AccountType.ASSET,     False, "1"),
-    ("1110", "خزينة نقدية",                "Cash on Hand",        AccountType.ASSET,     True,  "1100"),
-    ("1120", "حسابات بنكية",              "Bank Accounts",       AccountType.ASSET,     True,  "1100"),
-    ("1200", "مخزون المواد الخام",         "Raw Materials",       AccountType.ASSET,     True,  "1100"),
-    ("1210", "مخزون العلف",                "Feed Inventory",      AccountType.ASSET,     True,  "1100"),
-    ("1220", "مخزون الأدوية",              "Medicine Inventory",  AccountType.ASSET,     True,  "1100"),
-    ("1300", "ذمم العملاء",                "Trade Receivables",   AccountType.ASSET,     True,  "1100"),
-    ("1400", "حيوانات المزرعة",            "Livestock",           AccountType.ASSET,     True,  "1100"),
-    ("1500", "الأصول الثابتة",             "Fixed Assets",        AccountType.ASSET,     False, "1"),
-    ("1510", "معدات وآلات",                "Equipment",           AccountType.ASSET,     True,  "1500"),
+    ("1000", "الأصول المتداولة",           "Current Assets",      AccountType.ASSET,     False, "1"),
+    ("1010", "خزينة نقدية",                "Cash on Hand",        AccountType.ASSET,     True,  "1000"),
+    ("1020", "حسابات بنكية",              "Bank Accounts",       AccountType.ASSET,     True,  "1000"),
+    ("1030", "شيكات تحت التحصيل",           "Checks Receivable",   AccountType.ASSET,     True,  "1000"),
+    ("1100", "ذمم العملاء",                "Trade Receivables",   AccountType.ASSET,     True,  "1000"),
+    ("1200", "مخزون المواد الخام",         "Raw Materials",       AccountType.ASSET,     True,  "1000"),
+    ("1210", "مخزون العلف",                "Feed Inventory",      AccountType.ASSET,     True,  "1000"),
+    ("1220", "مخزون الأدوية",              "Medicine Inventory",  AccountType.ASSET,     True,  "1000"),
+    ("1400", "حيوانات المزرعة",            "Livestock",           AccountType.ASSET,     True,  "1000"),
+    ("1300", "الأصول الثابتة",             "Fixed Assets",        AccountType.ASSET,     False, "1"),
+    ("1310", "معدات وآلات",                "Equipment",           AccountType.ASSET,     True,  "1300"),
+    # 1320 is a contra-asset (accumulated depreciation) — sits under
+    # 1300 fixed assets. Display reads sum(DR - CR) so no explicit
+    # normal_side flip is needed at the storage layer.
+    ("1320", "مجمع إهلاك المعدات",           "Accum. Depreciation", AccountType.ASSET,     True,  "1300"),
 
     # ---- LIABILITIES ----
     ("2",    "الخصوم",                     "Liabilities",         AccountType.LIABILITY, False, None),
-    ("2100", "ذمم الموردين",                "Trade Payables",      AccountType.LIABILITY, True,  "2"),
-    ("2200", "رواتب مستحقة",                "Wages Payable",       AccountType.LIABILITY, True,  "2"),
-    ("2900", "خصوم أخرى",                   "Other Liabilities",   AccountType.LIABILITY, True,  "2"),
+    ("2010", "ذمم الموردين",                "Trade Payables",      AccountType.LIABILITY, True,  "2"),
+    ("2020", "شيكات تحت الدفع",              "Checks Payable",      AccountType.LIABILITY, True,  "2"),
+    ("2030", "رواتب مستحقة",                "Wages Payable",       AccountType.LIABILITY, True,  "2"),
+    ("2040", "قروض",                        "Loans",               AccountType.LIABILITY, True,  "2"),
+    ("2090", "خصوم أخرى",                   "Other Liabilities",   AccountType.LIABILITY, True,  "2"),
 
     # ---- EQUITY ----
     ("3",    "حقوق الملكية",                "Equity",              AccountType.EQUITY,    False, None),
-    ("3100", "رأس المال",                   "Owner's Capital",     AccountType.EQUITY,    True,  "3"),
-    ("3200", "الأرباح المحتجزة",            "Retained Earnings",   AccountType.EQUITY,    True,  "3"),
-    ("3900", "أرصدة افتتاحية",              "Opening Balances",    AccountType.EQUITY,    True,  "3"),
+    ("3010", "رأس المال",                   "Owner's Capital",     AccountType.EQUITY,    True,  "3"),
+    ("3020", "الأرباح المحتجزة",            "Retained Earnings",   AccountType.EQUITY,    True,  "3"),
+    ("3030", "مسحوبات صاحب العمل",           "Owner Draws",         AccountType.EQUITY,    True,  "3"),
+    ("3090", "أرصدة افتتاحية",              "Opening Balances",    AccountType.EQUITY,    True,  "3"),
 
     # ---- REVENUE ----
     ("4",    "الإيرادات",                   "Revenue",             AccountType.REVENUE,   False, None),
-    ("4100", "إيرادات اللبن",               "Milk Revenue",        AccountType.REVENUE,   True,  "4"),
-    ("4200", "إيرادات بيع الحيوانات",       "Livestock Sales",     AccountType.REVENUE,   True,  "4"),
-    ("4900", "إيرادات أخرى",                "Other Revenue",       AccountType.REVENUE,   True,  "4"),
+    ("4010", "إيرادات اللبن",               "Milk Revenue",        AccountType.REVENUE,   True,  "4"),
+    ("4020", "إيرادات بيع الحيوانات",       "Livestock Sales",     AccountType.REVENUE,   True,  "4"),
+    ("4090", "إيرادات أخرى",                "Other Revenue",       AccountType.REVENUE,   True,  "4"),
 
     # ---- EXPENSES ----
     ("5",    "المصروفات",                   "Expenses",            AccountType.EXPENSE,   False, None),
-    ("5100", "تكلفة الأعلاف",               "Feed Cost",           AccountType.EXPENSE,   True,  "5"),
-    ("5200", "أجور العمالة",                "Labour Wages",        AccountType.EXPENSE,   True,  "5"),
-    ("5300", "كهرباء ومياه",                "Utilities",           AccountType.EXPENSE,   True,  "5"),
-    ("5310", "صيانة",                       "Maintenance",         AccountType.EXPENSE,   True,  "5"),
-    ("5320", "إيجار",                       "Rent",                AccountType.EXPENSE,   True,  "5"),
-    ("5400", "أدوية بيطرية",                "Veterinary",          AccountType.EXPENSE,   True,  "5"),
-    ("5500", "نقل ومصاريف تشغيلية",         "Transport & Ops",     AccountType.EXPENSE,   True,  "5"),
-    ("5900", "مصروفات متنوعة",              "Miscellaneous",       AccountType.EXPENSE,   True,  "5"),
-    # PHASE 8a — checks in transit. Numbering here fits the current
-    # scheme; phase 8c renumbers everything to Ibrahim's 1030/2020.
-    ("1130", "شيكات تحت التحصيل",           "Checks Receivable",   AccountType.ASSET,     True,  "1100"),
-    ("2110", "شيكات تحت الدفع",              "Checks Payable",      AccountType.LIABILITY, True,  "2"),
-    # PHASE 8b — fixed assets + depreciation. 1520 is a contra-asset
-    # (accumulated depreciation) — sits under 1500 but has a CREDIT
-    # normal side; the seeder handles that via the NORMAL_SIDE_FOR_TYPE
-    # map (ASSET → DEBIT), so we override manually after seeding is done
-    # if needed. In practice the display just reads sum(DR - CR) so no
-    # override is required.
-    ("1520", "مجمع إهلاك المعدات",           "Accum. Depreciation", AccountType.ASSET,     True,  "1500"),
-    ("5600", "مصروف الإهلاك",                "Depreciation Expense",AccountType.EXPENSE,   True,  "5"),
+    ("5010", "تكلفة الأعلاف",               "Feed Cost",           AccountType.EXPENSE,   True,  "5"),
+    ("5020", "أدوية بيطرية",                "Veterinary",          AccountType.EXPENSE,   True,  "5"),
+    ("5030", "أجور العمالة",                "Labour Wages",        AccountType.EXPENSE,   True,  "5"),
+    ("5040", "كهرباء ومياه",                "Utilities",           AccountType.EXPENSE,   True,  "5"),
+    ("5050", "صيانة",                       "Maintenance",         AccountType.EXPENSE,   True,  "5"),
+    ("5060", "إيجار",                       "Rent",                AccountType.EXPENSE,   True,  "5"),
+    ("5070", "مصروف الإهلاك",                "Depreciation Expense",AccountType.EXPENSE,   True,  "5"),
+    ("5075", "نقل ومصاريف تشغيلية",         "Transport & Ops",     AccountType.EXPENSE,   True,  "5"),
+    ("5080", "مصروفات متنوعة",              "Miscellaneous",       AccountType.EXPENSE,   True,  "5"),
 ]
 
 
@@ -111,7 +109,7 @@ def ensure_check_accounts() -> None:
 def wire_treasury_accounts(coa: Optional[dict] = None) -> int:
     """Attach every treasury row (app.models.finance.TreasuryAccount) to a COA leaf.
 
-    Cash accounts fall under 1110, bank accounts fall under 1120. If a treasury
+    Cash accounts fall under 1010, bank accounts fall under 1020. If a treasury
     row has no COA link yet, create a per-account leaf named after it and hang
     it under the right parent. Returns the number of new leaves created."""
     from app.models.finance import TreasuryAccount
@@ -119,7 +117,7 @@ def wire_treasury_accounts(coa: Optional[dict] = None) -> int:
     if coa is None:
         coa = {a.code: a for a in LedgerAccount.query.all()}
 
-    parent_by_kind = {"cash": coa.get("1110"), "bank": coa.get("1120")}
+    parent_by_kind = {"cash": coa.get("1010"), "bank": coa.get("1020")}
     created = 0
 
     for treasury in TreasuryAccount.query.filter_by(is_archived=False).all():
