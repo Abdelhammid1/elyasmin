@@ -111,6 +111,12 @@ a:hover { color: var(--brand); text-decoration: underline; }
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  /* PHASE 16 FIX: keep the content column from ever pushing past the viewport
+     if a rogue wide element sneaks in (a big table, a fixed-width diagram).
+     The `min-width: 0` is required inside a flex container to let child grids
+     collapse below their intrinsic width. */
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ---- Sticky top bar ---- */
@@ -516,15 +522,81 @@ table th[dir="ltr"] {
 .invoice-footer-row.outstanding.due .amount { color: var(--ms-danger); }
 .invoice-footer-row.outstanding.settled .amount { color: var(--ms-success); }
 
-/* ============ PRINT ============ */
+/* ============ PRINT ============
+   PHASE 16 FIX: was minimal — hid the chrome but printed the on-screen
+   layout as-is. Redone so browser-print (Ctrl+P) and the server-side PDF
+   route both produce a proper invoice document: A4, tight margins,
+   preserved backgrounds, forced page breaks between the header/items/
+   totals blocks. */
+@page {
+  size: A4;
+  margin: 12mm 10mm;
+}
 @media print {
+  /* Kill every navigation, action, and helper the user shouldn't see. */
   .app-sidebar, .app-topbar, .btn, .alert-dismissible .btn-close, form,
   .contextual-help-btn, .assistant-fab, .assistant-panel, .no-print,
-  .site-footer { display: none !important; }
-  body { background: #fff; color: #000; }
-  .app-main { margin-inline-start: 0 !important; }
+  .site-footer, nav, .breadcrumb { display: none !important; }
+
+  /* White background, black ink; force colors through so KPI/tint chips
+     survive (Chrome + Playwright both honour this). */
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .app-main { margin-inline-start: 0 !important; overflow: visible !important; }
   .app-content { padding: 0 !important; }
-  .card { border: 1px solid #999 !important; box-shadow: none; }
-  .page-header { border-bottom: 2px solid #333; }
+
+  /* Cards and page-header get low-key, ink-friendly styling in print. */
+  .card {
+    border: 1px solid #333 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .page-header {
+    border-bottom: 2px solid #000 !important;
+    margin-bottom: 8mm !important;
+    padding-bottom: 3mm !important;
+  }
+  .page-header h1 { font-size: 18pt !important; }
   a { color: #000 !important; text-decoration: none !important; }
+
+  /* Tables: keep header stripe, keep row borders, allow rows to break. */
+  .table thead { background: #eaeaea !important; color: #000 !important; }
+  .table thead th { color: #000 !important; font-size: 9pt !important; }
+  .table td, .table th {
+    border-color: #ccc !important;
+    color: #000 !important;
+    font-size: 9pt !important;
+  }
+
+  /* Force each invoice section to start together — the header, items,
+     totals, bank strip. Keeps the document from splitting a totals block
+     across two pages. */
+  .invoice-header, .invoice-items, .invoice-totals, .invoice-bank,
+  .invoice-payments {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Signature block reserved at the bottom of every invoice print. */
+  .print-signature {
+    display: flex !important;
+    justify-content: space-between;
+    margin-top: 16mm;
+    padding-top: 6mm;
+    border-top: 1px dashed #666;
+    font-size: 10pt;
+  }
+  .print-signature .sig-block {
+    width: 40%;
+    text-align: center;
+    padding-top: 12mm;
+    border-top: 1px solid #000;
+  }
 }
+.print-signature { display: none; }   /* only visible in print */

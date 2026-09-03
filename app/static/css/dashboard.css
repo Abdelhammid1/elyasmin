@@ -93,7 +93,11 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
-@media (max-width: 1200px) { #dash-root .kpis { grid-template-columns: repeat(2, 1fr); } }
+/* PHASE 16 FIX: breakpoints raised so the grid collapses BEFORE the fixed
+   sidebar (264px) plus 56px content padding eats the viewport. Otherwise on
+   a 1366-wide laptop the 4-col KPI grid sat at ~1394px and pushed the whole
+   dashboard past the right edge, forcing a horizontal scroll. */
+@media (max-width: 1500px) { #dash-root .kpis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px)  { #dash-root .kpis { grid-template-columns: 1fr; } }
 
 #dash-root .kpi {
@@ -232,7 +236,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
-@media (max-width: 920px) { #dash-root .action-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1200px) { #dash-root .action-grid { grid-template-columns: 1fr; } }
 
 #dash-root .d-panel {
   background: var(--ms-surface);
@@ -366,7 +370,7 @@
   grid-template-columns: 1.5fr 1fr;
   gap: 14px;
 }
-@media (max-width: 920px) { #dash-root .lower-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1200px) { #dash-root .lower-grid { grid-template-columns: 1fr; } }
 
 #dash-root .d-card {
   background: var(--ms-surface);
@@ -489,7 +493,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
-@media (max-width: 1200px) { #dash-root .team-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1500px) { #dash-root .team-grid { grid-template-columns: 1fr; } }
 #dash-root .tcard {
   background: var(--ms-surface);
   border: 1px solid var(--ms-line);

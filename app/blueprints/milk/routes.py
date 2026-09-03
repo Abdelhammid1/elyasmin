@@ -695,6 +695,19 @@ def invoice_excel(invoice_id: int):
     )
 
 
+# PHASE 16: server-side PDF, mirrors purchases.invoice_pdf.
+@bp.route("/invoices/<int:invoice_id>/pdf")
+@login_required
+def invoice_pdf(invoice_id: int):
+    from app.utils.reports import pdf_from_current_page
+    invoice = db.session.get(MilkInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        return render_template("errors/404.html"), 404
+    target = url_for("milk.view_invoice",
+                     invoice_id=invoice.id, _external=True)
+    return pdf_from_current_page(target, f"milk_invoice_{invoice.id}.pdf")
+
+
 @bp.route("/invoices/<int:invoice_id>/issue", methods=["POST"])
 @login_required
 def issue_invoice(invoice_id: int):

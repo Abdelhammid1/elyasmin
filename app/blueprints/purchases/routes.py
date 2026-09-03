@@ -442,6 +442,23 @@ def invoice_excel(invoice_id: int):
     )
 
 
+# PHASE 16: server-side PDF via headless Chromium — same pattern as
+# customers.customers_report_pdf. The route re-fetches its own HTML page
+# under an authenticated session and prints it to A4 with the print CSS.
+@bp.route("/<int:invoice_id>/pdf")
+@login_required
+def invoice_pdf(invoice_id: int):
+    from app.utils.reports import pdf_from_current_page
+    invoice = db.session.get(PurchaseInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        abort(404)
+    target = url_for("purchases.view_invoice",
+                     invoice_id=invoice.id, _external=True)
+    return pdf_from_current_page(
+        target, f"purchase_invoice_{invoice.id}.pdf",
+    )
+
+
 @bp.route("/<int:invoice_id>/pay", methods=["POST"])
 @login_required
 def pay_invoice(invoice_id: int):

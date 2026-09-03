@@ -13,6 +13,11 @@
     <i class="bi bi-printer"></i> طباعة / PDF
   </button>
 
+  <a href="{{ url_for('purchases.invoice_pdf', invoice_id=invoice.id) }}"
+     class="btn btn-outline-danger btn-sm">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
+  </a>
+
   <a href="{{ url_for('purchases.invoice_excel', invoice_id=invoice.id) }}"
      class="btn btn-outline-success btn-sm">
     <i class="bi bi-file-earmark-excel"></i> Excel
@@ -331,5 +336,13 @@
   </div>
 </div>
 {% endif %}
+
+{# PHASE 16: signature block that only appears in print/PDF, so the printed
+   invoice ends with a proper "المورد / الاستلام" signature line. Hidden
+   on-screen by the .print-signature { display:none } fallback in app.css. #}
+<div class="print-signature">
+  <div class="sig-block">توقيع المستلم</div>
+  <div class="sig-block">توقيع المورد</div>
+</div>
 
 {% endblock %}

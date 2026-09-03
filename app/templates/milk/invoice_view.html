@@ -9,6 +9,10 @@
   <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
     <i class="bi bi-printer"></i> طباعة / PDF
   </button>
+  <a href="{{ url_for('milk.invoice_pdf', invoice_id=invoice.id) }}"
+     class="btn btn-outline-danger btn-sm">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
+  </a>
   <a href="{{ url_for('milk.invoice_excel', invoice_id=invoice.id) }}"
      class="btn btn-outline-success btn-sm">
     <i class="bi bi-file-earmark-excel"></i> Excel
@@ -299,4 +303,10 @@
   .print-only { display: block !important; }
 }
 </style>
+
+{# PHASE 16: signature block for the printed / PDF invoice. #}
+<div class="print-signature">
+  <div class="sig-block">توقيع المستلم</div>
+  <div class="sig-block">توقيع البائع</div>
+</div>
 {% endblock %}
