@@ -63,6 +63,14 @@ DEFAULT_COA = [
     # scheme; phase 8c renumbers everything to Ibrahim's 1030/2020.
     ("1130", "شيكات تحت التحصيل",           "Checks Receivable",   AccountType.ASSET,     True,  "1100"),
     ("2110", "شيكات تحت الدفع",              "Checks Payable",      AccountType.LIABILITY, True,  "2"),
+    # PHASE 8b — fixed assets + depreciation. 1520 is a contra-asset
+    # (accumulated depreciation) — sits under 1500 but has a CREDIT
+    # normal side; the seeder handles that via the NORMAL_SIDE_FOR_TYPE
+    # map (ASSET → DEBIT), so we override manually after seeding is done
+    # if needed. In practice the display just reads sum(DR - CR) so no
+    # override is required.
+    ("1520", "مجمع إهلاك المعدات",           "Accum. Depreciation", AccountType.ASSET,     True,  "1500"),
+    ("5600", "مصروف الإهلاك",                "Depreciation Expense",AccountType.EXPENSE,   True,  "5"),
 ]
 
 

@@ -30,6 +30,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.models import labor as _labor_models  # noqa: F401
     from app.models import accounting as _acct_models  # noqa: F401
     from app.models import checks as _checks_models  # noqa: F401
+    from app.models import assets as _assets_models  # noqa: F401
 
     from app.models.auth import User
 
