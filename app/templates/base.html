@@ -101,6 +101,8 @@
          href="{{ url_for('suppliers.dues') }}"><i class="bi bi-alarm"></i> مستحقات الموردين</a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('returns.purchases') %}active{% endif %}"
          href="{{ url_for('returns.purchases_list') }}"><i class="bi bi-file-earmark-plus"></i> مرتجعات المشتريات</a>
+      <a class="sidebar-item {% if request.endpoint == 'inventory.valuation' %}active{% endif %}"
+         href="{{ url_for('inventory.valuation') }}"><i class="bi bi-clipboard-check"></i> تسوية المخزون</a>
 
       <div class="sidebar-section-title">المالية</div>
       <a class="sidebar-item {% if request.endpoint == 'finance.milk_cost' %}active{% endif %}"

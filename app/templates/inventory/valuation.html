@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}تسوية المخزون{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clipboard-check"></i> تسوية المخزون</h1>
+    <p class="text-muted mb-0">
+      مقارنة قيمة المخزون التشغيلي (الكمية × متوسط التكلفة) مع مجموع
+      قيم الحركات من الدفتر. الفرق لازم يكون صفر — أي رقم غير الصفر
+      بيستحق شرح.
+    </p>
+  </div>
+  {% if current_user.is_admin and missing_openings > 0 %}
+  <form method="post" action="{{ url_for('inventory.post_missing_openings') }}"
+        onsubmit="return confirm('ترحيل {{ missing_openings }} قيد افتتاحي؟');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-warning">
+      <i class="bi bi-journal-plus"></i>
+      ترحيل قيود افتتاحية ناقصة ({{ missing_openings }})
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">قيمة المخزون التشغيلي</div>
+      <div class="stat-value" dir="ltr">{{ total_op }}</div>
+      <small class="text-muted">مجموع (الكمية × متوسط التكلفة)</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">قيمة الحركات المرصودة</div>
+      <div class="stat-value" dir="ltr">{{ total_mv }}</div>
+      <small class="text-muted">مجموع (الحركة × سعرها لحظة الحركة)</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="stat-label">الفرق</div>
+      <div class="stat-value {% if total_diff == 0 %}text-success{% else %}text-danger{% endif %}" dir="ltr">
+        {{ total_diff }}
+      </div>
+      <small class="text-muted">لازم يكون صفر بعد أول تسوية.</small>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>المادة</th>
+          <th>النوع</th>
+          <th class="text-end">الكمية</th>
+          <th class="text-end">متوسط التكلفة</th>
+          <th class="text-end">قيمة تشغيلية</th>
+          <th class="text-end">قيمة حركات</th>
+          <th class="text-end">الفرق</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=r.ing.id) }}">
+              {{ r.ing.name }}
+            </a>
+          </td>
+          <td><span class="badge bg-secondary">{{ r.ing.category_label }}</span></td>
+          <td dir="ltr" class="num text-end">{{ r.ing.current_qty }}</td>
+          <td dir="ltr" class="num text-end">{{ r.ing.avg_cost }}</td>
+          <td dir="ltr" class="num text-end fw-bold">{{ r.op_value }}</td>
+          <td dir="ltr" class="num text-end text-muted">{{ r.mv_value }}</td>
+          <td dir="ltr" class="num text-end {% if r.diff == 0 %}text-success{% else %}text-danger fw-bold{% endif %}">
+            {{ r.diff }}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">مفيش مواد نشطة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -151,7 +151,11 @@ def create_ingredient():
             if init_qty > 0:
                 ing.current_qty = init_qty
                 if init_price > 0:
+                    # PHASE 6: opening qty × opening price seeds avg_cost so
+                    # every downstream valuation reads the right number from
+                    # the first save.
                     ing.last_price = init_price
+                    ing.avg_cost = init_price
             db.session.add(ing)
             db.session.flush()
             if init_qty > 0:
@@ -165,6 +169,13 @@ def create_ingredient():
                         created_by_id=current_user.id,
                     )
                 )
+                # PHASE 6: post the opening-inventory JE straight away —
+                # DR (category leaf) / CR 3900 أرصدة افتتاحية. Without this,
+                # the inventory total on the balance sheet is short by the
+                # opening amount every time the client creates a new SKU.
+                if init_price > 0:
+                    from app.services.opening_inventory import post_opening_je
+                    post_opening_je(ing, created_by=current_user.id)
             # TICKET-2: persist alt units the user added on the form
             for row in _parse_alt_units(request.form):
                 if row["code"] == ing.unit:
@@ -317,3 +328,84 @@ def all_movements():
         .all()
     )
     return render_template("inventory/movements.html", movements=movements)
+
+
+# ==================== PHASE 6 — valuation reconciliation ====================
+
+@bp.route("/valuation")
+@login_required
+def valuation():
+    """One row per ingredient: operational value (current_qty × avg_cost)
+    vs the sum of stock-movement values (Σ delta × unit_price_at_move).
+    Diff = drift the accountant needs to explain — rounding, unpriced
+    movements, a manual adjust with no price, or (before this migration)
+    a missing opening JE."""
+    ings = (
+        Ingredient.query.filter_by(is_archived=False)
+        .order_by(Ingredient.category, Ingredient.name)
+        .all()
+    )
+    rows = []
+    total_op = Decimal("0")
+    total_mv = Decimal("0")
+    for ing in ings:
+        op_value = (
+            Decimal(str(ing.current_qty or 0)) * Decimal(str(ing.avg_cost or 0))
+        ).quantize(Decimal("0.01"))
+        mv_value = db.session.query(
+            func.coalesce(
+                func.sum(StockMovement.delta * StockMovement.unit_price_at_move), 0
+            )
+        ).filter(
+            StockMovement.ingredient_id == ing.id,
+            StockMovement.unit_price_at_move.isnot(None),
+        ).scalar() or 0
+        mv_value = Decimal(str(mv_value)).quantize(Decimal("0.01"))
+        rows.append({
+            "ing": ing,
+            "op_value": op_value,
+            "mv_value": mv_value,
+            "diff": (op_value - mv_value).quantize(Decimal("0.01")),
+        })
+        total_op += op_value
+        total_mv += mv_value
+
+    # Count of ingredients missing an opening JE — the admin button
+    # exposed on the template posts them all in one go.
+    from app.services.opening_inventory import has_opening_je
+    missing_openings = sum(
+        1 for r in rows
+        if r["op_value"] > 0 and not has_opening_je(r["ing"])
+    )
+
+    return render_template(
+        "inventory/valuation.html",
+        rows=rows,
+        total_op=total_op.quantize(Decimal("0.01")),
+        total_mv=total_mv.quantize(Decimal("0.01")),
+        total_diff=(total_op - total_mv).quantize(Decimal("0.01")),
+        missing_openings=missing_openings,
+    )
+
+
+@bp.route("/valuation/post-openings", methods=["POST"])
+@login_required
+def post_missing_openings():
+    """Admin-only bulk-post opening JEs for every ingredient with stock
+    on hand and no existing opening entry. Idempotent — clicking twice
+    is safe."""
+    if not current_user.is_admin:
+        abort(403)
+    from app.services.opening_inventory import backfill_missing
+    posted, total = backfill_missing()
+    db.session.commit()
+    if posted:
+        log_action("opening_inventory_backfill", "Ingredient", 0,
+                   details=f"rows={posted} total={total}")
+        flash(
+            f"تم ترحيل {posted} قيد افتتاحي بإجمالي {total} جنيه.",
+            "success",
+        )
+    else:
+        flash("مفيش قيود افتتاحية ناقصة — كل حاجة مترحّلة بالفعل.", "info")
+    return redirect(url_for("inventory.valuation"))
