@@ -142,6 +142,15 @@
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('labor') %}active{% endif %}"
          href="{{ url_for('labor.list_workers') }}"><i class="bi bi-people-fill"></i> العمالة</a>
       {% if current_user.is_admin %}
+      {# PHASE 15 (YAS-HR-1): pending leave-requests queue with a live badge. #}
+      <a class="sidebar-item d-flex justify-content-between align-items-center
+                {% if request.endpoint == 'labor.leaves_queue' %}active{% endif %}"
+         href="{{ url_for('labor.leaves_queue') }}">
+        <span><i class="bi bi-calendar-x"></i> طلبات الإجازات</span>
+        {% if pending_leaves_total %}
+          <span class="badge bg-warning text-dark">{{ pending_leaves_total }}</span>
+        {% endif %}
+      </a>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('users') %}active{% endif %}"
          href="{{ url_for('users.list_users') }}"><i class="bi bi-people"></i> المستخدمون</a>
       <a class="sidebar-item {% if request.endpoint == 'finance.settings' %}active{% endif %}"

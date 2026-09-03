@@ -4,21 +4,55 @@
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
   <div>
     <h1><i class="bi bi-person"></i> {{ worker.name }}</h1>
-    <p class="text-muted mb-0">{{ worker.wage_label }} · <span dir="ltr">{{ worker.rate }}</span> جنيه</p>
+    <p class="text-muted mb-0">{{ worker.wage_label }} · <span dir="ltr">{{ worker.rate }}</span> جنيه
+      {% if worker.phone %} · <span dir="ltr">{{ worker.phone }}</span>{% endif %}
+    </p>
   </div>
   <a href="{{ url_for('labor.edit_worker', worker_id=worker.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
 </div>
 
+{# PHASE 15 (YAS-HR-1): expanded to 5 headline cards — 3 month cards
+   plus 2 lifetime totals (advances vs salary payments) so the admin
+   sees both the current-month position and the long-term picture. #}
 <div class="row g-3 mb-3">
-  <div class="col-md-4"><div class="card stat-card"><div class="stat-label">مستحق هذا الشهر</div><div class="stat-value" dir="ltr">{{ worker.month_earned }}</div></div></div>
-  <div class="col-md-4"><div class="card stat-card"><div class="stat-label">مدفوع هذا الشهر</div><div class="stat-value text-success" dir="ltr">{{ worker.month_paid }}</div></div></div>
-  <div class="col-md-4"><div class="card stat-card"><div class="stat-label">المتبقي</div><div class="stat-value {% if worker.month_balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ worker.month_balance }}</div></div></div>
+  <div class="col-md col-6">
+    <div class="card stat-card">
+      <div class="stat-label">مستحق هذا الشهر</div>
+      <div class="stat-value" dir="ltr">{{ worker.month_earned }}</div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card stat-card">
+      <div class="stat-label">مدفوع هذا الشهر</div>
+      <div class="stat-value text-success" dir="ltr">{{ worker.month_paid }}</div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card stat-card">
+      <div class="stat-label">المتبقي (الشهر)</div>
+      <div class="stat-value {% if worker.month_balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">
+        {{ worker.month_balance }}
+      </div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي السلف (كل الفترة)</div>
+      <div class="stat-value text-danger" dir="ltr">{{ total_advances }}</div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي دفعات الراتب</div>
+      <div class="stat-value text-success" dir="ltr">{{ total_salaries }}</div>
+    </div>
+  </div>
 </div>
 
 <div class="row g-3">
   <div class="col-lg-7">
     <div class="card p-3 mb-3">
-      <h5>حضور هذا الشهر</h5>
+      <h5><i class="bi bi-calendar-check"></i> حضور هذا الشهر</h5>
       {% if attendances %}
       <table class="table table-sm mb-0">
         <thead><tr><th>التاريخ</th><th>الحلبات</th><th>الحالة</th></tr></thead>
@@ -35,18 +69,144 @@
       {% else %}<p class="text-muted mb-0">مفيش حضور مسجّل الشهر ده.</p>{% endif %}
     </div>
 
-    <div class="card p-3">
-      <h5>الدفعات</h5>
-      {% if payments %}
-      <table class="table table-sm mb-0">
-        <thead><tr><th>التاريخ</th><th>المبلغ</th><th>السبب</th></tr></thead>
+    {# PHASE 15 (YAS-HR-1): full payments log with a running total column.
+       Advances get a red badge and salary payments a blue one so the
+       admin can scan the reason column at a glance. #}
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> سجل السلف والدفعات</h5>
+        <small class="text-muted">{{ history|length }} حركة · إجمالي: <span dir="ltr">{{ (total_advances + total_salaries) }}</span></small>
+      </div>
+      {% if history %}
+      <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th class="text-end">المبلغ</th>
+            <th class="text-end">الإجمالي التراكمي</th>
+            <th>ملاحظات</th>
+          </tr>
+        </thead>
         <tbody>
-          {% for p in payments %}
-          <tr><td dir="ltr">{{ p.payment_date }}</td><td dir="ltr" class="fw-bold text-success">{{ p.amount }}</td><td>{{ p.reason_label }}</td></tr>
+          {% for h in history %}
+          <tr>
+            <td dir="ltr">{{ h.p.payment_date }}</td>
+            <td>
+              {% if h.p.reason == 'advance' %}
+                <span class="badge bg-danger">{{ h.p.reason_label }}</span>
+              {% else %}
+                <span class="badge bg-primary">{{ h.p.reason_label }}</span>
+              {% endif %}
+            </td>
+            <td dir="ltr" class="text-end fw-bold">{{ h.p.amount }}</td>
+            <td dir="ltr" class="text-end text-muted">{{ h.running }}</td>
+            <td class="small">{{ h.p.notes or '—' }}</td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
-      {% else %}<p class="text-muted mb-0">مفيش دفعات.</p>{% endif %}
+      </div>
+      {% else %}<p class="text-muted mb-0">مفيش دفعات لسه.</p>{% endif %}
+    </div>
+
+    {# PHASE 15 (YAS-HR-1): leave requests — submit form + per-worker list. #}
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-calendar-x"></i> طلبات الإجازات</h5>
+        <small class="text-muted">{{ leaves|length }} طلب</small>
+      </div>
+
+      <form method="post" action="{{ url_for('labor.submit_leave', worker_id=worker.id) }}"
+            class="row g-2 align-items-end mb-3">
+        {{ leave_form.hidden_tag() }}
+        <div class="col-md-3">
+          {{ leave_form.start_date.label(class="form-label small mb-1") }}
+          {{ leave_form.start_date(class="form-control form-control-sm", type="date", dir="ltr") }}
+        </div>
+        <div class="col-md-3">
+          {{ leave_form.end_date.label(class="form-label small mb-1") }}
+          {{ leave_form.end_date(class="form-control form-control-sm", type="date", dir="ltr") }}
+        </div>
+        <div class="col-md-4">
+          {{ leave_form.reason.label(class="form-label small mb-1") }}
+          {{ leave_form.reason(class="form-control form-control-sm", rows=1, placeholder="اختياري") }}
+        </div>
+        <div class="col-md-2 d-grid">
+          {{ leave_form.submit(class="btn btn-sm btn-primary") }}
+        </div>
+      </form>
+
+      {% if leaves %}
+      <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>الفترة</th>
+            <th>الأيام</th>
+            <th>السبب</th>
+            <th>تقدّم بواسطة</th>
+            <th>الحالة</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in leaves %}
+          <tr>
+            <td dir="ltr" class="small">
+              {{ l.start_date }} → {{ l.end_date }}
+            </td>
+            <td dir="ltr">{{ l.days_count }}</td>
+            <td class="small">{{ l.reason or '—' }}</td>
+            <td class="small text-muted">
+              {{ l.submitted_by.name if l.submitted_by else '—' }}<br>
+              <span dir="ltr">{{ l.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            </td>
+            <td>
+              {% if l.status == 'pending' %}<span class="badge bg-warning text-dark">{{ l.status_label }}</span>
+              {% elif l.status == 'approved' %}<span class="badge bg-success">{{ l.status_label }}</span>
+              {% else %}<span class="badge bg-danger">{{ l.status_label }}</span>{% endif %}
+              {% if l.status != 'pending' and l.decided_by %}
+                <div class="small text-muted mt-1">
+                  بواسطة {{ l.decided_by.name }}<br>
+                  <span dir="ltr">{{ l.decided_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                {% if l.decision_note %}
+                  <div class="small text-danger mt-1"><em>{{ l.decision_note }}</em></div>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td>
+              {% if l.status == 'pending' and current_user.is_admin %}
+              <form method="post" action="{{ url_for('labor.approve_leave', leave_id=l.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-success" onclick="return confirm('اعتماد الطلب؟')">
+                  <i class="bi bi-check-lg"></i> اعتماد
+                </button>
+              </form>
+              <button type="button" class="btn btn-sm btn-outline-danger"
+                      data-bs-toggle="collapse" data-bs-target="#reject-{{ l.id }}">
+                <i class="bi bi-x-lg"></i> رفض
+              </button>
+              <div class="collapse mt-2" id="reject-{{ l.id }}">
+                <form method="post" action="{{ url_for('labor.reject_leave', leave_id=l.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <textarea name="decision_note" class="form-control form-control-sm mb-2"
+                            rows="2" placeholder="سبب الرفض (اختياري)"></textarea>
+                  <button class="btn btn-sm btn-danger w-100">تأكيد الرفض</button>
+                </form>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0 small">مفيش طلبات إجازة لسه — استخدم الفورم فوق.</p>
+      {% endif %}
     </div>
   </div>
 

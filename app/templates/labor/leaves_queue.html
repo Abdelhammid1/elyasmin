@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}طلبات الإجازات{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-calendar-x"></i> طلبات الإجازات</h1>
+  <p class="text-muted mb-0">
+    كل الطلبات المعلّقة في مكان واحد — اعتمد أو ارفض من هنا مباشرة.
+    آخر 30 قرار مسجّلين للمراجعة.
+  </p>
+</div>
+
+<div class="card p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-hourglass-split text-warning"></i> معلّقة الآن</h5>
+    <span class="badge bg-warning text-dark">{{ pending|length }}</span>
+  </div>
+  {% if pending %}
+  <div class="table-responsive">
+  <table class="table table-hover align-middle mb-0">
+    <thead>
+      <tr>
+        <th>العامل</th>
+        <th>الفترة</th>
+        <th>الأيام</th>
+        <th>السبب</th>
+        <th>تقدّم بواسطة</th>
+        <th>الإجراء</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in pending %}
+      <tr>
+        <td>
+          <a href="{{ url_for('labor.worker_detail', worker_id=l.worker_id) }}">
+            <i class="bi bi-person"></i> {{ l.worker.name }}
+          </a>
+        </td>
+        <td dir="ltr" class="small">{{ l.start_date }} → {{ l.end_date }}</td>
+        <td dir="ltr">{{ l.days_count }}</td>
+        <td class="small">{{ l.reason or '—' }}</td>
+        <td class="small text-muted">
+          {{ l.submitted_by.name if l.submitted_by else '—' }}<br>
+          <span dir="ltr">{{ l.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('labor.approve_leave', leave_id=l.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-success" onclick="return confirm('اعتماد الطلب؟')">
+              <i class="bi bi-check-lg"></i> اعتماد
+            </button>
+          </form>
+          <button type="button" class="btn btn-sm btn-outline-danger"
+                  data-bs-toggle="collapse" data-bs-target="#reject-q-{{ l.id }}">
+            <i class="bi bi-x-lg"></i> رفض
+          </button>
+          <div class="collapse mt-2" id="reject-q-{{ l.id }}">
+            <form method="post" action="{{ url_for('labor.reject_leave', leave_id=l.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <textarea name="decision_note" class="form-control form-control-sm mb-2"
+                        rows="2" placeholder="سبب الرفض (اختياري)"></textarea>
+              <button class="btn btn-sm btn-danger w-100">تأكيد الرفض</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="text-center py-4 text-muted">
+    <i class="bi bi-check-circle display-6 d-block mb-2 text-success"></i>
+    مفيش طلبات معلّقة — كل الطلبات اتحوّلت.
+  </div>
+  {% endif %}
+</div>
+
+<div class="card p-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-clock-history"></i> آخر {{ decided|length }} قرار</h5>
+  </div>
+  {% if decided %}
+  <div class="table-responsive">
+  <table class="table table-sm align-middle mb-0">
+    <thead>
+      <tr>
+        <th>العامل</th>
+        <th>الفترة</th>
+        <th>الحالة</th>
+        <th>بواسطة</th>
+        <th>ملاحظات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in decided %}
+      <tr>
+        <td>
+          <a href="{{ url_for('labor.worker_detail', worker_id=l.worker_id) }}">{{ l.worker.name }}</a>
+        </td>
+        <td dir="ltr" class="small">
+          {{ l.start_date }} → {{ l.end_date }}
+          <span class="text-muted">({{ l.days_count }} يوم)</span>
+        </td>
+        <td>
+          {% if l.status == 'approved' %}
+            <span class="badge bg-success">{{ l.status_label }}</span>
+          {% else %}
+            <span class="badge bg-danger">{{ l.status_label }}</span>
+          {% endif %}
+        </td>
+        <td class="small text-muted">
+          {{ l.decided_by.name if l.decided_by else '—' }}<br>
+          <span dir="ltr">{{ l.decided_at.strftime('%Y-%m-%d %H:%M') if l.decided_at else '' }}</span>
+        </td>
+        <td class="small text-muted">{{ l.decision_note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0 small">مفيش قرارات لسه.</p>
+  {% endif %}
+</div>
+{% endblock %}
