@@ -1,251 +1,404 @@
 {% extends "base.html" %}
-{% block title %}لوحة التحكم{% endblock %}
+{% block title %}لوحة المعلومات{% endblock %}
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <div>
-    <h1><i class="bi bi-speedometer2"></i> لوحة التحكم</h1>
-    <p class="text-muted mb-0">نظرة سريعة على وضع المزرعة · <span class="small">تحديث تلقائي كل دقيقة</span></p>
-  </div>
-  <a href="{{ url_for('dashboard.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> تحديث</a>
-</div>
+<div id="dash-root">
 
-<!-- KPI Row -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label"><i class="bi bi-heart-pulse text-primary"></i> إجمالي القطيع</div>
-      <div class="stat-value">{{ total_active }}</div>
-      <small class="text-muted">رأس نشط</small>
+  {# ============ HEADER ============ #}
+  <div class="dash-head">
+    <div>
+      <h1>لوحة المعلومات</h1>
+      <p class="dash-sub">نظرة سريعة على وضع المزرعة · تحديث تلقائي كل دقيقة</p>
+    </div>
+    <div class="period" role="tablist" aria-label="فترة التحليل">
+      <a href="{{ url_for('dashboard.index', period='day') }}"
+         class="{% if period == 'day' %}on{% endif %}">اليوم</a>
+      <a href="{{ url_for('dashboard.index', period='week') }}"
+         class="{% if period == 'week' %}on{% endif %}">الأسبوع</a>
+      <a href="{{ url_for('dashboard.index', period='month') }}"
+         class="{% if period == 'month' %}on{% endif %}">الشهر</a>
+      <a href="{{ url_for('dashboard.index', period='year') }}"
+         class="{% if period == 'year' %}on{% endif %}">السنة</a>
     </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label"><i class="bi bi-droplet text-info"></i> لبن أمس</div>
-      <div class="stat-value" dir="ltr">{{ yesterday_milk_kg }}</div>
-      <small class="text-muted" dir="ltr">kg · {{ yesterday_milk_value }} جنيه</small>
-    </div>
+
+  {# ============ 💚 الصحة المالية ============ #}
+  <div class="section-label"><span>💚 الصحة المالية</span></div>
+  <div class="kpis">
+    {# Cash #}
+    <a class="kpi" href="{{ url_for('accounts.list_accounts') }}" title="السيولة المتاحة">
+      <div class="kpi-head">
+        <div class="kpi-ico i-blue">💧</div>
+        {% if kpis.cash.trend %}
+        <div class="kpi-trend {% if kpis.cash.trend > 0 %}trend-up{% elif kpis.cash.trend < 0 %}trend-down{% else %}trend-flat{% endif %}">
+          {% if kpis.cash.trend > 0 %}↑{% elif kpis.cash.trend < 0 %}↓{% else %}—{% endif %} {{ kpis.cash.trend }}%
+        </div>
+        {% endif %}
+      </div>
+      <div class="kpi-label">السيولة المتاحة</div>
+      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.cash.value) }}</div>
+      <div class="spark-wrap"><canvas data-spark="{{ kpis.cash.spark|join(',') }}" data-color="#2b95c2"></canvas></div>
+    </a>
+
+    {# Net profit #}
+    <a class="kpi" href="{{ url_for('accounting.income_statement_view') }}" title="صافي الربح">
+      <div class="kpi-head">
+        <div class="kpi-ico i-green">📈</div>
+        <div class="kpi-trend {% if kpis.net_profit.trend > 0 %}trend-up{% elif kpis.net_profit.trend < 0 %}trend-down{% else %}trend-flat{% endif %}">
+          {% if kpis.net_profit.trend > 0 %}↑{% elif kpis.net_profit.trend < 0 %}↓{% else %}—{% endif %} {{ kpis.net_profit.trend }}%
+        </div>
+      </div>
+      <div class="kpi-label">صافي الربح ({{ period_label }})</div>
+      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.net_profit.value) }}</div>
+      <div class="spark-wrap"><canvas data-spark="{{ kpis.net_profit.spark|join(',') }}" data-color="#16a34a"></canvas></div>
+    </a>
+
+    {# AR #}
+    <a class="kpi" href="{{ url_for('customers.dues') }}" title="مستحق لك من العملاء">
+      <div class="kpi-head">
+        <div class="kpi-ico i-amber">⬇</div>
+      </div>
+      <div class="kpi-label">مستحق لك (عملاء)</div>
+      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.ar.value) }}</div>
+      {% if overdue_customers %}
+      <div class="kpi-extra tag-amber">⏱ {{ overdue_customers|length }} فاتورة متأخرة</div>
+      {% endif %}
+      <div class="spark-wrap"><canvas data-spark="{{ kpis.ar.spark|join(',') }}" data-color="#d97706"></canvas></div>
+    </a>
+
+    {# AP #}
+    <a class="kpi" href="{{ url_for('suppliers.dues') }}" title="مستحق عليك للموردين">
+      <div class="kpi-head">
+        <div class="kpi-ico i-red">⬆</div>
+      </div>
+      <div class="kpi-label">مستحق عليك (موردين)</div>
+      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.ap.value) }}</div>
+      {% if overdue_suppliers %}
+      <div class="kpi-extra tag-red">⚠ {{ overdue_suppliers|length }} فاتورة تحتاج قرار</div>
+      {% endif %}
+      <div class="spark-wrap"><canvas data-spark="{{ kpis.ap.spark|join(',') }}" data-color="#dc4640"></canvas></div>
+    </a>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label"><i class="bi bi-trash text-warning"></i> فاقد أمس</div>
-      {% if yesterday_waste is not none %}
-      <div class="stat-value {% if yesterday_waste > 0 %}text-warning{% else %}text-success{% endif %}" dir="ltr">{{ yesterday_waste }}</div>
-      <small class="text-muted">kg</small>
+
+  {# ============ 🐄 نظرة على المزرعة ============ #}
+  <div class="section-label"><span>🐄 نظرة على المزرعة</span></div>
+  <div class="ops">
+    <a class="op" href="{{ url_for('herd.list_cows') }}">
+      <div class="op-ico i-teal">🐄</div>
+      <div>
+        <div class="op-val">{{ "{:,}".format(total_active) }}</div>
+        <div class="op-label">إجمالي القطيع (نشط)</div>
+        <div class="op-extra tag-green">منها {{ milking_group_count }} في الحليب</div>
+      </div>
+    </a>
+
+    <a class="op" href="{{ url_for('milk.list_deliveries') }}">
+      <div class="op-ico i-blue">💧</div>
+      <div>
+        <div class="op-val">{{ "{:,.0f}".format(yesterday_milk_kg) }} كجم</div>
+        <div class="op-label">لبن أمس</div>
+        {% if yesterday_milk_value %}
+        <div class="op-extra tag-green">بقيمة {{ "{:,.0f}".format(yesterday_milk_value) }} جنيه</div>
+        {% elif yesterday_waste and yesterday_waste > 0 %}
+        <div class="op-extra tag-amber">⚠ فاقد {{ "{:,.0f}".format(yesterday_waste) }} كجم</div>
+        {% else %}
+        <div class="op-extra tag-green">في الميعاد</div>
+        {% endif %}
+      </div>
+    </a>
+
+    <a class="op" href="{{ url_for('feed.list_tanks') }}">
+      <div class="op-ico i-green">🌾</div>
+      <div>
+        <div class="op-val">{{ tank_count }}</div>
+        <div class="op-label">خزانات العلف النشطة</div>
+        {% if avg_feed_cost > 0 %}
+        <div class="op-extra tag-green">متوسط تكلفة الكيلو {{ avg_feed_cost }} جنيه</div>
+        {% else %}
+        <div class="op-extra tag-amber">مفيش رصيد حالي في الخزانات</div>
+        {% endif %}
+      </div>
+    </a>
+
+    <a class="op" href="{{ url_for('inventory.list_ingredients') }}">
+      <div class="op-ico i-amber">📦</div>
+      <div>
+        <div class="op-val">{{ low_stock_ings|length }}</div>
+        <div class="op-label">مواد تحت الحد الأدنى</div>
+        {% if low_stock_ings %}
+        <div class="op-extra tag-red">⚠ محتاجة شراء عاجل</div>
+        {% else %}
+        <div class="op-extra tag-green">المخزون مستقر</div>
+        {% endif %}
+      </div>
+    </a>
+
+    <a class="op" href="{{ url_for('inventory.list_ingredients') }}">
+      <div class="op-ico i-red">💊</div>
+      <div>
+        <div class="op-val">{{ expiring_soon_lots|length }}</div>
+        <div class="op-label">دواء ينتهي قريباً</div>
+        {% if expiring_soon_lots %}
+        <div class="op-extra tag-red">⏰ خلال 30 يوم</div>
+        {% else %}
+        <div class="op-extra tag-green">لا يوجد ما ينتهي قريبًا</div>
+        {% endif %}
+      </div>
+    </a>
+
+    <a class="op" href="{{ url_for('checks.index') }}">
+      <div class="op-ico i-violet">💳</div>
+      <div>
+        <div class="op-val">{{ upcoming_checks|length }}</div>
+        <div class="op-label">شيكات مستحقة قريباً</div>
+        {% if overdue_checks_count > 0 %}
+        <div class="op-extra tag-red">⏰ {{ overdue_checks_count }} متأخرة</div>
+        {% elif upcoming_checks %}
+        <div class="op-extra tag-amber">خلال أسبوع</div>
+        {% else %}
+        <div class="op-extra tag-green">مفيش شيكات قريبة</div>
+        {% endif %}
+      </div>
+    </a>
+
+    <a class="op" href="{{ url_for('suppliers.list_suppliers') }}">
+      <div class="op-ico i-red">🏢</div>
+      <div>
+        <div class="op-val">{{ active_suppliers_count }}</div>
+        <div class="op-label">موردون نشطون</div>
+        {% if overdue_suppliers %}
+        <div class="op-extra tag-red">⏰ {{ overdue_suppliers|length }} برصيد متأخر</div>
+        {% else %}
+        <div class="op-extra tag-green">لا أرصدة متأخرة</div>
+        {% endif %}
+      </div>
+    </a>
+
+    <a class="op" href="{{ url_for('labor.list_workers') }}">
+      <div class="op-ico i-brand">👨‍🌾</div>
+      <div>
+        <div class="op-val">{{ active_workers_count }}</div>
+        <div class="op-label">عمالة نشطة</div>
+        <div class="op-extra tag-green">تسجيل الحضور اليومي</div>
+      </div>
+    </a>
+  </div>
+
+  {# ============ 🔔 يحتاج انتباهك الآن ============ #}
+  {% if overdue_customers or overdue_suppliers %}
+  <div class="section-label"><span>🔔 يحتاج انتباهك الآن</span></div>
+  <div class="action-grid">
+    {# overdue customer invoices #}
+    <div class="d-panel panel-red">
+      <div class="d-panel-head">
+        <div class="icon i-red">⏰</div>
+        <h5>فواتير عملاء متأخرة</h5>
+        {% if overdue_customers %}
+        <span class="pill pill-red">{{ overdue_customers|length }} فاتورة</span>
+        {% endif %}
+      </div>
+      <div class="d-panel-meta">مستحقة ولم تُحصَّل بعد</div>
+      {% if overdue_customers %}
+        {% for r in overdue_customers %}
+        <a class="d-row" href="{{ url_for('milk.view_invoice', invoice_id=r.id) }}">
+          <div class="row-l">
+            <div class="row-ava">{{ r.customer_initials }}</div>
+            <div>
+              <div class="row-name">{{ r.customer_name }}</div>
+              <div class="row-sub">فاتورة {{ r.number }} · {{ r.issue_date }}</div>
+            </div>
+          </div>
+          <div class="row-r">
+            <div class="row-amt">{{ "{:,.0f}".format(r.amount) }}</div>
+            <div class="row-tag tag-red">متأخرة {{ r.days_late }} يوم</div>
+          </div>
+        </a>
+        {% endfor %}
+        <div class="d-panel-foot">
+          <span>الإجمالي المتأخر: <b>{{ "{:,.0f}".format(overdue_customers_total) }}</b> جنيه</span>
+          <a href="{{ url_for('customers.dues') }}">عرض الكل →</a>
+        </div>
       {% else %}
-      <div class="stat-value text-muted">—</div>
-      <small class="text-muted">لم يُسجل إنتاج</small>
+        <div class="empty-state"><span class="icon">✅</span>لا توجد فواتير متأخرة</div>
+      {% endif %}
+    </div>
+
+    {# overdue supplier bills #}
+    <div class="d-panel panel-red">
+      <div class="d-panel-head">
+        <div class="icon i-red">💸</div>
+        <h5>فواتير موردين متأخرة</h5>
+        {% if overdue_suppliers %}
+        <span class="pill pill-red">{{ overdue_suppliers|length }} فاتورة</span>
+        {% endif %}
+      </div>
+      <div class="d-panel-meta">تحتاج قرار — لن تختفي حتى تتحرك</div>
+      {% if overdue_suppliers %}
+        {% for r in overdue_suppliers %}
+        <a class="d-row" href="{{ url_for('purchases.view_invoice', invoice_id=r.id) }}">
+          <div class="row-l">
+            <div class="row-ava">{{ r.supplier_initials }}</div>
+            <div>
+              <div class="row-name">{{ r.supplier_name }}</div>
+              <div class="row-sub">فاتورة {{ r.number }} · {{ r.invoice_date }}</div>
+            </div>
+          </div>
+          <div class="row-r">
+            <div class="row-amt">{{ "{:,.0f}".format(r.amount) }}</div>
+            <div class="row-tag tag-red">متأخرة {{ r.days_late }} يوم</div>
+          </div>
+        </a>
+        {% endfor %}
+        <div class="d-panel-foot">
+          <span>الإجمالي المتأخر: <b>{{ "{:,.0f}".format(overdue_suppliers_total) }}</b> جنيه</span>
+          <a href="{{ url_for('suppliers.dues') }}">عرض الكل →</a>
+        </div>
+      {% else %}
+        <div class="empty-state"><span class="icon">✅</span>لا توجد فواتير متأخرة</div>
       {% endif %}
     </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label"><i class="bi bi-egg text-success"></i> مواليد هذا الشهر</div>
-      <div class="stat-value">{{ births_this_month }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label"><i class="bi bi-exclamation-triangle text-danger"></i> نفوق هذا الشهر</div>
-      <div class="stat-value">{{ deaths_this_month }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label"><i class="bi bi-cash-coin text-warning"></i> مبيعات حيوانات (شهر)</div>
-      <div class="stat-value">{{ sales_this_month_count }}</div>
-      <small class="text-muted" dir="ltr">{{ sales_this_month_value }} جنيه</small>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label"><i class="bi bi-person-lines-fill text-success"></i> مستحق من العملاء</div>
-      <div class="stat-value" dir="ltr">{{ total_owed_from_customers }}</div>
-      <small class="text-muted">جنيه</small>
-    </div>
-  </div>
-</div>
+  {% endif %}
 
-<!-- Groups breakdown -->
-<div class="card p-3 mb-4">
-  <h5 class="mb-3"><i class="bi bi-diagram-3"></i> توزيع القطيع على المجموعات</h5>
-  <div class="row g-3">
-    {% for gs in group_stats %}
-    <div class="col-6 col-md-4 col-lg-2">
-      <div class="text-center p-3 border rounded">
-        <div class="fw-bold text-primary">{{ gs.group.name }}</div>
-        <div class="fs-3 fw-bold">{{ gs.count }}</div>
-        <small class="text-muted">رأس</small>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-
-<div class="row g-3">
-  <div class="col-md-6">
-    <div class="card p-3">
-      <h5 class="mb-3"><i class="bi bi-egg text-success"></i> آخر المواليد</h5>
-      {% if recent_births %}
-      <table class="table table-sm mb-0">
-        <thead><tr><th>التاريخ</th><th>الأم</th><th>العدد</th></tr></thead>
-        <tbody>
-          {% for b in recent_births %}
-          <tr>
-            <td dir="ltr">{{ b.birth_date }}</td>
-            <td>{{ b.mother.ear_tag }}</td>
-            <td>{{ b.calves_count }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}<p class="text-muted mb-0">لا مواليد حتى الآن.</p>{% endif %}
-    </div>
-  </div>
-
-  <div class="col-md-6">
-    <div class="card p-3">
-      <h5 class="mb-3"><i class="bi bi-cash-coin text-warning"></i> آخر المبيعات</h5>
-      {% if recent_sales %}
-      <table class="table table-sm mb-0">
-        <thead><tr><th>التاريخ</th><th>البقرة</th><th>المشتري</th><th>السعر</th></tr></thead>
-        <tbody>
-          {% for s in recent_sales %}
-          <tr>
-            <td dir="ltr">{{ s.sale_date }}</td>
-            <td>{{ s.cow.ear_tag }}</td>
-            <td>{{ s.buyer_name }}</td>
-            <td dir="ltr">{{ s.price }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}<p class="text-muted mb-0">لا مبيعات حتى الآن.</p>{% endif %}
-    </div>
-  </div>
-</div>
-
-<div class="row g-3 mt-1">
-  <div class="col-lg-4 col-md-6">
-    <div class="card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> مواد تحت الحد الأدنى</h5>
-        <a href="{{ url_for('inventory.list_ingredients') }}" class="btn btn-sm btn-outline-primary">عرض المخزون</a>
-      </div>
-      {% if low_stock_ings %}
-      <table class="table table-sm mb-0">
-        <thead><tr><th>المادة</th><th>الرصيد</th><th>الحد الأدنى</th></tr></thead>
-        <tbody>
-          {% for i in low_stock_ings %}
-          <tr class="table-danger">
-            <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}">{{ i.name }}</a>
-              <span class="badge bg-secondary">{{ i.category_label }}</span></td>
-            <td dir="ltr" class="fw-bold">{{ i.current_qty }} {{ i.unit_label }}</td>
-            <td dir="ltr">{{ i.min_qty }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}<p class="text-muted mb-0">كل المواد فوق الحد الأدنى. 👍</p>{% endif %}
-    </div>
-  </div>
-
-  {# PHASE 6: medicine lots expiring soon or already expired #}
-  <div class="col-lg-4 col-md-6">
-    <div class="card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-hourglass-split text-warning"></i> دواء قارب على الانتهاء</h5>
-        <a href="{{ url_for('inventory.list_ingredients') }}" class="btn btn-sm btn-outline-primary">التفاصيل</a>
-      </div>
-      {% if expiring_soon_lots %}
-      <table class="table table-sm mb-0">
-        <thead><tr><th>الدواء</th><th>الدفعة</th><th>الرصيد</th><th>تاريخ الانتهاء</th></tr></thead>
-        <tbody>
-          {% for l in expiring_soon_lots %}
-          {% set days = l.days_until_expiry() %}
-          <tr class="{% if days is not none and days < 0 %}table-danger{% else %}table-warning{% endif %}">
-            <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=l.ingredient_id) }}">{{ l.ingredient.name }}</a></td>
-            <td class="small">{{ l.lot_number or '—' }}</td>
-            <td dir="ltr" class="fw-bold">{{ l.qty_remaining }} {{ l.ingredient.unit_label }}</td>
-            <td dir="ltr">
-              {{ l.expires_on }}
-              <small class="text-muted d-block">
-                {% if days is none %}—
-                {% elif days < 0 %}متأخر {{ -days }} يوم
-                {% elif days == 0 %}اليوم
-                {% else %}بعد {{ days }} يوم
-                {% endif %}
-              </small>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}<p class="text-muted mb-0">مفيش دواء قرب انتهاء صلاحيته. 👌</p>{% endif %}
-    </div>
-  </div>
-
-  {# PHASE 8a: pending checks with a due date in the next 7 days #}
-  <div class="col-lg-4 col-md-6">
-    <div class="card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-cash-stack text-danger"></i> شيكات مستحقة قريباً</h5>
-        <a href="{{ url_for('checks.index') }}" class="btn btn-sm btn-outline-primary">التفاصيل</a>
-      </div>
-      {% if upcoming_checks %}
-      <table class="table table-sm mb-0">
-        <thead><tr><th>الطرف</th><th>البنك</th><th>المبلغ</th><th>الاستحقاق</th></tr></thead>
-        <tbody>
-          {% for c in upcoming_checks %}
-          {% set days = c.days_until_due() %}
-          <tr class="{% if days < 0 %}table-danger{% else %}table-warning{% endif %}">
-            <td>
-              {% if c.direction == 'received' %}
-                <a href="{{ url_for('checks.received_detail', check_id=c.id) }}">{{ c.party_name }}</a>
-              {% else %}
-                <a href="{{ url_for('checks.issued_detail', check_id=c.id) }}">{{ c.party_name }}</a>
-              {% endif %}
-              <small class="text-muted d-block">{{ c.direction_label }}</small>
-            </td>
-            <td class="small">{{ c.bank_name }}</td>
-            <td dir="ltr" class="fw-bold">{{ c.amount }}</td>
-            <td dir="ltr">
-              {{ c.due_date }}
-              <small class="text-muted d-block">
-                {% if days < 0 %}متأخر {{ -days }}ي
-                {% elif days == 0 %}اليوم
-                {% else %}بعد {{ days }}ي{% endif %}
-              </small>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}<p class="text-muted mb-0">مفيش شيكات مستحقة خلال أسبوع. 👌</p>{% endif %}
-    </div>
-  </div>
-
-  <div class="col-lg-4 col-md-12">
-    <div class="card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-truck text-warning"></i> الموردون</h5>
-        <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-sm btn-outline-primary">عرض التفاصيل</a>
-      </div>
-      <div class="row g-3">
-        <div class="col-6">
-          <div class="stat-label">عدد الموردين</div>
-          <div class="stat-value">{{ active_suppliers_count }}</div>
+  {# ============ 📊 الاتجاه المالي ============ #}
+  <div class="section-label"><span>📊 الاتجاه المالي</span></div>
+  <div class="lower-grid">
+    <div class="d-card">
+      <div class="d-card-head">
+        <div>
+          <h5>الإيراد مقابل تكلفة العلف</h5>
+          <div class="sub">آخر 6 شهور</div>
         </div>
-        <div class="col-6">
-          <div class="stat-label">إجمالي المستحق</div>
-          <div class="stat-value {% if total_owed_to_suppliers > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">{{ total_owed_to_suppliers }}</div>
+        <div class="legend">
+          <span><span class="sw" style="background:#16a34a"></span>إيراد اللبن</span>
+          <span><span class="sw" style="background:#dc4640"></span>تكلفة العلف</span>
         </div>
       </div>
+      <div class="chart-wrap"><canvas id="dashTrend"></canvas></div>
+    </div>
+
+    <div class="d-card">
+      <div class="d-card-head">
+        <div>
+          <h5>توزيع المصروفات</h5>
+          <div class="sub">هذا {{ period_label }}</div>
+        </div>
+      </div>
+      {% if expense_breakdown %}
+      {% for r in expense_breakdown %}
+      <div class="bd-item">
+        <div class="bd-row">
+          <div class="bd-name"><span class="bd-dot" style="background:{{ r.color }}"></span>{{ r.name }}</div>
+          <div class="bd-right"><span class="pct">{{ r.pct }}%</span>{{ "{:,.0f}".format(r.amount) }}</div>
+        </div>
+        <div class="bd-bar"><i style="width:{{ r.pct }}%; background:{{ r.color }}"></i></div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="empty-state"><span class="icon">📭</span>مفيش مصروفات في الفترة دي</div>
+      {% endif %}
     </div>
   </div>
-</div>
 
+  {# ============ ⚡ إجراءات سريعة ============ #}
+  <div class="section-label"><span>⚡ إجراءات سريعة</span></div>
+  <div class="quick">
+    <a class="q" href="{{ url_for('milk.list_invoices') }}"><span class="q-ico">🧾</span>فاتورة بيع</a>
+    <a class="q" href="{{ url_for('purchases.create_invoice') }}"><span class="q-ico">📥</span>فاتورة شراء</a>
+    <a class="q" href="{{ url_for('milk.create_delivery') }}"><span class="q-ico">💧</span>توريد لبن</a>
+    <a class="q" href="{{ url_for('customers.list_customers') }}"><span class="q-ico">💵</span>تحصيل من عميل</a>
+    <a class="q" href="{{ url_for('suppliers.list_suppliers') }}"><span class="q-ico">💰</span>دفعة لمورد</a>
+    <a class="q" href="{{ url_for('returns.sales_new') }}"><span class="q-ico">↩️</span>مرتجع مبيعات</a>
+    <a class="q" href="{{ url_for('returns.purchases_new') }}"><span class="q-ico">↩️</span>مرتجع مشتريات</a>
+    <a class="q" href="{{ url_for('accounting.journal_list') }}"><span class="q-ico">📊</span>القيود اليومية</a>
+    <a class="q" href="{{ url_for('accounting.chart_of_accounts') }}"><span class="q-ico">🌳</span>دليل الحسابات</a>
+    <a class="q" href="{{ url_for('accounts.list_accounts') }}"><span class="q-ico">🏦</span>الخزينة</a>
+    <a class="q" href="{{ url_for('checks.index') }}"><span class="q-ico">💳</span>الشيكات</a>
+    <a class="q" href="{{ url_for('accounting.income_statement_view') }}"><span class="q-ico">📈</span>قائمة الدخل</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-  // US-1.8 AC4: dashboard updates without user hitting Refresh
-  setTimeout(() => { window.location.reload(); }, 60000);
+(function () {
+  function renderSparks() {
+    if (!window.Chart) { setTimeout(renderSparks, 200); return; }
+    document.querySelectorAll('canvas[data-spark]').forEach(function (canvas) {
+      var raw = canvas.getAttribute('data-spark');
+      var color = canvas.getAttribute('data-color') || '#43b9e9';
+      if (!raw) return;
+      var pts = raw.split(',').map(Number);
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: pts.map(function (_, i) { return ''; }),
+          datasets: [{
+            data: pts,
+            borderColor: color,
+            backgroundColor: color + '22',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: { x: { display: false }, y: { display: false } },
+        },
+      });
+    });
+  }
+
+  function renderTrend() {
+    if (!window.Chart) { setTimeout(renderTrend, 200); return; }
+    var canvas = document.getElementById('dashTrend');
+    if (!canvas) return;
+    var data = {{ trend_6m|tojson }};
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: data.map(function (r) { return r.label; }),
+        datasets: [
+          {
+            label: 'إيراد اللبن',
+            data: data.map(function (r) { return r.revenue; }),
+            backgroundColor: '#16a34a',
+            borderRadius: 6, maxBarThickness: 24,
+          },
+          {
+            label: 'تكلفة العلف',
+            data: data.map(function (r) { return r.feed_cost; }),
+            backgroundColor: '#dc4640',
+            borderRadius: 6, maxBarThickness: 24,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            grid: { color: '#e5e7eb' },
+            ticks: {
+              callback: function (v) { return (v / 1000).toFixed(0) + 'k'; },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  renderSparks();
+  renderTrend();
+
+  // Auto-refresh every 60 seconds — preserves the previous dashboard's contract.
+  setTimeout(function () { window.location.reload(); }, 60000);
+})();
 </script>
 {% endblock %}
