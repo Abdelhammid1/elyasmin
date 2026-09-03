@@ -257,3 +257,195 @@ def milk_cost_by_group_view():
         "accounting/milk_cost_by_group.html",
         date_from=d_from, date_to=d_to, **data,
     )
+
+
+# ==================== PHASE 2 — manual JE + admin actions ====================
+
+def _admin_only():
+    """Every write route in this blueprint is admin-only. Non-admins can
+    read everything but the "moves money on the ledger" side is gated
+    the same way finance.settings is."""
+    from flask_login import current_user
+    if not current_user.is_admin:
+        abort(403)
+
+
+@bp.route("/journal/new", methods=["GET", "POST"])
+@login_required
+def journal_new():
+    _admin_only()
+    from decimal import Decimal, InvalidOperation
+    from flask import flash
+    from flask_login import current_user
+    from app.forms.accounting import ManualJournalForm
+    from app.services.ledger import post_journal, LedgerError
+    from app.models.herd import CattleGroup
+
+    form = ManualJournalForm()
+    accounts = (
+        LedgerAccount.query
+        .filter(LedgerAccount.is_postable.is_(True), LedgerAccount.is_active.is_(True))
+        .order_by(LedgerAccount.code)
+        .all()
+    )
+    groups = CattleGroup.query.filter_by(is_archived=False).order_by(CattleGroup.name).all()
+    customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
+
+    if form.validate_on_submit():
+        lines = []
+        idx = 0
+        while True:
+            key = f"line_account_{idx}"
+            if key not in request.form:
+                break
+            aid = request.form.get(key)
+            if not aid:
+                idx += 1
+                continue
+            try:
+                dr = Decimal(request.form.get(f"line_debit_{idx}") or "0")
+                cr = Decimal(request.form.get(f"line_credit_{idx}") or "0")
+            except InvalidOperation:
+                flash(f"مبلغ غير صالح في السطر {idx + 1}.", "error")
+                idx += 1
+                continue
+            if dr == 0 and cr == 0:
+                idx += 1
+                continue
+
+            party_raw = request.form.get(f"line_party_{idx}") or ""
+            party_type, party_id = None, None
+            if party_raw:
+                # value shape: "customer:42" or "supplier:7"
+                if ":" in party_raw:
+                    party_type, pid = party_raw.split(":", 1)
+                    try:
+                        party_id = int(pid)
+                    except ValueError:
+                        party_type = None
+
+            cc_raw = request.form.get(f"line_cc_{idx}") or ""
+            cc = int(cc_raw) if cc_raw.isdigit() else None
+
+            lines.append({
+                "account_id": int(aid),
+                "debit": dr, "credit": cr,
+                "memo": (request.form.get(f"line_memo_{idx}") or "").strip() or None,
+                "party_type": party_type, "party_id": party_id,
+                "cost_center_id": cc,
+            })
+            idx += 1
+
+        try:
+            je = post_journal(
+                description=form.description.data.strip(),
+                lines=lines,
+                entry_date=form.entry_date.data,
+                reference=(form.reference.data or "").strip() or None,
+                created_by=current_user.id,
+            )
+            db.session.commit()
+            flash(f"تم حفظ القيد {je.number} — إجمالي {je.total_debit} جنيه.", "success")
+            return redirect(url_for("accounting.journal_detail", entry_id=je.id))
+        except LedgerError as e:
+            flash(str(e), "error")
+
+    return render_template(
+        "accounting/journal_form.html", form=form,
+        accounts=accounts, groups=groups,
+        customers=customers, suppliers=suppliers,
+    )
+
+
+@bp.route("/journal/<int:entry_id>/reverse", methods=["POST"])
+@login_required
+def journal_reverse(entry_id):
+    _admin_only()
+    from flask import flash
+    from flask_login import current_user
+    from app.services.ledger import post_journal, LedgerError
+
+    je = db.session.get(JournalEntry, entry_id)
+    if je is None:
+        abort(404)
+    if je.is_reversal or je.reversal_of_id:
+        flash("مش ممكن تعكس قيد عكسي.", "error")
+        return redirect(url_for("accounting.journal_detail", entry_id=entry_id))
+
+    # flip debit/credit on every line
+    lines = [
+        {"account_id": l.account_id,
+         "debit": l.credit, "credit": l.debit,
+         "memo": f"عكس {je.number}: {l.memo or ''}".strip(),
+         "party_type": l.party_type, "party_id": l.party_id,
+         "cost_center_id": l.cost_center_id}
+        for l in je.lines
+    ]
+    try:
+        rev = post_journal(
+            description=f"عكس القيد {je.number} — {je.description}",
+            lines=lines,
+            entry_date=_date.today(),
+            reference=je.reference,
+            is_reversal=True,
+            reversal_of_id=je.id,
+            source_type="Reversal",
+            source_id=je.id,
+            created_by=current_user.id,
+        )
+        db.session.commit()
+        from flask import flash
+        flash(f"تم عكس القيد — قيد جديد {rev.number}.", "success")
+        return redirect(url_for("accounting.journal_detail", entry_id=rev.id))
+    except LedgerError as e:
+        flash(str(e), "error")
+        return redirect(url_for("accounting.journal_detail", entry_id=entry_id))
+
+
+@bp.route("/journal/<int:entry_id>/pause", methods=["POST"])
+@login_required
+def journal_pause(entry_id):
+    _admin_only()
+    from datetime import datetime
+    from flask import flash
+    from flask_login import current_user
+
+    je = db.session.get(JournalEntry, entry_id)
+    if je is None:
+        abort(404)
+    reason = (request.form.get("reason") or "").strip()
+    if not reason:
+        flash("لازم تكتب سبب الإيقاف.", "error")
+        return redirect(url_for("accounting.journal_detail", entry_id=entry_id))
+    je.is_active = False
+    je.pause_reason = reason
+    je.paused_by_id = current_user.id
+    je.paused_at = datetime.utcnow()
+    db.session.commit()
+    flash("تم إيقاف القيد — مش هيظهر في التقارير.", "warning")
+    return redirect(url_for("accounting.journal_detail", entry_id=entry_id))
+
+
+@bp.route("/journal/<int:entry_id>/reactivate", methods=["POST"])
+@login_required
+def journal_reactivate(entry_id):
+    _admin_only()
+    from datetime import datetime
+    from flask import flash
+    from flask_login import current_user
+
+    je = db.session.get(JournalEntry, entry_id)
+    if je is None:
+        abort(404)
+    reason = (request.form.get("reason") or "").strip()
+    if not reason:
+        flash("لازم تكتب سبب إعادة التنشيط.", "error")
+        return redirect(url_for("accounting.journal_detail", entry_id=entry_id))
+    je.is_active = True
+    je.reactivate_reason = reason
+    je.reactivated_by_id = current_user.id
+    je.reactivated_at = datetime.utcnow()
+    db.session.commit()
+    flash("تم إعادة تنشيط القيد.", "success")
+    return redirect(url_for("accounting.journal_detail", entry_id=entry_id))

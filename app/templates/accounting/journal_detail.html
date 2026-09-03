@@ -11,17 +11,61 @@
     </h1>
     <p class="text-muted mb-0">{{ entry.date }} — {{ entry.description }}</p>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
     {% if source_url %}
     <a href="{{ source_url }}" class="btn btn-outline-primary">
       <i class="bi bi-box-arrow-up-left"></i> فتح المصدر ({{ entry.source_type }})
     </a>
+    {% endif %}
+    {% if current_user.is_admin and not entry.is_reversal and not entry.reversal_of_id %}
+      {% if entry.is_active %}
+      <form method="post" action="{{ url_for('accounting.journal_pause', entry_id=entry.id) }}"
+            onsubmit="return prompt_reason(this, 'إيقاف قيد', 'اكتب سبب الإيقاف')">
+        <input type="hidden" name="reason" value="">
+        <button class="btn btn-outline-warning"><i class="bi bi-pause-circle"></i> إيقاف</button>
+      </form>
+      <form method="post" action="{{ url_for('accounting.journal_reverse', entry_id=entry.id) }}"
+            onsubmit="return confirm('عمل قيد عكسي؟ ده هيلغى تأثير القيد لكن هيسجّل قيد جديد بدل ما يحذف الأصلي.')">
+        <button class="btn btn-outline-danger"><i class="bi bi-arrow-counterclockwise"></i> عكس القيد</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('accounting.journal_reactivate', entry_id=entry.id) }}"
+            onsubmit="return prompt_reason(this, 'إعادة تنشيط', 'اكتب سبب إعادة التنشيط')">
+        <input type="hidden" name="reason" value="">
+        <button class="btn btn-outline-success"><i class="bi bi-play-circle"></i> إعادة تنشيط</button>
+      </form>
+      {% endif %}
     {% endif %}
     <a href="{{ url_for('accounting.journal_list') }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i> رجوع لدفتر اليومية
     </a>
   </div>
 </div>
+
+{% if entry.reversal_of_id %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i>
+  ده قيد عكسي للقيد
+  <a href="{{ url_for('accounting.journal_detail', entry_id=entry.reversal_of_id) }}" class="fw-bold">#{{ entry.reversal_of_id }}</a>.
+</div>
+{% endif %}
+
+{% if not entry.is_active and entry.pause_reason %}
+<div class="alert alert-warning">
+  <i class="bi bi-pause-circle-fill"></i>
+  <strong>القيد موقوف</strong> — <span dir="ltr">{{ entry.paused_at.strftime('%Y-%m-%d %H:%M') if entry.paused_at else '' }}</span>
+  <br>السبب: {{ entry.pause_reason }}
+</div>
+{% endif %}
+
+<script>
+  function prompt_reason(form, title, msg) {
+    var r = window.prompt(title + '\n\n' + msg + ':', '');
+    if (!r || !r.trim()) return false;
+    form.querySelector('input[name="reason"]').value = r.trim();
+    return true;
+  }
+</script>
 
 <div class="row g-3 mb-3">
   <div class="col-md-3">

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}قيد يومية يدوي{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-pencil-square"></i> قيد يومية يدوي</h1>
+  <p class="text-muted mb-0">القيد لازم يكون متوازن — مجموع المدين = مجموع الدائن.</p>
+</div>
+
+<form method="post" class="card p-3">
+  {{ form.hidden_tag() }}
+  <div class="row g-3 mb-3">
+    <div class="col-md-3">
+      {{ form.entry_date.label(class="form-label small fw-bold") }}
+      {{ form.entry_date(class="form-control", dir="ltr", type="date") }}
+    </div>
+    <div class="col-md-6">
+      {{ form.description.label(class="form-label small fw-bold") }}
+      {{ form.description(class="form-control", placeholder="مثال: تسوية جرد المخزن") }}
+    </div>
+    <div class="col-md-3">
+      {{ form.reference.label(class="form-label small fw-bold") }}
+      {{ form.reference(class="form-control") }}
+    </div>
+  </div>
+
+  <h5 class="mb-2">السطور</h5>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle" id="jeLines">
+      <thead>
+        <tr>
+          <th style="width:24%">الحساب</th>
+          <th style="width:12%">مدين</th>
+          <th style="width:12%">دائن</th>
+          <th style="width:12%">الطرف (اختياري)</th>
+          <th style="width:12%">مركز التكلفة</th>
+          <th>ملاحظة</th>
+          <th style="width:44px"></th>
+        </tr>
+      </thead>
+      <tbody id="linesBody">
+        {# server-side seed of 2 empty rows; JS adds/removes more #}
+      </tbody>
+    </table>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="addLine">
+      <i class="bi bi-plus-lg"></i> إضافة سطر
+    </button>
+  </div>
+
+  <div class="row g-3 mt-3 align-items-end">
+    <div class="col-md-4">
+      <div class="card p-2 text-center">
+        <div class="small text-muted">إجمالي مدين</div>
+        <div class="fs-5 fw-bold" id="totalDr" dir="ltr">0.00</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-2 text-center">
+        <div class="small text-muted">إجمالي دائن</div>
+        <div class="fs-5 fw-bold" id="totalCr" dir="ltr">0.00</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-2 text-center" id="balanceCard" style="background: var(--warning-soft); color: var(--warning);">
+        <div class="small">الحالة</div>
+        <div class="fs-5 fw-bold" id="balanceLabel">غير متوازن</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    <a href="{{ url_for('accounting.journal_list') }}" class="btn btn-outline-secondary">إلغاء</a>
+    {{ form.submit(class="btn btn-primary btn-lg") }}
+  </div>
+</form>
+
+<script>
+(function () {
+  var accounts = [
+    {% for a in accounts %}
+    {id:{{ a.id }}, code:"{{ a.code }}", name:"{{ a.name }}"},
+    {% endfor %}
+  ];
+  var groups = [
+    {% for g in groups %}{id:{{ g.id }}, name:"{{ g.name }}"},{% endfor %}
+  ];
+  var parties = [
+    {% for c in customers %}{value:"customer:{{ c.id }}", label:"عميل — {{ c.name }}"},{% endfor %}
+    {% for s in suppliers %}{value:"supplier:{{ s.id }}", label:"مورد — {{ s.name }}"},{% endfor %}
+  ];
+
+  var body = document.getElementById('linesBody');
+  var idx = 0;
+
+  function addLine() {
+    var i = idx++;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><select class="form-select form-select-sm" name="line_account_' + i + '">' +
+      '<option value="">—</option>' +
+      accounts.map(function (a) { return '<option value="' + a.id + '">' + a.code + ' · ' + a.name + '</option>'; }).join('') +
+      '</select></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm dr" name="line_debit_' + i + '" dir="ltr" value=""></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm cr" name="line_credit_' + i + '" dir="ltr" value=""></td>' +
+      '<td><select class="form-select form-select-sm" name="line_party_' + i + '">' +
+      '<option value="">—</option>' +
+      parties.map(function (p) { return '<option value="' + p.value + '">' + p.label + '</option>'; }).join('') +
+      '</select></td>' +
+      '<td><select class="form-select form-select-sm" name="line_cc_' + i + '">' +
+      '<option value="">—</option>' +
+      groups.map(function (g) { return '<option value="' + g.id + '">' + g.name + '</option>'; }).join('') +
+      '</select></td>' +
+      '<td><input type="text" class="form-control form-control-sm" name="line_memo_' + i + '" maxlength="200"></td>' +
+      '<td><button type="button" class="btn btn-outline-danger btn-sm remove-line"><i class="bi bi-x"></i></button></td>';
+    body.appendChild(tr);
+  }
+
+  function recompute() {
+    var dr = 0, cr = 0;
+    body.querySelectorAll('input.dr').forEach(function (i) { dr += parseFloat(i.value) || 0; });
+    body.querySelectorAll('input.cr').forEach(function (i) { cr += parseFloat(i.value) || 0; });
+    document.getElementById('totalDr').textContent = dr.toFixed(2);
+    document.getElementById('totalCr').textContent = cr.toFixed(2);
+    var balanced = Math.abs(dr - cr) < 0.005 && dr > 0;
+    var card = document.getElementById('balanceCard');
+    var label = document.getElementById('balanceLabel');
+    if (balanced) {
+      card.style.background = 'var(--brand-tint)';
+      card.style.color = 'var(--brand-dark)';
+      label.textContent = 'متوازن ✓';
+    } else {
+      card.style.background = 'var(--warning-soft)';
+      card.style.color = 'var(--warning)';
+      label.textContent = 'غير متوازن';
+    }
+  }
+
+  body.addEventListener('input', recompute);
+  body.addEventListener('click', function (e) {
+    if (e.target.closest('.remove-line')) {
+      e.target.closest('tr').remove();
+      recompute();
+    }
+  });
+  document.getElementById('addLine').addEventListener('click', function () {
+    addLine(); recompute();
+  });
+
+  // Start with 2 empty rows
+  addLine(); addLine(); recompute();
+})();
+</script>
+{% endblock %}
