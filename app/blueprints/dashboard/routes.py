@@ -91,6 +91,10 @@ def index():
         .all()
     )
 
+    # PHASE 8b: the /assets/ page already surfaces its own "assets
+    # pending depreciation this month" tile prominently; no need to
+    # duplicate on the dashboard's cramped KPI row.
+
     # Suppliers total balance owed
     invoices_total = (
         db.session.query(func.coalesce(func.sum(PurchaseInvoice.total), 0))

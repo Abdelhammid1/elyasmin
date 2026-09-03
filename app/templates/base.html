@@ -107,6 +107,9 @@
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('checks.') %}active{% endif %}"
          href="{{ url_for('checks.index') }}"><i class="bi bi-cash-stack"></i> الشيكات</a>
 
+      <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('assets.') %}active{% endif %}"
+         href="{{ url_for('assets.list_assets') }}"><i class="bi bi-gear-wide-connected"></i> الأصول الثابتة</a>
+
       <div class="sidebar-section-title">المالية</div>
       <a class="sidebar-item {% if request.endpoint == 'finance.milk_cost' %}active{% endif %}"
          href="{{ url_for('finance.milk_cost') }}"><i class="bi bi-droplet-half"></i> تكلفة كيلو اللبن</a>

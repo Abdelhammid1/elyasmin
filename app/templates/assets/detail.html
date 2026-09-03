@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}الأصل {{ asset.name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-gear-wide-connected"></i>
+      {{ asset.name }}
+      {% if asset.status == 'active' %}<span class="badge badge-success">{{ asset.status_label }}</span>
+      {% elif asset.status == 'disposed' %}<span class="badge bg-secondary">{{ asset.status_label }}</span>
+      {% else %}<span class="badge badge-muted">{{ asset.status_label }}</span>{% endif %}
+      {% if asset.is_fully_depreciated %}<span class="badge badge-warning">استهلك بالكامل</span>{% endif %}
+    </h1>
+    <p class="text-muted mb-0">
+      {{ asset.category_label }} · تكلفة الشراء
+      <span dir="ltr">{{ asset.purchase_cost }}</span> جنيه
+    </p>
+  </div>
+  <a href="{{ url_for('assets.list_assets') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-right"></i> رجوع للقائمة
+  </a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">التكلفة الأصلية</div>
+    <div class="stat-value" dir="ltr">{{ asset.purchase_cost }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">مجمع الإهلاك</div>
+    <div class="stat-value text-muted" dir="ltr">{{ asset.accumulated_depreciation }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">القيمة الدفترية</div>
+    <div class="stat-value text-primary" dir="ltr">{{ asset.book_value }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card"><div class="stat-label">إهلاك شهري</div>
+    <div class="stat-value" dir="ltr">{{ asset.monthly_depreciation }}</div>
+    <small class="text-muted">لمدة {{ asset.useful_life_months }} شهر</small>
+  </div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-7">
+    <div class="card p-3 mb-3">
+      <h5 class="mb-3"><i class="bi bi-info-circle"></i> التفاصيل</h5>
+      <dl class="row mb-0">
+        <dt class="col-4">النوع</dt><dd class="col-8">{{ asset.category_label }}</dd>
+        <dt class="col-4">تاريخ الشراء</dt><dd class="col-8" dir="ltr">{{ asset.purchase_date }}</dd>
+        <dt class="col-4">القيمة التخريدية</dt><dd class="col-8" dir="ltr">{{ asset.salvage_value }} جنيه</dd>
+        {% if asset.treasury_account %}
+          <dt class="col-4">حساب الشراء</dt><dd class="col-8">{{ asset.treasury_account.name }} (نقدي)</dd>
+        {% elif asset.supplier %}
+          <dt class="col-4">المورد</dt><dd class="col-8">
+            <a href="{{ url_for('suppliers.supplier_detail', supplier_id=asset.supplier.id) }}">{{ asset.supplier.name }}</a> (آجل)
+          </dd>
+        {% endif %}
+        {% if asset.disposed_on %}
+          <dt class="col-4">تاريخ التخريد</dt><dd class="col-8" dir="ltr">{{ asset.disposed_on }}</dd>
+          {% if asset.disposal_notes %}<dt class="col-4">ملاحظات التخريد</dt><dd class="col-8">{{ asset.disposal_notes }}</dd>{% endif %}
+        {% endif %}
+        {% if asset.notes %}<dt class="col-4">ملاحظات</dt><dd class="col-8" style="white-space: pre-wrap;">{{ asset.notes }}</dd>{% endif %}
+      </dl>
+    </div>
+
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-graph-down"></i> سجل الإهلاك</h5>
+      {% if asset.depreciation_postings %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>الشهر</th><th class="text-end">المبلغ</th><th>القيد</th></tr></thead>
+          <tbody>
+            {% for p in asset.depreciation_postings|reverse %}
+            <tr>
+              <td dir="ltr">{{ p.period_month.strftime('%Y-%m') }}</td>
+              <td dir="ltr" class="num text-end fw-bold">{{ p.amount }}</td>
+              <td class="small text-muted">
+                {% if p.je_id %}قيد #{{ p.je_id }}{% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">مفيش إهلاك مرحّل لسه.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    {% if asset.status == 'active' and not asset.is_fully_depreciated %}
+    <div class="card p-3 mb-3">
+      <h5 class="mb-3"><i class="bi bi-journal-plus text-primary"></i> ترحيل إهلاك شهر</h5>
+      <form method="post" action="{{ url_for('assets.post_depreciation', asset_id=asset.id) }}">
+        {{ dispose_form.hidden_tag() }}
+        <div class="mb-3">
+          <label class="form-label fw-bold">الشهر</label>
+          <input type="date" name="period_month" class="form-control" dir="ltr"
+                 value="{{ (asset.depreciation_postings|list|last).period_month.replace(day=1) if asset.depreciation_postings else asset.purchase_date.replace(day=1) }}">
+        </div>
+        <button class="btn btn-primary w-100">
+          <i class="bi bi-check-lg"></i> ترحيل الإهلاك
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if current_user.is_admin and asset.status == 'active' %}
+    <div class="card p-3">
+      <h5 class="mb-3"><i class="bi bi-archive text-danger"></i> تخريد الأصل</h5>
+      <p class="small text-muted">
+        هيتم شطب الأصل من الميزانية. لو بعتّه، اكتب ثمن البيع واختار الحساب اللي هيدخل فيه — الفرق بين الثمن والقيمة الدفترية بيتحسب ربح (4900) أو خسارة (5900) تلقائي.
+      </p>
+      <form method="post" action="{{ url_for('assets.dispose', asset_id=asset.id) }}"
+            onsubmit="return confirm('تأكيد تخريد الأصل؟ العملية دي مش قابلة للتراجع من الواجهة.');">
+        {{ dispose_form.hidden_tag() }}
+        <div class="mb-3">
+          {{ dispose_form.disposal_date.label(class="form-label fw-bold") }}
+          {{ dispose_form.disposal_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ dispose_form.sale_price.label(class="form-label fw-bold") }}
+          {{ dispose_form.sale_price(class="form-control", dir="ltr", step="0.01") }}
+        </div>
+        <div class="mb-3">
+          {{ dispose_form.sale_treasury_id.label(class="form-label fw-bold") }}
+          {{ dispose_form.sale_treasury_id(class="form-select") }}
+        </div>
+        <div class="mb-3">
+          {{ dispose_form.notes.label(class="form-label fw-bold") }}
+          {{ dispose_form.notes(class="form-control", rows=2) }}
+        </div>
+        {{ dispose_form.submit(class="btn btn-outline-danger w-100") }}
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card p-3 mt-3">
+  <h5 class="mb-3"><i class="bi bi-journal-bookmark"></i> القيود المحاسبية</h5>
+  {% if jes %}
+  {% for je in jes %}
+  <div class="mb-3 border-bottom pb-2">
+    <p class="text-muted mb-2 small">قيد #{{ je.id }} — <span dir="ltr">{{ je.date }}</span> — {{ je.description }}</p>
+    <table class="table table-sm mb-0">
+      <thead><tr><th>الحساب</th><th class="text-end">مدين</th><th class="text-end">دائن</th></tr></thead>
+      <tbody>
+      {% for l in je.lines %}
+        <tr>
+          <td>{{ l.account.code }} — {{ l.account.name }}</td>
+          <td dir="ltr" class="num text-end">{{ l.debit or '' }}</td>
+          <td dir="ltr" class="num text-end">{{ l.credit or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="text-muted mb-0">مفيش قيود مسجّلة.</p>
+  {% endif %}
+</div>
+{% endblock %}

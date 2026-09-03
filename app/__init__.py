@@ -59,6 +59,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.blueprints.returns.routes import bp as returns_bp
     from app.blueprints.reports.routes import bp as reports_bp
     from app.blueprints.checks.routes import bp as checks_bp
+    from app.blueprints.assets.routes import bp as assets_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(users_bp, url_prefix="/users")
@@ -83,6 +84,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(accounting_bp, url_prefix="/accounting")
     app.register_blueprint(returns_bp, url_prefix="/returns")
     app.register_blueprint(checks_bp, url_prefix="/checks")
+    app.register_blueprint(assets_bp, url_prefix="/assets")
 
     @app.errorhandler(403)
     def forbidden(_):
