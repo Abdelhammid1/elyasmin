@@ -83,6 +83,8 @@
          href="{{ url_for('customers.list_customers') }}"><i class="bi bi-person-lines-fill"></i> العملاء</a>
       <a class="sidebar-item {% if request.endpoint == 'customers.weekly_settlement' %}active{% endif %}"
          href="{{ url_for('customers.weekly_settlement') }}"><i class="bi bi-calendar-week"></i> التسوية الأسبوعية</a>
+      <a class="sidebar-item {% if request.endpoint == 'customers.dues' %}active{% endif %}"
+         href="{{ url_for('customers.dues') }}"><i class="bi bi-alarm"></i> المستحقات</a>
 
       <div class="sidebar-section-title">المخزون والموردون</div>
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('inventory') %}active{% endif %}"

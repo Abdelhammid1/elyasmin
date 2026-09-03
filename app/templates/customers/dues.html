@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}المستحقات{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-alarm"></i> المستحقات على العملاء</h1>
+    <p class="text-muted mb-0">الفواتير الصادرة اللي لسه فيها متبقّي، مقسومة على أعمارها من تاريخ الإصدار.</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">0 – 14 يوم</div>
+      <div class="stat-value" dir="ltr">{{ totals.b_0_14 }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="stat-label">15 – 30 يوم</div>
+      <div class="stat-value" dir="ltr">{{ totals.b_15_30 }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card tone-warning">
+      <div class="stat-label">31 – 60 يوم</div>
+      <div class="stat-value text-warning" dir="ltr">{{ totals.b_31_60 }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card tone-danger">
+      <div class="stat-label">أكتر من 60 يوم</div>
+      <div class="stat-value text-danger" dir="ltr">{{ totals.b_60_plus }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>العميل / الفاتورة</th>
+          <th>تاريخ</th>
+          <th>عدد الأيام</th>
+          <th class="text-end">0-14</th>
+          <th class="text-end">15-30</th>
+          <th class="text-end">31-60</th>
+          <th class="text-end">>60</th>
+          <th class="text-end">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="fw-bold" style="background: var(--brand-tint);">
+          <td>
+            <a href="{{ url_for('customers.customer_detail', customer_id=r.customer.id) }}">
+              <i class="bi bi-person-lines-fill"></i> {{ r.customer.name }}
+            </a>
+          </td>
+          <td colspan="2"></td>
+          <td dir="ltr" class="num text-end">{{ r.b_0_14 or '' }}</td>
+          <td dir="ltr" class="num text-end">{{ r.b_15_30 or '' }}</td>
+          <td dir="ltr" class="num text-end {% if r.b_31_60 %}text-warning{% endif %}">{{ r.b_31_60 or '' }}</td>
+          <td dir="ltr" class="num text-end {% if r.b_60_plus %}text-danger{% endif %}">{{ r.b_60_plus or '' }}</td>
+          <td dir="ltr" class="num text-end">{{ r.total }}</td>
+        </tr>
+          {% for row in r.invoices %}
+          <tr class="small text-muted">
+            <td style="padding-inline-start: 2rem;">
+              <a href="{{ url_for('milk.view_invoice', invoice_id=row.inv.id) }}">فاتورة #{{ row.inv.id }}</a>
+              {% if row.inv.invoice_number %}<span>({{ row.inv.invoice_number }})</span>{% endif %}
+            </td>
+            <td dir="ltr">{{ row.inv.issue_date }}</td>
+            <td dir="ltr">{{ row.days }} يوم</td>
+            <td dir="ltr" class="num text-end">{% if row.bucket == 'b_0_14' %}{{ row.outstanding }}{% endif %}</td>
+            <td dir="ltr" class="num text-end">{% if row.bucket == 'b_15_30' %}{{ row.outstanding }}{% endif %}</td>
+            <td dir="ltr" class="num text-end">{% if row.bucket == 'b_31_60' %}{{ row.outstanding }}{% endif %}</td>
+            <td dir="ltr" class="num text-end">{% if row.bucket == 'b_60_plus' %}{{ row.outstanding }}{% endif %}</td>
+            <td dir="ltr" class="num text-end">{{ row.outstanding }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">مفيش فواتير مستحقة — كل حاجة اتحصّلت.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="3" class="text-end">الإجمالي</td>
+          <td dir="ltr" class="num text-end">{{ totals.b_0_14 }}</td>
+          <td dir="ltr" class="num text-end">{{ totals.b_15_30 }}</td>
+          <td dir="ltr" class="num text-end text-warning">{{ totals.b_31_60 }}</td>
+          <td dir="ltr" class="num text-end text-danger">{{ totals.b_60_plus }}</td>
+          <td dir="ltr" class="num text-end">{{ totals.grand }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -413,3 +413,130 @@ def customers_report_pdf():
         date_to=d_to.isoformat(), customer_id=customer_id, _external=True,
     )
     return pdf_from_current_page(target, f"customers_report_{d_from}_{d_to}.pdf")
+
+
+# ==================== PHASE 3: weekly generation + dues ====================
+
+@bp.route("/generate-weekly-invoices", methods=["POST"])
+@login_required
+def generate_weekly_invoices():
+    """Admin action — for every weekly-contract customer, gather every
+    priced un-invoiced delivery from the past 7 days into ONE draft
+    invoice per customer. Idempotent: a second POST with no new
+    deliveries creates zero invoices; a POST while a draft already
+    exists for the same customer + range attaches new deliveries to it
+    instead of creating a duplicate."""
+    if not current_user.is_admin:
+        abort(403)
+    from app.models.sales import MilkInvoice, MilkDelivery
+
+    today = date.today()
+    week_start = today - timedelta(days=6)
+
+    customers = (
+        Customer.query
+        .filter_by(is_archived=False, contract_type=Customer.CONTRACT_WEEKLY)
+        .all()
+    )
+
+    created = 0
+    updated = 0
+    for c in customers:
+        deliveries = (
+            MilkDelivery.query
+            .filter_by(customer_id=c.id, is_archived=False)
+            .filter(
+                MilkDelivery.invoice_id.is_(None),
+                MilkDelivery.total_value.isnot(None),
+                MilkDelivery.delivery_date >= week_start,
+                MilkDelivery.delivery_date <= today,
+            )
+            .order_by(MilkDelivery.delivery_date)
+            .all()
+        )
+        if not deliveries:
+            continue
+
+        # Reuse an existing draft for the exact same window if any.
+        inv = (
+            MilkInvoice.query
+            .filter_by(customer_id=c.id, status=MilkInvoice.STATUS_DRAFT,
+                       period_from=week_start, period_to=today,
+                       is_archived=False)
+            .first()
+        )
+        if inv is None:
+            inv = MilkInvoice(
+                customer_id=c.id, period_from=week_start, period_to=today,
+                issue_date=today, status=MilkInvoice.STATUS_DRAFT,
+                created_by_id=current_user.id,
+            )
+            db.session.add(inv); db.session.flush()
+            created += 1
+        else:
+            updated += 1
+
+        for d in deliveries:
+            d.invoice_id = inv.id
+        inv.recompute_total()
+
+    db.session.commit()
+    if created == 0 and updated == 0:
+        flash("مفيش توريدات جديدة تحتاج فاتورة أسبوعية.", "info")
+    else:
+        flash(
+            f"تم إنشاء {created} فاتورة جديدة"
+            + (f" وتحديث {updated}." if updated else "."),
+            "success",
+        )
+    return redirect(url_for("customers.weekly_settlement"))
+
+
+@bp.route("/dues")
+@login_required
+def dues():
+    """المستحقات — every ISSUED milk invoice with outstanding > 0, aged
+    into four buckets (0-14, 15-30, 31-60, >60 days), grouped per
+    customer. Rendered as one big table with per-customer subtotals."""
+    from app.models.sales import MilkInvoice
+
+    today = date.today()
+    invs = (
+        MilkInvoice.query
+        .filter_by(is_archived=False, status=MilkInvoice.STATUS_ISSUED)
+        .order_by(MilkInvoice.customer_id, MilkInvoice.issue_date)
+        .all()
+    )
+
+    # Cheap in-Python bucketing — the ledger is small enough this is fine
+    def bucket(days):
+        if days <= 14: return "b_0_14"
+        if days <= 30: return "b_15_30"
+        if days <= 60: return "b_31_60"
+        return "b_60_plus"
+
+    per_customer: dict[int, dict] = {}
+    totals = {"b_0_14": Decimal("0"), "b_15_30": Decimal("0"),
+              "b_31_60": Decimal("0"), "b_60_plus": Decimal("0"),
+              "grand": Decimal("0")}
+
+    for i in invs:
+        out = i.outstanding_amount
+        if out <= 0:
+            continue
+        days = (today - i.issue_date).days
+        b = bucket(days)
+        c = per_customer.setdefault(i.customer_id, {
+            "customer": i.customer, "invoices": [],
+            "b_0_14": Decimal("0"), "b_15_30": Decimal("0"),
+            "b_31_60": Decimal("0"), "b_60_plus": Decimal("0"),
+            "total": Decimal("0"),
+        })
+        c["invoices"].append({"inv": i, "days": days, "bucket": b, "outstanding": out})
+        c[b] += out
+        c["total"] += out
+        totals[b] += out
+        totals["grand"] += out
+
+    rows = sorted(per_customer.values(), key=lambda r: r["customer"].name)
+    return render_template("customers/dues.html", rows=rows, totals=totals, today=today)

@@ -84,6 +84,56 @@
   </div>
 </div>
 
+{# PHASE 3: payments allocated to this invoice #}
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center"
+       style="background: var(--brand-tint); color: var(--brand-dark);">
+    <span class="fw-bold"><i class="bi bi-cash-coin"></i> الدفعات المخصصة لهذه الفاتورة</span>
+    <span class="small">
+      المتبقّي:
+      <span dir="ltr" class="fw-bold {% if invoice.outstanding_amount > 0 %}text-danger{% else %}text-success{% endif %}">
+        {{ invoice.outstanding_amount }}
+      </span>
+      من {{ invoice.grand_total }}
+    </span>
+  </div>
+  {% if invoice.allocations %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>تاريخ الدفعة</th>
+          <th>طريقة الدفع</th>
+          <th>الحساب</th>
+          <th class="text-end">المخصص لهذه الفاتورة</th>
+          <th class="text-end">إجمالي الدفعة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in invoice.allocations|sort(attribute='payment.payment_date') %}
+        <tr>
+          <td dir="ltr">{{ a.payment.payment_date }}</td>
+          <td>{{ a.payment.method_label }}</td>
+          <td>{{ a.payment.account.name if a.payment.account else '—' }}</td>
+          <td dir="ltr" class="num text-end fw-bold">{{ a.amount }}</td>
+          <td dir="ltr" class="num text-end text-muted">{{ a.payment.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="3" class="text-end">إجمالي المدفوع</td>
+          <td dir="ltr" class="num text-end">{{ invoice.paid_amount }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted text-center py-3 mb-0">مفيش دفعات مخصصة لهذه الفاتورة لسه.</p>
+  {% endif %}
+</div>
+
 <style>
 @media print {
   .print-only { display: block !important; }
