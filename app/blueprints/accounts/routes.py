@@ -61,6 +61,31 @@ def create_account():
         )
         db.session.add(account)
         db.session.flush()
+
+        # ACCOUNTING: wire the new treasury row onto its own COA leaf so any
+        # payment/transfer routed through it finds a JE destination. Also
+        # post an opening-balance JE if the client seeded one.
+        from app.services.coa_seed import wire_treasury_accounts
+        from app.services.ledger import get_account_by_code, post_journal
+        from app.services.autoposting import CODE_OPENING_EQUITY
+        wire_treasury_accounts()
+        if opening > 0:
+            from app.models.accounting import LedgerAccount
+            leaf = LedgerAccount.query.filter_by(treasury_account_id=account.id).first()
+            equity = get_account_by_code(CODE_OPENING_EQUITY)
+            if leaf and equity:
+                post_journal(
+                    description=f"رصيد افتتاحي — {account.display_name}",
+                    lines=[
+                        {"account_id": leaf.id, "debit": opening, "memo": "افتتاحي"},
+                        {"account_id": equity.id, "credit": opening,
+                         "memo": f"مقابل افتتاحي {account.name}"},
+                    ],
+                    source_type="OpeningBalance:Account",
+                    source_id=account.id,
+                    created_by=current_user.id,
+                )
+
         log_action("account_created", "Account", account.id,
                    details=f"type={account.account_type} opening={opening}")
         db.session.commit()
