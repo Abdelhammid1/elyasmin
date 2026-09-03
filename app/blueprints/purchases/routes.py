@@ -213,10 +213,14 @@ def create_invoice():
                 )
             )
 
-            # US-2.3: update inventory + last purchase price (always in base unit)
+            # PHASE 6: weighted-average blend replaces the naive last_price
+            # overwrite. `blend_purchase` updates current_qty + avg_cost +
+            # last_price (kept as reference). Everything downstream (feeding
+            # additions cost, medicine dispense, stock valuation) now reads
+            # avg_cost.
             ing = item["ingredient"]
-            ing.current_qty = (ing.current_qty or Decimal("0")) + item["qty"]
-            ing.last_price = item["price"]
+            from app.utils import inventory_cost
+            inventory_cost.blend_purchase(ing, item["qty"], item["price"])
 
             db.session.add(
                 StockMovement(

@@ -29,18 +29,24 @@
   </div>
   <div class="col-md-3 col-6">
     <div class="card stat-card">
-      <div class="stat-label">آخر سعر شراء</div>
-      <div class="stat-value" dir="ltr">{{ ingredient.last_price }}</div>
-      <small class="text-muted">جنيه / {{ ingredient.unit_label }}</small>
+      <div class="stat-label">متوسط التكلفة</div>
+      <div class="stat-value" dir="ltr">{{ ingredient.avg_cost }}</div>
+      <small class="text-muted">جنيه / {{ ingredient.unit_label }} · بيتحسب بمتوسط مرجّح</small>
     </div>
   </div>
   <div class="col-md-3 col-6">
     <div class="card stat-card">
       <div class="stat-label">قيمة المخزون</div>
       <div class="stat-value" dir="ltr">{{ ingredient.stock_value }}</div>
-      <small class="text-muted">جنيه</small>
+      <small class="text-muted">جنيه · <span dir="ltr">{{ ingredient.current_qty }} × {{ ingredient.avg_cost }}</span></small>
     </div>
   </div>
+</div>
+
+<div class="text-muted small mb-3">
+  <i class="bi bi-info-circle"></i>
+  آخر سعر شراء للمرجع بس: <span dir="ltr" class="fw-bold">{{ ingredient.last_price }}</span> جنيه.
+  الحسابات كلها بتستخدم متوسط التكلفة أعلاه.
 </div>
 
 {% if ingredient.alt_units %}

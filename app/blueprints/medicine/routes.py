@@ -118,7 +118,11 @@ def create_dispense():
                 flash("من فضلك اختار المجموعة.", "error")
                 return render_template("medicine/form.html", form=form, meds=_meds)
 
-            unit_price = ing.last_price or Decimal("0")
+            # PHASE 6: value at weighted-average cost (was last_price).
+            # In commit 2 this is replaced by a FIFO lot picker for
+            # medicine, which produces the same avg-weighted number when
+            # there's only one lot but tracks expiries separately.
+            unit_price = ing.avg_cost or Decimal("0")
             total_cost = (qty * unit_price).quantize(Decimal("0.01"))
 
             dispense = MedicineDispense(

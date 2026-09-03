@@ -305,7 +305,8 @@ def create_run():
         total_cost = Decimal("0")
         for rline in recipe.lines:
             qty_used = (rline.kg_per_batch * batches).quantize(Decimal("0.001"))
-            unit_price = rline.ingredient.last_price or Decimal("0")
+            # PHASE 6: value at weighted-average cost (was last_price)
+            unit_price = rline.ingredient.avg_cost or Decimal("0")
             line_cost = (qty_used * unit_price).quantize(Decimal("0.01"))
 
             total_weight += qty_used
@@ -583,7 +584,8 @@ def create_feeding(group_id=None):
                 )
                 return render()
 
-            price = Decimal(str(ing.last_price or 0))
+            # PHASE 6: value additions at avg_cost so the JE matches actual cost
+            price = Decimal(str(ing.avg_cost or 0))
             line_cost = (row["qty"] * price).quantize(Decimal("0.01"))
             additions_cost += line_cost
 

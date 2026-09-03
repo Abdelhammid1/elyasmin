@@ -31,7 +31,8 @@
           <th>الوحدة</th>
           <th>الرصيد الحالي</th>
           <th>الحد الأدنى</th>
-          <th>آخر سعر</th>
+          <th>متوسط التكلفة</th>
+          <th>آخر سعر شراء</th>
           <th>قيمة المخزون</th>
           <th class="text-end">إجراءات</th>
         </tr>
@@ -46,7 +47,8 @@
           <td>{{ i.unit_label }}</td>
           <td dir="ltr" class="fw-bold">{{ i.current_qty }}</td>
           <td dir="ltr">{{ i.min_qty }}</td>
-          <td dir="ltr">{{ i.last_price }}</td>
+          <td dir="ltr" class="fw-bold">{{ i.avg_cost }}</td>
+          <td dir="ltr" class="text-muted">{{ i.last_price }}</td>
           <td dir="ltr">{{ i.stock_value }}</td>
           <td class="text-end">
             <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>

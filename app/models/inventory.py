@@ -24,7 +24,11 @@ class Ingredient(db.Model):
 
     current_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
     min_qty = db.Column(db.Numeric(14, 3), nullable=False, default=Decimal("0"))
+    # `last_price` is retained as a reference field ("آخر سعر شراء") — nothing
+    # in the ledger or valuation reads it any more; PHASE 6 replaced it with
+    # `avg_cost` (weighted-average, blended in `app/utils/inventory_cost.py`).
     last_price = db.Column(db.Numeric(12, 2), nullable=False, default=Decimal("0"))
+    avg_cost = db.Column(db.Numeric(12, 4), nullable=False, default=Decimal("0"))
 
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
@@ -100,7 +104,8 @@ class Ingredient(db.Model):
 
     @property
     def stock_value(self) -> Decimal:
-        return (self.current_qty or Decimal("0")) * (self.last_price or Decimal("0"))
+        # PHASE 6: valued at weighted-average cost, not last purchase price
+        return (self.current_qty or Decimal("0")) * (self.avg_cost or Decimal("0"))
 
 
 class IngredientUnit(db.Model):

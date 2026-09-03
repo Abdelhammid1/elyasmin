@@ -224,6 +224,37 @@ def purchases_new():
         db.session.add(ret); db.session.flush()
         try:
             autoposting.on_purchase_return(ret, created_by=current_user.id)
+            # PHASE 6: if the return is tied to a specific invoice, pull the
+            # returned goods back off the shelf proportionally to the
+            # invoice's lines. Without this the ledger's inventory balance
+            # falls but the operational current_qty stays flat — the exact
+            # mismatch the /inventory/valuation view is built to surface.
+            if ret.invoice and ret.invoice.lines:
+                from app.utils import inventory_cost
+                total_lines = sum(
+                    (Decimal(str(l.line_total)) for l in ret.invoice.lines),
+                    Decimal("0"),
+                )
+                if total_lines > 0:
+                    remaining = Decimal(str(ret.amount))
+                    for line in ret.invoice.lines:
+                        share_money = (
+                            Decimal(str(line.line_total)) / total_lines
+                        ) * Decimal(str(ret.amount))
+                        qty_share = (
+                            share_money / Decimal(str(line.unit_price))
+                        ).quantize(Decimal("0.001"))
+                        if qty_share > 0:
+                            try:
+                                inventory_cost.reverse_purchase(
+                                    line.ingredient, qty_share
+                                )
+                            except ValueError:
+                                # Stock was already consumed after purchase —
+                                # ledger reversal still holds, but operational
+                                # counter can't go negative. Accountant reads
+                                # the diff on /inventory/valuation.
+                                pass
         except LedgerError as e:
             db.session.rollback()
             flash(str(e), "error")
