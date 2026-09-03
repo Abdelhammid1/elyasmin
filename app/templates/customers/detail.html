@@ -180,6 +180,86 @@
           {{ payment_form.notes.label(class="form-label fw-bold") }}
           {{ payment_form.notes(class="form-control", rows=2) }}
         </div>
+
+        {% if open_invoices %}
+        {# PHASE 3: allocate the payment across specific open invoices.
+           JS pre-fills "pay oldest first" as the amount is typed. Anything
+           left over goes on account. #}
+        <div class="mb-3">
+          <label class="form-label fw-bold mb-2">
+            <i class="bi bi-list-check"></i> توزيع على الفواتير
+            <span class="text-muted small fw-normal">(اختياري — اللي يفضل بيتحسب على الحساب)</span>
+          </label>
+          <div class="table-responsive" style="max-height: 260px; overflow-y: auto;">
+            <table class="table table-sm mb-0" id="allocGrid">
+              <thead>
+                <tr>
+                  <th>فاتورة</th>
+                  <th>تاريخ</th>
+                  <th class="text-end">المتبقّي</th>
+                  <th style="width:110px">توزيع</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for inv in open_invoices %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('milk.view_invoice', invoice_id=inv.id) }}">#{{ inv.id }}</a>
+                    {% if inv.invoice_number %}<span class="text-muted small">({{ inv.invoice_number }})</span>{% endif %}
+                  </td>
+                  <td dir="ltr">{{ inv.issue_date }}</td>
+                  <td dir="ltr" class="num text-end fw-bold" data-outstanding="{{ inv.outstanding_amount }}">
+                    {{ inv.outstanding_amount }}
+                  </td>
+                  <td>
+                    <input type="text" inputmode="decimal" class="form-control form-control-sm alloc-input"
+                           name="alloc_inv_{{ inv.id }}" dir="ltr" value="">
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold small">
+                  <td colspan="3" class="text-end">الموزّع / على الحساب</td>
+                  <td dir="ltr" class="num text-end">
+                    <span id="allocated">0.00</span> / <span id="onaccount" class="text-muted">0.00</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <script>
+          (function () {
+            var amt = document.querySelector('input[name="{{ payment_form.amount.name }}"]');
+            var inputs = Array.from(document.querySelectorAll('.alloc-input'));
+            function pay() { return parseFloat(amt.value) || 0; }
+            function autoFill() {
+              // pay oldest first — inputs are already in that order
+              var remaining = pay();
+              inputs.forEach(function (inp) {
+                var row = inp.closest('tr');
+                var out = parseFloat(row.querySelector('[data-outstanding]').dataset.outstanding) || 0;
+                if (remaining <= 0) { inp.value = ''; return; }
+                var take = Math.min(out, remaining);
+                inp.value = take > 0 ? take.toFixed(2) : '';
+                remaining -= take;
+              });
+              recompute();
+            }
+            function recompute() {
+              var alloc = 0;
+              inputs.forEach(function (i) { alloc += parseFloat(i.value) || 0; });
+              var total = pay();
+              document.getElementById('allocated').textContent = alloc.toFixed(2);
+              document.getElementById('onaccount').textContent = (total - alloc).toFixed(2);
+            }
+            if (amt) amt.addEventListener('input', autoFill);
+            inputs.forEach(function (i) { i.addEventListener('input', recompute); });
+          })();
+        </script>
+        {% endif %}
+
         {{ payment_form.submit(class="btn btn-primary w-100") }}
       </form>
     </div>

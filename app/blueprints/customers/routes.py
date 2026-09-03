@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -125,6 +125,10 @@ def customer_detail(customer_id: int):
             .all()
         )
 
+    # PHASE 3: open invoices for the payment form's allocation grid
+    from app.services.allocations import open_invoices_for
+    open_invoices = open_invoices_for(customer.id)
+
     return render_template(
         "customers/detail.html",
         customer=customer,
@@ -137,6 +141,7 @@ def customer_detail(customer_id: int):
         period_paid=period_paid,
         linked_invoices=linked_invoices,
         linked_supplier_payments=linked_supplier_payments,
+        open_invoices=open_invoices,
     )
 
 
@@ -228,9 +233,33 @@ def record_payment(customer_id: int):
     from app.services import autoposting
     autoposting.on_customer_payment(payment, account, created_by=current_user.id)
 
+    # PHASE 3: parse allocation rows if the form carried any. alloc_inv_<id>
+    # holds the amount to allocate against that invoice; blank/0 = skip.
+    # Anything not allocated stays on account as unallocated_amount.
+    allocations = []
+    for key, val in request.form.items():
+        if not key.startswith("alloc_inv_"):
+            continue
+        try:
+            inv_id = int(key[len("alloc_inv_"):])
+            amt = Decimal(str(val or "0"))
+        except (ValueError, InvalidOperation):
+            continue
+        if amt > 0:
+            allocations.append((inv_id, amt))
+    if allocations:
+        from app.services.allocations import allocate_payment, AllocationError
+        try:
+            allocate_payment(payment, allocations, created_by=current_user.id)
+        except AllocationError as ae:
+            db.session.rollback()
+            flash(str(ae), "error")
+            return redirect(url_for("customers.customer_detail", customer_id=customer.id))
+
     log_action(
         "customer_payment", "CustomerPayment", payment.id,
-        details=f"customer={customer.id} amount={payment.amount} account={account.id}",
+        details=f"customer={customer.id} amount={payment.amount} account={account.id} "
+                f"allocations={len(allocations)}",
     )
     db.session.commit()
     flash(
