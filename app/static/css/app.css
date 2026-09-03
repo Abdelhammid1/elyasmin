@@ -50,7 +50,8 @@ a:hover { color: var(--brand); text-decoration: underline; }
   color: inherit;
 }
 .sidebar-brand:hover { text-decoration: none; }
-.sidebar-brand img { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; }
+/* PHASE 14: bump from 44 → 48 now that the mark fills the frame (no whitespace padding). */
+.sidebar-brand img { width: 48px; height: 48px; object-fit: contain; flex-shrink: 0; }
 .sidebar-brand .brand-title { font-size: 1.05rem; font-weight: 800; color: var(--ink-1); line-height: 1.1; }
 .sidebar-brand .brand-sub   { font-size: 0.7rem;  color: var(--ink-3); margin-top: 3px; }
 
