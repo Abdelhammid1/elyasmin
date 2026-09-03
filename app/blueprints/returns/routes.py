@@ -236,7 +236,6 @@ def purchases_new():
                     Decimal("0"),
                 )
                 if total_lines > 0:
-                    remaining = Decimal(str(ret.amount))
                     for line in ret.invoice.lines:
                         share_money = (
                             Decimal(str(line.line_total)) / total_lines

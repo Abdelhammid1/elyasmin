@@ -14,15 +14,11 @@ from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
 bp = Blueprint("dashboard", __name__)
 
 
-def _month_start() -> date:
-    today = date.today()
-    return today.replace(day=1)
-
-
 @bp.route("/dashboard")
 @login_required
 def index():
-    month_start = _month_start()
+    today = date.today()
+    month_start = today.replace(day=1)
 
     # Active herd counts by group (single grouped query — fast even for 750+ rows)
     active_by_group = dict(
@@ -67,7 +63,6 @@ def index():
     # PHASE 6: medicine lots expiring within 30 days (or already expired
     # but still on the shelf). Ordered soonest-first so the row that
     # needs handling today sits at the top.
-    from datetime import timedelta
     from app.models.inventory import MedicineLot
     expiring_soon_lots = (
         MedicineLot.query
