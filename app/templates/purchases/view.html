@@ -1,86 +1,179 @@
 {% extends "base.html" %}
-{% block title %}فاتورة #{{ invoice.id }}{% endblock %}
+{% block title %}فاتورة شراء #{{ invoice.id }}{% endblock %}
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <div>
-    <h1><i class="bi bi-receipt"></i> فاتورة شراء #{{ invoice.id }}</h1>
-    <p class="text-muted mb-0">
-      المورد: <a href="{{ url_for('suppliers.supplier_detail', supplier_id=invoice.supplier.id) }}">{{ invoice.supplier.name }}</a>
-      · التاريخ: <span dir="ltr">{{ invoice.invoice_date }}</span>
-      {% if invoice.original_invoice_no %}· رقم أصلي: <span dir="ltr">{{ invoice.original_invoice_no }}</span>{% endif %}
-    </p>
-  </div>
-  <span class="badge fs-6 bg-{{ 'success' if invoice.payment_type == 'cash' else 'warning' }}">{{ invoice.payment_label }}</span>
+
+{# ============ ACTION BAR ============ #}
+{# PHASE 10 (YAS-UX-1): every action on the invoice reachable from one
+   row above the invoice — طباعة / PDF / Excel / سدّد / مرتجع / كرر /
+   حذف / إيميل / القيد المحاسبي. Same shape as the milk invoice view. #}
+<div class="invoice-actions no-print">
+  <span class="actions-label"><i class="bi bi-lightning-charge"></i> إجراءات</span>
+
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+    <i class="bi bi-printer"></i> طباعة / PDF
+  </button>
+
+  <a href="{{ url_for('purchases.invoice_excel', invoice_id=invoice.id) }}"
+     class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-excel"></i> Excel
+  </a>
+
+  {% if invoice.outstanding_amount > 0 %}
+  <button type="button" class="btn btn-primary btn-sm"
+          data-bs-toggle="modal" data-bs-target="#payInvoiceModal">
+    <i class="bi bi-cash-coin"></i> سدّد الآن
+  </button>
+  {% else %}
+  <button type="button" class="btn btn-outline-success btn-sm" disabled
+          title="الفاتورة مسدّدة بالكامل">
+    <i class="bi bi-check-circle"></i> مسدّدة بالكامل
+  </button>
+  {% endif %}
+
+  <a href="{{ url_for('returns.purchases_new', supplier_id=invoice.supplier_id) }}"
+     class="btn btn-outline-warning btn-sm">
+    <i class="bi bi-arrow-return-left"></i> مرتجع
+  </a>
+
+  <a href="{{ url_for('purchases.duplicate', invoice_id=invoice.id) }}"
+     class="btn btn-outline-info btn-sm">
+    <i class="bi bi-files"></i> كرر
+  </a>
+
+  {# Round-trip link to the journal entry — YAS-ACC-1 #}
+  {% set je = find_journal_entry_for('PurchaseInvoice', invoice.id) %}
+  {% if je %}
+  <a href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-journal-bookmark"></i> القيد المحاسبي
+  </a>
+  {% endif %}
+
+  {# Email — YAS-UX-5 deferred until Resend API key is provided #}
+  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+          title="قريبًا — يحتاج تفعيل خدمة الإيميل (Resend)">
+    <i class="bi bi-envelope"></i> إيميل
+  </button>
+
+  {% if current_user.is_admin %}
+  <form method="post"
+        action="{{ url_for('purchases.delete_invoice', invoice_id=invoice.id) }}"
+        onsubmit="return confirm('تأكيد حذف الفاتورة؟ العملية دي بتعكس القيد المحاسبي والمخزون تلقائيًا.');"
+        class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-trash"></i> حذف
+    </button>
+  </form>
+  {% endif %}
 </div>
 
+{# ============ SHARED HEADER ============ #}
+{% from "_invoice_header.html" import render_invoice_header %}
+{{ render_invoice_header(
+    kind="purchase",
+    number=invoice.id,
+    issue_date=invoice.invoice_date,
+    party_name=invoice.supplier.name,
+    party_url=url_for('suppliers.supplier_detail', supplier_id=invoice.supplier.id),
+    party_phone=invoice.supplier.phone,
+    status_text=invoice.payment_label,
+    status_tone='success' if invoice.payment_type == 'cash' else 'warning',
+) }}
+
+{# ============ LINE ITEMS ============ #}
 <div class="card p-3 mb-3">
-  <h5 class="mb-3">البنود</h5>
-  <table class="table mb-0">
-    <thead>
-      <tr>
-        <th>المادة</th>
-        <th>النوع</th>
-        <th>الكمية</th>
-        <th>الوحدة</th>
-        <th>السعر / وحدة</th>
-        <th class="text-end">الإجمالي</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for line in invoice.lines %}
-      <tr>
-        <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=line.ingredient.id) }}">{{ line.ingredient.name }}</a></td>
-        <td><span class="badge bg-secondary">{{ line.ingredient.category_label }}</span></td>
-        <td dir="ltr">{{ line.qty }}</td>
-        <td>{{ line.ingredient.unit_label }}</td>
-        <td dir="ltr">{{ line.unit_price }}</td>
-        <td dir="ltr" class="fw-bold text-end">{{ line.line_total }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot class="table-light">
-      <tr>
-        <th colspan="5" class="text-end">إجمالي البنود:</th>
-        <th dir="ltr" class="text-end">{{ invoice.subtotal }}</th>
-      </tr>
-      {% for c in invoice.discount_rows %}
-      <tr class="text-danger">
-        <th colspan="5" class="text-end">
-          − {{ c.type_label }}
-          {% if c.is_percentage %}<small>({{ c.rate_pct }}%)</small>{% endif %}:
-        </th>
-        <th dir="ltr" class="text-end">{{ c.amount_egp }}</th>
-      </tr>
-      {% endfor %}
-      {% for c in invoice.tax_rows %}
-      <tr class="text-primary">
-        <th colspan="5" class="text-end">
-          + {{ c.type_label }}
-          {% if c.is_percentage %}<small>({{ c.rate_pct }}%)</small>{% endif %}:
-        </th>
-        <th dir="ltr" class="text-end">{{ c.amount_egp }}</th>
-      </tr>
-      {% endfor %}
-      <tr>
-        <th colspan="5" class="text-end">إجمالي الفاتورة:</th>
-        <th dir="ltr" class="text-end fs-5">{{ invoice.total }}</th>
-      </tr>
-      <tr>
-        <th colspan="5" class="text-end">المدفوع:</th>
-        <th dir="ltr" class="text-end text-success">{{ invoice.paid_amount }}</th>
-      </tr>
-      <tr>
-        <th colspan="5" class="text-end">المتبقي:</th>
-        <th dir="ltr" class="text-end {% if invoice.outstanding > 0 %}text-danger{% else %}text-success{% endif %}">{{ invoice.outstanding }}</th>
-      </tr>
-    </tfoot>
-  </table>
+  <h5 class="mb-3"><i class="bi bi-list-ul"></i> بنود الفاتورة</h5>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>المادة</th>
+          <th>النوع</th>
+          <th class="text-center">الكمية</th>
+          <th class="text-center">الوحدة</th>
+          <th class="text-end">السعر / وحدة</th>
+          <th class="text-end">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in invoice.lines %}
+        <tr>
+          <td>
+            <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=line.ingredient.id) }}">{{ line.ingredient.name }}</a>
+          </td>
+          <td><span class="badge bg-secondary">{{ line.ingredient.category_label }}</span></td>
+          <td dir="ltr" class="text-center">{{ line.qty }}</td>
+          <td class="text-center">{{ line.ingredient.unit_label }}</td>
+          <td dir="ltr" class="text-end">{{ line.unit_price }}</td>
+          <td dir="ltr" class="fw-bold text-end">{{ line.line_total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-{# PHASE 4: supplier-payment allocations tied to this invoice #}
+{# ============ FOOTER: subtotal / discounts / taxes / total / paid / outstanding ============ #}
+<div class="invoice-footer-block">
+  <div class="invoice-footer-row">
+    <span class="label">المجموع الفرعي</span>
+    <span class="amount" dir="ltr">{{ invoice.subtotal }}</span>
+  </div>
+
+  {% for c in invoice.discount_rows %}
+  <div class="invoice-footer-row">
+    <span class="label">
+      خصم — {{ c.type_label }}
+      {% if c.is_percentage %}<small class="text-muted">({{ c.rate_pct }}%)</small>{% endif %}
+    </span>
+    <span class="amount text-danger" dir="ltr">− {{ c.amount_egp }}</span>
+  </div>
+  {% endfor %}
+
+  {% for c in invoice.tax_rows %}
+  <div class="invoice-footer-row">
+    <span class="label">
+      ضريبة — {{ c.type_label }}
+      {% if c.is_percentage %}<small class="text-muted">({{ c.rate_pct }}%)</small>{% endif %}
+    </span>
+    <span class="amount text-primary" dir="ltr">+ {{ c.amount_egp }}</span>
+  </div>
+  {% endfor %}
+
+  <div class="invoice-footer-row total">
+    <span class="label">إجمالي الفاتورة</span>
+    <span class="amount" dir="ltr">{{ invoice.total }}</span>
+  </div>
+
+  {% if invoice.paid_amount or invoice.allocated_amount %}
+  <div class="invoice-footer-row paid">
+    <span class="label">المدفوع</span>
+    <span class="amount" dir="ltr">
+      {{ (invoice.paid_amount + invoice.allocated_amount) }}
+    </span>
+  </div>
+  {% endif %}
+
+  {% if invoice.returned_amount %}
+  <div class="invoice-footer-row">
+    <span class="label">المرتجع</span>
+    <span class="amount text-warning" dir="ltr">− {{ invoice.returned_amount }}</span>
+  </div>
+  {% endif %}
+
+  <div class="invoice-footer-row outstanding {% if invoice.outstanding_amount > 0 %}due{% else %}settled{% endif %}">
+    <span class="label">
+      {% if invoice.outstanding_amount > 0 %}المتبقّي{% else %}تمت التسوية بالكامل{% endif %}
+    </span>
+    <span class="amount" dir="ltr">{{ invoice.outstanding_amount }}</span>
+  </div>
+</div>
+
+{# ============ ALLOCATIONS ============ #}
 <div class="card mt-3">
   <div class="card-header d-flex justify-content-between align-items-center"
-       style="background: var(--brand-tint); color: var(--brand-dark);">
+       style="background: var(--ms-brand-tint); color: var(--ms-brand-dark);">
     <span class="fw-bold"><i class="bi bi-cash-coin"></i> الدفعات المخصصة لهذه الفاتورة</span>
     <span class="small">
       المتبقّي:
@@ -136,9 +229,10 @@
   {% set inv_returns = invoice.returns.filter_by(is_archived=False).all() %}
   {% if inv_returns %}
   <hr>
-  <div class="d-flex justify-content-between align-items-center mb-2">
+  <div class="d-flex justify-content-between align-items-center mb-2 px-3">
     <span class="fw-bold"><i class="bi bi-arrow-return-left text-warning"></i> المرتجعات على هذه الفاتورة</span>
-    <a href="{{ url_for('returns.purchases_new', supplier_id=invoice.supplier_id) }}" class="btn btn-sm btn-outline-warning">مرتجع جديد</a>
+    <a href="{{ url_for('returns.purchases_new', supplier_id=invoice.supplier_id) }}"
+       class="btn btn-sm btn-outline-warning">مرتجع جديد</a>
   </div>
   <div class="table-responsive">
     <table class="table table-sm mb-0">
@@ -161,8 +255,76 @@
 
 {% if invoice.notes %}
 <div class="card p-3 mt-3">
-  <h6>ملاحظات</h6>
-  <p class="mb-0">{{ invoice.notes }}</p>
+  <h6><i class="bi bi-sticky"></i> ملاحظات</h6>
+  <p class="mb-0" style="white-space: pre-wrap;">{{ invoice.notes }}</p>
 </div>
 {% endif %}
+
+{# ============ PAY MODAL (YAS-UX-4 — wired in commit 3) ============ #}
+{% if invoice.outstanding_amount > 0 %}
+<div class="modal fade" id="payInvoiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('purchases.pay_invoice', invoice_id=invoice.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-cash-coin text-primary"></i> سداد فاتورة #{{ invoice.id }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">
+            المورد: <b>{{ invoice.supplier.name }}</b> ·
+            المتبقّي: <b dir="ltr" class="text-danger">{{ invoice.outstanding_amount }}</b> جنيه
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">المبلغ</label>
+            <input type="number" name="amount" step="0.01" min="0.01"
+                   value="{{ invoice.outstanding_amount }}"
+                   class="form-control" dir="ltr" required>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold">تاريخ الدفع</label>
+              <input type="date" name="payment_date" class="form-control" dir="ltr"
+                     value="{{ today_iso }}" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">طريقة الدفع</label>
+              <select name="method" class="form-select" required>
+                <option value="cash">نقدي</option>
+                <option value="transfer">تحويل بنكي</option>
+                <option value="check">شيك</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">الحساب</label>
+            <select name="account_id" class="form-select" required>
+              <option value="">— اختار الحساب —</option>
+              {% for id, label in treasury_choices %}
+              <option value="{{ id }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">ملاحظات (اختياري)</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> سداد
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

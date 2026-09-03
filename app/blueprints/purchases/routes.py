@@ -392,4 +392,273 @@ def view_invoice(invoice_id: int):
     invoice = db.session.get(PurchaseInvoice, invoice_id)
     if not invoice or invoice.is_archived:
         abort(404)
-    return render_template("purchases/view.html", invoice=invoice)
+    # PHASE 10 (YAS-UX-4): the "سدّد الآن" modal needs the treasury
+    # accounts + today's date pre-populated so the form is one-click.
+    from datetime import date
+    return render_template(
+        "purchases/view.html",
+        invoice=invoice,
+        treasury_choices=acc.active_choices(),
+        today_iso=date.today().isoformat(),
+    )
+
+
+# ==================== PHASE 10 — invoice actions ====================
+
+@bp.route("/<int:invoice_id>/excel")
+@login_required
+def invoice_excel(invoice_id: int):
+    """YAS-UX-1: Excel export of a purchase invoice — mirrors the shape
+    of the milk-side `invoice_excel` so both invoices offer the same
+    action bar."""
+    from app.utils.reports import excel_response
+    invoice = db.session.get(PurchaseInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        abort(404)
+
+    headers = ["المادة", "النوع", "الكمية", "الوحدة", "السعر / وحدة", "الإجمالي"]
+    rows = [
+        [line.ingredient.name,
+         line.ingredient.category_label,
+         float(line.qty),
+         line.ingredient.unit_label,
+         float(line.unit_price),
+         float(line.line_total)]
+        for line in invoice.lines
+    ]
+    # Trailer summary rows (subtotal, discounts, taxes, total, paid, outstanding)
+    rows.append(["", "", "", "", "المجموع الفرعي", float(invoice.subtotal)])
+    for c in invoice.discount_rows:
+        rows.append(["", "", "", "", f"خصم — {c.type_label}", -float(c.amount_egp)])
+    for c in invoice.tax_rows:
+        rows.append(["", "", "", "", f"ضريبة — {c.type_label}", float(c.amount_egp)])
+    rows.append(["", "", "", "", "إجمالي الفاتورة", float(invoice.total)])
+    rows.append(["", "", "", "", "المدفوع", float(invoice.paid_amount + invoice.allocated_amount)])
+    rows.append(["", "", "", "", "المتبقّي", float(invoice.outstanding_amount)])
+
+    return excel_response(
+        f"فاتورة {invoice.id}", headers, rows,
+        f"purchase_invoice_{invoice.id}.xlsx",
+    )
+
+
+@bp.route("/<int:invoice_id>/pay", methods=["POST"])
+@login_required
+def pay_invoice(invoice_id: int):
+    """YAS-UX-4: pay this specific invoice from a modal on its own
+    page. Creates a SupplierPayment + one Allocation for this invoice,
+    reusing `allocate_supplier_payment` so the JE + treasury movement
+    all fire the normal way."""
+    from datetime import date as _date
+    from app.models.suppliers import SupplierPayment
+    from app.services.allocations import allocate_supplier_payment, AllocationError
+    from app.services import autoposting
+
+    invoice = db.session.get(PurchaseInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        abort(404)
+
+    if invoice.outstanding_amount <= 0:
+        flash("الفاتورة دي مسدّدة بالكامل — مفيش متبقّي.", "info")
+        return redirect(url_for("purchases.view_invoice", invoice_id=invoice.id))
+
+    try:
+        amount = Decimal(str(request.form.get("amount", "0")))
+    except (InvalidOperation, ValueError):
+        flash("مبلغ غير صالح.", "error")
+        return redirect(url_for("purchases.view_invoice", invoice_id=invoice.id))
+    if amount <= 0:
+        flash("المبلغ لازم أكبر من صفر.", "error")
+        return redirect(url_for("purchases.view_invoice", invoice_id=invoice.id))
+
+    # Cap at outstanding — the extra would go on-account, but the modal
+    # is scoped to THIS invoice so anything above is a mistake.
+    if amount > invoice.outstanding_amount:
+        amount = invoice.outstanding_amount
+
+    account_id = request.form.get("account_id", type=int)
+    account = db.session.get(TreasuryAccount, account_id) if account_id else None
+    if not account or account.is_archived:
+        flash("لازم تختار حساب صحيح.", "error")
+        return redirect(url_for("purchases.view_invoice", invoice_id=invoice.id))
+
+    method = request.form.get("method") or "cash"
+    notes = (request.form.get("notes") or "").strip() or None
+    payment_date_raw = request.form.get("payment_date") or _date.today().isoformat()
+    try:
+        payment_date = _date.fromisoformat(payment_date_raw)
+    except ValueError:
+        payment_date = _date.today()
+
+    payment = SupplierPayment(
+        supplier_id=invoice.supplier_id,
+        amount=amount,
+        payment_date=payment_date,
+        method=method,
+        account_id=account.id,
+        notes=notes,
+        created_by_id=current_user.id,
+    )
+    db.session.add(payment)
+    db.session.flush()
+
+    # Treasury cash-out
+    acc.money_out(
+        account, amount, payment_date,
+        ref_type="supplier_payment", ref_id=payment.id, user_id=current_user.id,
+        notes=f"دفعة للمورد {invoice.supplier.name} (فاتورة #{invoice.id})",
+    )
+    # Double-entry JE via autoposter
+    autoposting.on_supplier_payment(payment, account, created_by=current_user.id)
+
+    # Mirror as Expense for the cash-outflow report
+    db.session.add(Expense(
+        category=Expense.CAT_SUPPLIER_PAYMENT,
+        amount=amount,
+        expense_date=payment_date,
+        description=f"دفعة للمورد {invoice.supplier.name} (فاتورة #{invoice.id})",
+        ref_type="supplier_payment",
+        ref_id=payment.id,
+        account_id=account.id,
+        created_by_id=current_user.id,
+    ))
+
+    # Allocate the payment 1:1 to this invoice
+    try:
+        allocate_supplier_payment(
+            payment, [(invoice.id, amount)], created_by=current_user.id,
+        )
+    except AllocationError as e:
+        db.session.rollback()
+        flash(str(e), "error")
+        return redirect(url_for("purchases.view_invoice", invoice_id=invoice.id))
+
+    log_action("supplier_payment", "SupplierPayment", payment.id,
+               details=f"invoice={invoice.id} amount={amount}")
+    db.session.commit()
+    flash(
+        f"تم تسجيل دفعة {amount} جنيه للفاتورة #{invoice.id}. "
+        f"رصيد {account.name} بقى {account.current_balance}.",
+        "success",
+    )
+    return redirect(url_for("purchases.view_invoice", invoice_id=invoice.id))
+
+
+@bp.route("/<int:invoice_id>/delete", methods=["POST"])
+@login_required
+def delete_invoice(invoice_id: int):
+    """YAS-UX-2: soft-delete a purchase invoice.
+
+    Reverses the auto-posted JE, walks the invoice's stock movements
+    and reverses them (avg_cost blended back via
+    `inventory_cost.reverse_purchase`), then archives the invoice row.
+    Guarded: if the invoice has allocations or returns, requires
+    `?force=1` — otherwise flashes a warning and stays on the page.
+    """
+    if not current_user.is_admin:
+        abort(403)
+
+    invoice = db.session.get(PurchaseInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        abort(404)
+
+    from app.utils import inventory_cost
+    from app.services.autoposting import _delete_prior_je
+
+    # Guard: activity linked to the invoice? Force needed.
+    force = request.args.get("force") == "1"
+    linked_allocs = invoice.allocations
+    linked_returns = list(invoice.returns.filter_by(is_archived=False))
+    if (linked_allocs or linked_returns) and not force:
+        flash(
+            f"الفاتورة عليها {len(linked_allocs)} دفعة مخصصة "
+            f"و {len(linked_returns)} مرتجع. لو متأكد أضف ?force=1 على الرابط.",
+            "warning",
+        )
+        return redirect(url_for("purchases.view_invoice", invoice_id=invoice.id))
+
+    # 1) reverse the JE
+    _delete_prior_je("PurchaseInvoice", invoice.id)
+
+    # 2) walk stock movements + reverse each
+    moves = StockMovement.query.filter_by(
+        reason=StockMovement.REASON_PURCHASE, ref_id=invoice.id,
+    ).all()
+    for m in moves:
+        ing = m.ingredient
+        # delta positive on purchase — subtracting the same qty here
+        try:
+            inventory_cost.reverse_purchase(ing, m.delta)
+        except ValueError:
+            # stock has since been consumed — reset the ingredient's qty
+            # to zero manually and let the accountant reconcile.
+            ing.current_qty = max(Decimal("0"), Decimal(str(ing.current_qty)) - Decimal(str(m.delta)))
+        db.session.delete(m)
+
+    # 3) archive the invoice
+    invoice.is_archived = True
+
+    log_action("invoice_deleted", "PurchaseInvoice", invoice.id,
+               details=f"forced={force} allocs={len(linked_allocs)} returns={len(linked_returns)}")
+    db.session.commit()
+    flash(
+        f"تم حذف الفاتورة #{invoice.id}. القيد المحاسبي والمخزون رجعوا لما قبلها.",
+        "success",
+    )
+    return redirect(url_for("purchases.list_invoices"))
+
+
+@bp.route("/<int:invoice_id>/duplicate")
+@login_required
+def duplicate(invoice_id: int):
+    """YAS-UX-3: open the create-invoice form pre-filled with every
+    line + charge from an existing invoice. No auto-scheduling — the
+    user reviews and saves as a fresh invoice."""
+    source = db.session.get(PurchaseInvoice, invoice_id)
+    if not source or source.is_archived:
+        abort(404)
+
+    form = PurchaseInvoiceForm()
+    form.supplier_id.choices = [
+        (s.id, s.name) for s in
+        Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
+    ]
+    form.account_id.choices = [(0, "— اختار الحساب —")] + acc.active_choices()
+    form.supplier_id.data = source.supplier_id
+    form.payment_type.data = source.payment_type
+
+    suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
+    ingredients = (
+        Ingredient.query.filter_by(is_archived=False)
+        .order_by(Ingredient.category, Ingredient.name).all()
+    )
+
+    # Pre-serialise the source's lines + charges so the template can
+    # feed them straight into the JS row-builder.
+    prefill_lines = [{
+        "ingredient_id": line.ingredient_id,
+        "qty": str(line.qty),
+        "unit_price": str(line.unit_price),
+        "unit_code": line.input_unit_code or line.ingredient.unit,
+        "lot_number": "",   # never carried across — every duplicate is a fresh batch
+        "expires_on": "",
+    } for line in source.lines]
+    prefill_charges = [{
+        "kind": c.kind,
+        "type_name": c.type_name,
+        "is_percentage": c.is_percentage,
+        "rate_pct": str(c.rate_pct or 0),
+        "amount_egp": str(c.amount_egp or 0),
+    } for c in source.charges]
+
+    flash(
+        f"عرض فاتورة جديدة معبّاة ببيانات الفاتورة #{source.id}. "
+        f"راجع البنود وضغط حفظ.",
+        "info",
+    )
+    return render_template(
+        "purchases/form.html",
+        form=form, ingredients=ingredients, suppliers=suppliers,
+        prefill_lines=prefill_lines, prefill_charges=prefill_charges,
+        duplicate_source_id=source.id,
+    )

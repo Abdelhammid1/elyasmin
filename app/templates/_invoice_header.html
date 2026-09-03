@@ -1,0 +1,63 @@
+{#
+  Shared invoice header — used by both purchase (فاتورة شراء) and milk
+  (فاتورة بيع). Exposed as a macro so callers pass params explicitly
+  (which sidesteps Jinja's include-vs-set scoping surprise).
+
+  Usage:
+    {% from "_invoice_header.html" import render_invoice_header %}
+    {{ render_invoice_header(
+        kind="purchase",
+        number=invoice.id,
+        issue_date=invoice.invoice_date,
+        party_name=invoice.supplier.name,
+        party_url=url_for('suppliers.supplier_detail', supplier_id=invoice.supplier.id),
+        party_phone=invoice.supplier.phone,
+        status_text=invoice.payment_label,
+        status_tone='success' if invoice.payment_type == 'cash' else 'warning',
+    ) }}
+
+  When PHASE-2 CompanyProfile ships, the top block reads legal_name +
+  tax registration + logo from that model. For now it reads app_name.
+#}
+{% macro render_invoice_header(kind, number, issue_date, party_name,
+                               party_url, party_phone=None,
+                               status_text=None, status_tone=None) %}
+<div class="invoice-header-box card p-3 mb-3">
+  <div class="row g-3 align-items-center">
+    <div class="col-md-4">
+      <div class="d-flex align-items-center gap-2">
+        <img src="{{ url_for('static', filename='img/logo-256.png') }}"
+             alt="{{ app_name }}"
+             style="height:44px; width:44px; object-fit:contain;">
+        <div>
+          <div class="fw-bold" style="font-size:1.05rem;">{{ app_name }}</div>
+          <div class="text-muted small">نظام إدارة المزرعة</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4 text-center">
+      <div class="text-muted small">
+        {% if kind == "purchase" %}فاتورة شراء{% else %}فاتورة بيع{% endif %}
+      </div>
+      <div class="fw-bold" style="font-size:1.35rem;">#{{ number }}</div>
+      <div class="text-muted small" dir="ltr">{{ issue_date }}</div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="text-end">
+        <div class="text-muted small">
+          {% if kind == "purchase" %}المورد{% else %}العميل{% endif %}
+        </div>
+        <div class="fw-bold">
+          <a href="{{ party_url }}" class="text-decoration-none">{{ party_name }}</a>
+        </div>
+        {% if party_phone %}<div class="text-muted small" dir="ltr">{{ party_phone }}</div>{% endif %}
+        {% if status_text %}
+        <span class="badge bg-{{ status_tone or 'secondary' }} mt-2">{{ status_text }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}

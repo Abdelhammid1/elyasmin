@@ -98,6 +98,12 @@ def create_app(config_name: str | None = None) -> Flask:
     def server_error(_):
         return render_template("errors/500.html"), 500
 
+    # PHASE 10 (YAS-ACC-1): expose the invoice→JE reverse-lookup helper
+    # as a jinja global so any invoice-like template can pull the JE
+    # without route glue.
+    from app.services.accounting_links import find_journal_entry_for
+    app.jinja_env.globals["find_journal_entry_for"] = find_journal_entry_for
+
     @app.context_processor
     def inject_globals():
         # BRAND: the four values are env-driven so a deployment can rebrand or hide
