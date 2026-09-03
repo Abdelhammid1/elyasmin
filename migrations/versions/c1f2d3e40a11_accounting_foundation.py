@@ -43,7 +43,21 @@ TOL = Decimal("0.05")   # backfill tolerance — 5 piastre for float→Decimal d
 
 def upgrade():
     _create_schema()
+    _add_early_columns()
     _seed_and_backfill()
+
+
+def _add_early_columns():
+    """Columns that PHASE 6 (6c0d074ad3f1) normally adds, pulled forward
+    here because the P1 backfill queries the full Ingredient model, which
+    already declares avg_cost — the column must exist before that ORM
+    SELECT runs, same reasoning as cost_center_id above."""
+    with op.batch_alter_table("ingredients") as batch:
+        batch.add_column(sa.Column(
+            "avg_cost", sa.Numeric(12, 4),
+            nullable=False, server_default=sa.text("0"),
+        ))
+    op.execute("UPDATE ingredients SET avg_cost = last_price")
 
 
 def _create_schema():
@@ -106,6 +120,12 @@ def _create_schema():
         sa.Column("memo", sa.Text, nullable=True),
         sa.Column("party_type", sa.String(20), nullable=True, index=True),
         sa.Column("party_id", sa.Integer, nullable=True, index=True),
+        # cost_center_id lives here (not in PHASE 2 below) because the P1
+        # backfill uses the full JournalLine model, which already declares
+        # this column — the table must have it from creation or the ORM
+        # SELECT after backfill fails with UndefinedColumn.
+        sa.Column("cost_center_id", sa.Integer,
+                  sa.ForeignKey("cattle_groups.id"), nullable=True, index=True),
     )
     op.create_index("ix_journal_lines_party",
                     "journal_lines", ["party_type", "party_id"])
@@ -123,6 +143,18 @@ def _seed_and_backfill():
     """
     from app.extensions import db
     from app.services.coa_seed import seed_default_coa, wire_treasury_accounts
+
+    # alembic's op connection and Flask-SQLAlchemy's db.session connection
+    # are separate by default — inside this still-open transaction the ORM
+    # can't see tables op.create_table() just made.
+    # `configure(bind=...)` alone does NOT fix this on Flask-SQLAlchemy 3.x:
+    # its Session subclass overrides get_bind() to always resolve the engine
+    # from the extension/app config, ignoring any bind set via configure().
+    # So we remove the old session and monkeypatch get_bind() directly on
+    # the fresh instance to force it onto alembic's own connection.
+    db.session.remove()
+    _sess = db.session()
+    _sess.get_bind = lambda *a, **kw: op.get_bind()
 
     try:
         # 1) seed the chart, wire treasury accounts onto their leaves

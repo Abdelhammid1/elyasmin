@@ -250,9 +250,17 @@ def on_expense(expense, treasury_account=None, *, created_by=None):
     DR <category expense>  /  CR treasury     (normal case)
     DR ذمم الموردين        /  CR treasury     (cash purchase invoice case)
     """
-    code = EXPENSE_CODE_BY_CATEGORY.get(expense.category)
-    if code is None:
+    # .get() with no default can't tell "known mirror category, skip on
+    # purpose" (CAT_SUPPLIER_PAYMENT / CAT_WORKER_WAGE, mapped to None)
+    # apart from "unknown category, e.g. a custom:<label> row the user
+    # typed in" — both silently returned None here, so every custom
+    # expense category was dropped from the ledger with no JE at all.
+    # Known mirrors still skip; anything else — custom categories
+    # included — falls back to the generic "other expenses" account.
+    _MIRROR_CATEGORIES = {Expense.CAT_SUPPLIER_PAYMENT, Expense.CAT_WORKER_WAGE}
+    if expense.category in _MIRROR_CATEGORIES:
         return None   # mirror rows aren't a JE source
+    code = EXPENSE_CODE_BY_CATEGORY.get(expense.category, EXPENSE_CODE_BY_CATEGORY[Expense.CAT_OTHER])
 
     if treasury_account is None:
         return None   # nothing to credit — malformed row, leave to caller check
@@ -330,7 +338,7 @@ def on_worker_payment(payment, treasury_account, *, created_by=None):
     amount = _d(payment.amount)
 
     return post_journal(
-        description=f"دفعة للعامل {payment.worker.full_name}"
+        description=f"دفعة للعامل {payment.worker.name}"
                     + (f" — {payment.notes}" if payment.notes else ""),
         lines=[
             {"account_id": labour.id, "debit": amount},

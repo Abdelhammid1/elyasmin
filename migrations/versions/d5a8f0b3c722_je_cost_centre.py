@@ -20,13 +20,12 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table("journal_lines") as b:
-        b.add_column(sa.Column("cost_center_id", sa.Integer, nullable=True))
-        b.create_foreign_key(
-            "fk_journal_lines_cost_center",
-            "cattle_groups", ["cost_center_id"], ["id"],
-        )
-        b.create_index("ix_journal_lines_cost_center", ["cost_center_id"])
+    # cost_center_id + its FK + its index were moved into PHASE 1
+    # (c1f2d3e40a11) at deploy time — the P1 backfill needed the column to
+    # exist on table creation, since it queries the full JournalLine model.
+    # This migration is now a documented no-op kept for revision-history
+    # continuity; nothing left to do here.
+    pass
 
 
 def downgrade():

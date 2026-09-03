@@ -18,15 +18,11 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table("ingredients") as batch:
-        batch.add_column(sa.Column(
-            "avg_cost", sa.Numeric(12, 4),
-            nullable=False, server_default=sa.text("0"),
-        ))
-    # Seed avg_cost from last_price so a farm with existing stock keeps a
-    # sensible valuation the moment the migration finishes. The opening
-    # JE in commit 3 balances the ledger against this same starting point.
-    op.execute("UPDATE ingredients SET avg_cost = last_price")
+    # avg_cost was moved into PHASE 1 (c1f2d3e40a11._add_early_columns) at
+    # deploy time — the P1 backfill needed the column to exist before it
+    # queries the full Ingredient model. This migration is now a documented
+    # no-op kept for revision-history continuity; nothing left to do here.
+    pass
 
 
 def downgrade():
