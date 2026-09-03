@@ -224,6 +224,9 @@ def record_payment(customer_id: int):
         ref_type="customer_payment", ref_id=payment.id, user_id=current_user.id,
         notes=f"تحصيل من العميل {customer.name}",
     )
+    # ACCOUNTING: post the double-entry alongside the treasury movement.
+    from app.services import autoposting
+    autoposting.on_customer_payment(payment, account, created_by=current_user.id)
 
     log_action(
         "customer_payment", "CustomerPayment", payment.id,

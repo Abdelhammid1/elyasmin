@@ -181,6 +181,10 @@ def transfer():
             flash(str(exc), "error")
             return render_template("accounts/transfer.html", form=form)
 
+        # ACCOUNTING: mirror the transfer as a DR/CR between the two treasury leaves.
+        from app.services import autoposting
+        autoposting.on_treasury_transfer(src, dst, tr, created_by=current_user.id)
+
         log_action("account_transfer", "AccountTransfer", tr.id,
                    details=f"{src.id}->{dst.id} amount={tr.amount}")
         db.session.commit()

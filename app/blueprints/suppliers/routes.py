@@ -226,6 +226,10 @@ def record_payment(supplier_id: int):
         ref_type="supplier_payment", ref_id=payment.id, user_id=current_user.id,
         notes=f"دفعة للمورد {supplier.name}",
     )
+    # ACCOUNTING: post the double-entry alongside the treasury movement.
+    # Both writes land in the same commit below — one atomic event.
+    from app.services import autoposting
+    autoposting.on_supplier_payment(payment, account, created_by=current_user.id)
 
     # US-3.3 AC3: record as expense (cash outflow)
     db.session.add(

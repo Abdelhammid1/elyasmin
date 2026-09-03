@@ -141,6 +141,11 @@ def create_expense():
                 ref_type="expense", ref_id=e.id, user_id=current_user.id,
                 notes=f"مصروف: {e.category_label}",
             )
+            # ACCOUNTING: only the real cash expenses post JEs; the mirror
+            # rows (supplier_payment / worker_payment) are skipped by the
+            # autoposter itself, so no branch needed here.
+            from app.services import autoposting
+            autoposting.on_expense(e, account, created_by=current_user.id)
 
         log_action("expense_manual", "Expense", e.id, details=f"cat={e.category} amt={e.amount}")
         db.session.commit()

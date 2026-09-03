@@ -264,6 +264,13 @@ def create_invoice():
         invoice.total = final_total
         total = final_total  # rest of function uses this as the true total
 
+        # ACCOUNTING: post the invoice-side JE (DR inventory / CR payable).
+        # The cash-invoice pathway posts its own second JE below (payable
+        # settlement); the on_expense autoposter special-cases ref_type
+        # 'purchase_invoice_cash' so no double-count.
+        from app.services import autoposting
+        autoposting.on_purchase_invoice(invoice, created_by=current_user.id)
+
         # Cash → marked paid immediately + record as expense; Credit → paid_amount stays 0
         if invoice.payment_type == PurchaseInvoice.PAY_CASH:
             invoice.paid_amount = total
@@ -302,6 +309,10 @@ def create_invoice():
                     user_id=current_user.id,
                     notes=f"فاتورة نقدي من {supplier.name} (#{invoice.id})",
                 )
+                # ACCOUNTING: pay off the payable the invoice just created.
+                # on_expense special-cases ref_type='purchase_invoice_cash'
+                # and posts DR payable / CR cash instead of hitting an expense.
+                autoposting.on_expense(cash_expense, cash_account, created_by=current_user.id)
 
         log_action(
             "purchase_invoice_created",

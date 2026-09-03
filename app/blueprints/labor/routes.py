@@ -264,6 +264,9 @@ def record_payment(worker_id: int):
         ref_type="worker_payment", ref_id=payment.id, user_id=current_user.id,
         notes=f"دفعة للعامل {worker.name}",
     )
+    # ACCOUNTING: post the wage as an expense hit
+    from app.services import autoposting
+    autoposting.on_worker_payment(payment, account, created_by=current_user.id)
 
     # US-6.2 BR: auto-record as expense
     db.session.add(

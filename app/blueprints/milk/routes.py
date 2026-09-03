@@ -204,6 +204,10 @@ def create_delivery():
 
         db.session.add(delivery)
         db.session.flush()
+        # ACCOUNTING: post the sale JE. Skipped for unpriced deliveries by
+        # the autoposter itself — nothing to post until there's a real number.
+        from app.services import autoposting
+        autoposting.on_milk_delivery_priced(delivery, created_by=current_user.id)
         log_action(
             "milk_delivery_created", "MilkDelivery", delivery.id,
             details=f"customer={customer.id} qty={delivery.qty_kg} "
@@ -287,6 +291,11 @@ def edit_delivery(delivery_id: int):
         # A draft invoice's total has to follow the line it contains
         if delivery.invoice and delivery.invoice.status == MilkInvoice.STATUS_DRAFT:
             delivery.invoice.recompute_total()
+
+        # ACCOUNTING: re-post the delivery's JE. The autoposter deletes any
+        # prior JE and posts a fresh one so a re-price updates the ledger.
+        from app.services import autoposting
+        autoposting.on_milk_delivery_priced(delivery, created_by=current_user.id)
 
         log_action(
             "milk_delivery_updated", "MilkDelivery", delivery.id,
