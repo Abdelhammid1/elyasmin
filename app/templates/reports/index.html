@@ -1,38 +1,129 @@
 {% extends "base.html" %}
-{% block title %}التقارير{% endblock %}
+{% block title %}كل التقارير{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-file-earmark-bar-graph"></i> التقارير</h1>
-  <p class="text-muted mb-0">كل تقرير تقدر تعرضه وتحمّله PDF أو Excel.</p>
+  <h1><i class="bi bi-file-earmark-bar-graph"></i> كل التقارير</h1>
+  <p class="text-muted mb-0">
+    كل التقارير في مكان واحد — مالية بتخرج من دفتر الأستاذ مباشرة،
+    وتشغيلية بتخرج من الحقل. اضغط أي تقرير عشان تفتحه.
+  </p>
 </div>
 
-<div class="row g-3">
-  <div class="col-md-6 col-lg-4">
-    <div class="card p-3 h-100">
-      <h5><i class="bi bi-heart-pulse"></i> أعمار القطيع</h5>
-      <p class="text-muted small flex-grow-1">كل رأس بعمره ومجموعته، مع فلترة بالمجموعة.</p>
-      <a href="{{ url_for('reports.herd_ages') }}" class="btn btn-outline-primary btn-sm mt-auto">افتح التقرير</a>
+{# PHASE 12 (YAS-NAV-2): categorised reports landing.
+   Each tile is a self-contained card with emoji icon + arabic title +
+   one-line description + open button. Two sections stacked. #}
+
+<div class="mb-4">
+  <h5 class="mb-3">
+    <span class="me-1" style="font-size:1.2rem;">💰</span>
+    التقارير المالية والمحاسبية
+  </h5>
+  <div class="row g-3">
+    {% set financial = [
+      {"emoji": "📈", "title": "الأرباح والخسائر",
+       "desc":  "ملخص إيراد ومصروف الفترة اللي انت مختارها بشكل مختصر.",
+       "url":   url_for('finance.pnl')},
+      {"emoji": "🧾", "title": "قائمة الدخل",
+       "desc":  "قائمة الدخل الرسمية بالإيراد والمصروف بالتفصيل من دفتر الأستاذ.",
+       "url":   url_for('accounting.income_statement_view')},
+      {"emoji": "📊", "title": "الميزانية العمومية",
+       "desc":  "الأصول والالتزامات وحقوق الملكية في تاريخ معين.",
+       "url":   url_for('accounting.balance_sheet_view')},
+      {"emoji": "💵", "title": "التدفقات النقدية",
+       "desc":  "الفلوس اللي دخلت وطلعت من الخزنة والبنوك (Direct method).",
+       "url":   url_for('accounting.cash_flow_view')},
+      {"emoji": "⚖️", "title": "ميزان المراجعة",
+       "desc":  "كل الحسابات بأرصدتها المدينة والدائنة — لازم متوازن.",
+       "url":   url_for('accounting.trial_balance_view')},
+      {"emoji": "💧", "title": "تكلفة كيلو اللبن",
+       "desc":  "الحساب السريع بنسبة 80/20 — كام جنيه بتاع اللبن الواحد.",
+       "url":   url_for('finance.milk_cost')},
+      {"emoji": "🐄", "title": "تكلفة اللبن (بالمجموعة)",
+       "desc":  "تحليل التكلفة على مستوى كل مجموعة أبقار حسب مركز التكلفة.",
+       "url":   url_for('accounting.milk_cost_by_group_view')},
+      {"emoji": "⏱", "title": "أعمار الديون — العملاء",
+       "desc":  "فواتير العملاء المفتوحة موزّعة على فترات عمر (aging).",
+       "url":   url_for('customers.dues')},
+      {"emoji": "⏰", "title": "أعمار الديون — الموردون",
+       "desc":  "فواتير الموردين المفتوحة موزّعة على فترات عمر.",
+       "url":   url_for('suppliers.dues')},
+      {"emoji": "👥", "title": "تقرير العملاء",
+       "desc":  "توريدات وفواتير وتحصيلات كل عميل مع الرصيد الحالي.",
+       "url":   url_for('customers.customers_report')},
+      {"emoji": "🏢", "title": "تقرير الموردين",
+       "desc":  "فواتير ودفعات كل مورد مع الرصيد الحالي.",
+       "url":   url_for('suppliers.suppliers_report')},
+    ] %}
+    {% for r in financial %}
+    <div class="col-md-6 col-lg-4">
+      <a href="{{ r.url }}" class="card p-3 h-100 text-decoration-none text-body"
+         style="border: 1px solid var(--ms-line); border-radius: var(--ms-radius-lg); transition: all .15s ease;"
+         onmouseover="this.style.borderColor='var(--ms-brand)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--ms-shadow-md)';"
+         onmouseout="this.style.borderColor='var(--ms-line)'; this.style.transform=''; this.style.boxShadow='';">
+        <div class="d-flex align-items-start gap-3">
+          <div style="font-size:2rem; line-height:1;">{{ r.emoji }}</div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1" style="color: var(--ms-ink-1);">{{ r.title }}</h6>
+            <p class="text-muted small mb-2">{{ r.desc }}</p>
+            <div class="small" style="color: var(--ms-brand-dark); font-weight:600;">
+              افتح التقرير <i class="bi bi-arrow-left"></i>
+            </div>
+          </div>
+        </div>
+      </a>
     </div>
-  </div>
-  <div class="col-md-6 col-lg-4">
-    <div class="card p-3 h-100">
-      <h5><i class="bi bi-egg"></i> المواليد</h5>
-      <p class="text-muted small flex-grow-1">الولادات في أي مدى زمني، بعدد الذكور والإناث والأحياء.</p>
-      <a href="{{ url_for('reports.births') }}" class="btn btn-outline-primary btn-sm mt-auto">افتح التقرير</a>
-    </div>
-  </div>
-  <div class="col-md-6 col-lg-4">
-    <div class="card p-3 h-100">
-      <h5><i class="bi bi-boxes"></i> المخزون</h5>
-      <p class="text-muted small flex-grow-1">المواد الموجودة بالكميات والقيمة، مع فلترة بالنوع.</p>
-      <a href="{{ url_for('reports.stock') }}" class="btn btn-outline-primary btn-sm mt-auto">افتح التقرير</a>
-    </div>
+    {% endfor %}
   </div>
 </div>
 
-<div class="alert alert-light border mt-4 small text-muted">
+<div class="mb-4">
+  <h5 class="mb-3">
+    <span class="me-1" style="font-size:1.2rem;">🚜</span>
+    التقارير التشغيلية
+  </h5>
+  <div class="row g-3">
+    {% set operational = [
+      {"emoji": "👨‍🌾", "title": "تقرير العمالة",
+       "desc":  "حضور وأجور كل عامل، مع الرصيد المستحق.",
+       "url":   url_for('labor.report')},
+      {"emoji": "🐄", "title": "أعمار القطيع",
+       "desc":  "كل رأس بعمره ومجموعته، مع فلترة بالمجموعة.",
+       "url":   url_for('reports.herd_ages')},
+      {"emoji": "🥚", "title": "المواليد",
+       "desc":  "الولادات في أي مدى زمني بعدد الذكور والإناث والأحياء.",
+       "url":   url_for('reports.births')},
+      {"emoji": "📦", "title": "المخزون",
+       "desc":  "المواد الموجودة بالكميات والقيمة، مع فلترة بالنوع.",
+       "url":   url_for('reports.stock')},
+      {"emoji": "⚖️", "title": "تسوية المخزون",
+       "desc":  "مقارنة قيمة المخزون التشغيلي بقيمة الحركات في الدفتر — الفرق لازم صفر.",
+       "url":   url_for('inventory.valuation')},
+    ] %}
+    {% for r in operational %}
+    <div class="col-md-6 col-lg-4">
+      <a href="{{ r.url }}" class="card p-3 h-100 text-decoration-none text-body"
+         style="border: 1px solid var(--ms-line); border-radius: var(--ms-radius-lg); transition: all .15s ease;"
+         onmouseover="this.style.borderColor='var(--ms-brand)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--ms-shadow-md)';"
+         onmouseout="this.style.borderColor='var(--ms-line)'; this.style.transform=''; this.style.boxShadow='';">
+        <div class="d-flex align-items-start gap-3">
+          <div style="font-size:2rem; line-height:1;">{{ r.emoji }}</div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1" style="color: var(--ms-ink-1);">{{ r.title }}</h6>
+            <p class="text-muted small mb-2">{{ r.desc }}</p>
+            <div class="small" style="color: var(--ms-brand-dark); font-weight:600;">
+              افتح التقرير <i class="bi bi-arrow-left"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="alert alert-light border small text-muted">
   <i class="bi bi-info-circle"></i>
-  تقرير الموردين والمشتريات له شاشته الخاصة في
-  <a href="{{ url_for('suppliers.suppliers_report') }}">المالية ← تقرير الموردين</a>.
+  كل تقرير عنده أزرار تصدير Excel و PDF من داخله. لو محتاج تقرير جديد،
+  قول لفريق التطوير عشان يتضاف هنا.
 </div>
 {% endblock %}
