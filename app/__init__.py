@@ -114,6 +114,20 @@ def create_app(config_name: str | None = None) -> Flask:
             },
         }
 
+    @app.context_processor
+    def inject_pending_leaves():
+        """PHASE 15 (YAS-HR-1): live badge on the sidebar's leave link for
+        admins. Cheap COUNT with a status index, one per request."""
+        from flask_login import current_user
+        if not getattr(current_user, "is_authenticated", False):
+            return {"pending_leaves_total": 0}
+        if not getattr(current_user, "is_admin", False):
+            return {"pending_leaves_total": 0}
+        from app.models.labor import LeaveRequest
+        n = LeaveRequest.query.filter_by(
+            status=LeaveRequest.STATUS_PENDING).count()
+        return {"pending_leaves_total": n}
+
     @app.before_request
     def track_activity_and_timeout():
         """Enforce rolling inactivity timeout regardless of remember_me cookie.

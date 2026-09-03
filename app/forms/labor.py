@@ -50,3 +50,17 @@ class WorkerPaymentForm(FlaskForm):
     account_id = SelectField("من حساب", coerce=int, validators=[DataRequired(message="اختار الحساب اللي الفلوس هتطلع منه.")])
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("تسجيل الدفعة")
+
+
+# PHASE 15 (YAS-HR-1) — leave-request submit + reject forms.
+class LeaveRequestForm(FlaskForm):
+    start_date = DateField("من", validators=[DataRequired()], default=date.today)
+    end_date = DateField("إلى", validators=[DataRequired()], default=date.today)
+    reason = TextAreaField("السبب", validators=[Optional(), Length(max=500)])
+    submit = SubmitField("قدّم طلب")
+
+
+class LeaveRejectForm(FlaskForm):
+    """Captures the admin's rejection reason (optional but recommended)."""
+    decision_note = TextAreaField("سبب الرفض", validators=[Optional(), Length(max=500)])
+    submit = SubmitField("تأكيد الرفض")

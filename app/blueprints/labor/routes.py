@@ -1,15 +1,21 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
-from app.forms.labor import WorkerForm, WorkerPaymentForm
+from app.forms.labor import (
+    LeaveRejectForm,
+    LeaveRequestForm,
+    WorkerForm,
+    WorkerPaymentForm,
+)
 from app.models.finance import TreasuryAccount, Expense
-from app.models.labor import Attendance, Worker, WorkerPayment
+from app.models.labor import Attendance, LeaveRequest, Worker, WorkerPayment
 from app.utils import accounts as acc
 from app.utils.audit import log_action
+from app.utils.decorators import admin_required
 from app.utils.reports import excel_response
 
 bp = Blueprint("labor", __name__, template_folder="../../templates/labor")
@@ -61,20 +67,47 @@ def worker_detail(worker_id: int):
         .order_by(Attendance.attendance_date.desc())
         .all()
     )
-    payments = (
+    # PHASE 15 (YAS-HR-1): full payment history with running total, plus
+    # advances/salaries splits for the two new headline cards.
+    history_asc = (
         WorkerPayment.query.filter_by(worker_id=worker.id, is_archived=False)
-        .order_by(WorkerPayment.payment_date.desc())
-        .limit(50)
+        .order_by(WorkerPayment.payment_date, WorkerPayment.id)
         .all()
     )
+    running = Decimal("0")
+    history = []
+    for p in history_asc:
+        running += Decimal(str(p.amount))
+        history.append({"p": p, "running": running.quantize(Decimal("0.01"))})
+    history.reverse()  # newest first for display
+
+    total_advances = sum(
+        (Decimal(str(p.amount)) for p in history_asc
+         if p.reason == WorkerPayment.REASON_ADVANCE),
+        Decimal("0"),
+    )
+    total_salaries = sum(
+        (Decimal(str(p.amount)) for p in history_asc
+         if p.reason == WorkerPayment.REASON_SALARY),
+        Decimal("0"),
+    )
+
     payment_form = WorkerPaymentForm()
     payment_form.account_id.choices = acc.active_choices()
+
+    # Leave requests for this worker (newest start_date first via backref order)
+    leaves = worker.leave_requests.all()
+    leave_form = LeaveRequestForm()
     return render_template(
         "labor/detail.html",
         worker=worker,
         attendances=attendances,
-        payments=payments,
+        history=history,
+        total_advances=total_advances,
+        total_salaries=total_salaries,
         payment_form=payment_form,
+        leaves=leaves,
+        leave_form=leave_form,
     )
 
 
@@ -286,3 +319,102 @@ def record_payment(worker_id: int):
     db.session.commit()
     flash(f"تم تسجيل دفعة {payment.amount} للعامل {worker.name}.", "success")
     return redirect(url_for("labor.worker_detail", worker_id=worker.id))
+
+
+# ==================== PHASE 15 (YAS-HR-1) — leave requests ====================
+
+def _leave_or_404(leave_id: int) -> LeaveRequest:
+    req = db.session.get(LeaveRequest, leave_id)
+    if req is None:
+        abort(404)
+    return req
+
+
+@bp.route("/<int:worker_id>/leaves/new", methods=["POST"])
+@login_required
+def submit_leave(worker_id: int):
+    """Any logged-in user can submit a leave request on behalf of a worker.
+    Approvals are admin-only (see below)."""
+    worker = db.session.get(Worker, worker_id)
+    if not worker or worker.is_archived:
+        abort(404)
+    form = LeaveRequestForm()
+    if not form.validate_on_submit():
+        for _, errors in form.errors.items():
+            for e in errors:
+                flash(e, "error")
+        return redirect(url_for("labor.worker_detail", worker_id=worker.id))
+    if form.end_date.data < form.start_date.data:
+        flash("تاريخ النهاية قبل تاريخ البداية.", "error")
+        return redirect(url_for("labor.worker_detail", worker_id=worker.id))
+
+    req = LeaveRequest(
+        worker_id=worker.id,
+        start_date=form.start_date.data,
+        end_date=form.end_date.data,
+        reason=(form.reason.data or "").strip() or None,
+        submitted_by_id=current_user.id,
+    )
+    db.session.add(req)
+    db.session.flush()
+    log_action("leave_submitted", "LeaveRequest", req.id,
+               details=f"worker={worker.id} {req.start_date}..{req.end_date}")
+    db.session.commit()
+    flash("اتقدّم طلب الإجازة — منتظر اعتماد الإدارة.", "success")
+    return redirect(url_for("labor.worker_detail", worker_id=worker.id))
+
+
+@bp.route("/leaves/<int:leave_id>/approve", methods=["POST"])
+@admin_required
+def approve_leave(leave_id: int):
+    req = _leave_or_404(leave_id)
+    if req.status != LeaveRequest.STATUS_PENDING:
+        flash("الطلب اتحوّل خلاص — مش ممكن تعتمده تاني.", "error")
+    else:
+        req.status = LeaveRequest.STATUS_APPROVED
+        req.decided_by_id = current_user.id
+        req.decided_at = datetime.utcnow()
+        log_action("leave_approved", "LeaveRequest", req.id)
+        db.session.commit()
+        flash(f"اتعتمد طلب إجازة {req.worker.name}.", "success")
+    return redirect(request.referrer or
+                    url_for("labor.worker_detail", worker_id=req.worker_id))
+
+
+@bp.route("/leaves/<int:leave_id>/reject", methods=["POST"])
+@admin_required
+def reject_leave(leave_id: int):
+    req = _leave_or_404(leave_id)
+    if req.status != LeaveRequest.STATUS_PENDING:
+        flash("الطلب اتحوّل خلاص — مش ممكن ترفضه تاني.", "error")
+        return redirect(request.referrer or
+                        url_for("labor.worker_detail", worker_id=req.worker_id))
+    # decision_note is optional; capture whatever came in as free text
+    note = (request.form.get("decision_note") or "").strip() or None
+    req.status = LeaveRequest.STATUS_REJECTED
+    req.decided_by_id = current_user.id
+    req.decided_at = datetime.utcnow()
+    req.decision_note = note
+    log_action("leave_rejected", "LeaveRequest", req.id,
+               details=f"note={note or ''}")
+    db.session.commit()
+    flash(f"اترفض طلب إجازة {req.worker.name}.", "warning")
+    return redirect(request.referrer or
+                    url_for("labor.worker_detail", worker_id=req.worker_id))
+
+
+@bp.route("/leaves")
+@admin_required
+def leaves_queue():
+    """Admin queue: everything still pending across every worker, plus the
+    latest 30 already-decided rows so admins can audit."""
+    pending = (LeaveRequest.query
+               .filter_by(status=LeaveRequest.STATUS_PENDING)
+               .order_by(LeaveRequest.submitted_at.desc()).all())
+    decided = (LeaveRequest.query
+               .filter(LeaveRequest.status != LeaveRequest.STATUS_PENDING)
+               .order_by(LeaveRequest.decided_at.desc())
+               .limit(30).all())
+    return render_template("labor/leaves_queue.html",
+                           pending=pending, decided=decided,
+                           reject_form=LeaveRejectForm())

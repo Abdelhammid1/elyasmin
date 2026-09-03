@@ -121,3 +121,72 @@ class WorkerPayment(db.Model):
     @property
     def reason_label(self) -> str:
         return "سلفة" if self.reason == self.REASON_ADVANCE else "دفعة من الراتب"
+
+
+class LeaveRequest(db.Model):
+    """PHASE 15 (YAS-HR-1). A worker asking to take days off.
+
+    - Status is `pending` when submitted, then flipped by an admin to
+      `approved` or `rejected` (with an optional decision_note).
+    - Not a money event, so autoposting doesn't touch it. If a paid
+      leave later has to cut a WorkerPayment on approval, create the
+      payment from the approval handler — existing autoposting picks
+      it up automatically.
+    - Follows the same Check-style status convention (STRING + CHECK
+      constraint + STATUS_LABELS dict + status_label property).
+    """
+    __tablename__ = "leave_requests"
+
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+
+    STATUS_LABELS = {
+        STATUS_PENDING: "معلّق",
+        STATUS_APPROVED: "معتمد",
+        STATUS_REJECTED: "مرفوض",
+    }
+
+    id = db.Column(db.Integer, primary_key=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey("workers.id"),
+                          nullable=False, index=True)
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    end_date = db.Column(db.Date, nullable=False)
+    reason = db.Column(db.Text, nullable=True)          # what the worker gave as reason
+
+    status = db.Column(db.String(10), nullable=False,
+                       default=STATUS_PENDING, server_default="pending",
+                       index=True)
+
+    submitted_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decision_note = db.Column(db.Text, nullable=True)    # required-ish on reject
+
+    worker = db.relationship(
+        "Worker",
+        backref=db.backref("leave_requests", lazy="dynamic",
+                           order_by="LeaveRequest.start_date.desc()"),
+    )
+    submitted_by = db.relationship("User", foreign_keys=[submitted_by_id])
+    decided_by = db.relationship("User", foreign_keys=[decided_by_id])
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected')",
+            name="ck_leave_status",
+        ),
+        db.CheckConstraint(
+            "end_date >= start_date",
+            name="ck_leave_dates",
+        ),
+    )
+
+    @property
+    def status_label(self) -> str:
+        return self.STATUS_LABELS.get(self.status, self.status)
+
+    @property
+    def days_count(self) -> int:
+        return (self.end_date - self.start_date).days + 1
