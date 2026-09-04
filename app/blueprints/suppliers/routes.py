@@ -1,9 +1,9 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.extensions import db
 from app.forms.suppliers import SupplierForm, SupplierPaymentForm
@@ -20,9 +20,50 @@ bp = Blueprint("suppliers", __name__, template_folder="../../templates/suppliers
 @bp.route("/")
 @login_required
 def list_suppliers():
-    suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
-    total_owed = sum((s.balance_due for s in suppliers), Decimal("0"))
-    return render_template("suppliers/list.html", suppliers=suppliers, total_owed=total_owed)
+    """PHASE 22: KPI-strip + filter-row + rich-chip list (mirror of customers)."""
+    q_text = (request.args.get("q") or "").strip()
+    f_balance = (request.args.get("balance") or "all").lower()
+
+    query = Supplier.query.filter_by(is_archived=False)
+    if q_text:
+        like = f"%{q_text}%"
+        query = query.filter(or_(Supplier.name.ilike(like), Supplier.phone.ilike(like)))
+    suppliers = query.order_by(Supplier.name).all()
+
+    if f_balance == "owes":
+        suppliers = [s for s in suppliers if s.balance_due > 0]
+    elif f_balance == "paid":
+        suppliers = [s for s in suppliers if s.balance_due <= 0]
+
+    total_owed = sum((s.balance_due for s in suppliers if s.balance_due > 0), Decimal("0"))
+
+    today = date.today()
+    overdue_ids = set()
+    for inv in PurchaseInvoice.query.filter(
+        PurchaseInvoice.is_archived.is_(False),
+    ).all():
+        if inv.outstanding_amount > 0 and inv.invoice_date and (today - inv.invoice_date).days > 15:
+            overdue_ids.add(inv.supplier_id)
+    overdue_count = len(overdue_ids)
+
+    since = today - timedelta(days=30)
+    paid_30d = db.session.query(
+        func.coalesce(func.sum(SupplierPayment.amount), 0)
+    ).filter(
+        SupplierPayment.is_archived.is_(False),
+        SupplierPayment.payment_date >= since,
+    ).scalar()
+
+    return render_template(
+        "suppliers/list.html",
+        suppliers=suppliers,
+        total_owed=total_owed,
+        active_count=len(suppliers),
+        overdue_count=overdue_count,
+        overdue_ids=overdue_ids,
+        paid_30d=Decimal(str(paid_30d or 0)),
+        f_q=q_text, f_balance=f_balance,
+    )
 
 
 def _customer_link_choices():

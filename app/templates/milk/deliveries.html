@@ -1,47 +1,99 @@
 {% extends "base.html" %}
-{% block title %}توريدات اللبن{% endblock %}
+{% block title %}توريدات اللبن — {{ day }}{% endblock %}
 {% block content %}
+
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
   <div>
-    <h1><i class="bi bi-droplet"></i> توريدات اللبن — <span dir="ltr">{{ day }}</span></h1>
-    <p class="text-muted mb-0">
-      إجمالي اليوم: <span dir="ltr" class="fw-bold">{{ day_qty }} كيلو</span> بقيمة <span dir="ltr" class="fw-bold">{{ day_value }} جنيه</span>
-    </p>
+    <h1><i class="bi bi-droplet"></i> توريدات اللبن</h1>
+    <p class="text-muted mb-0">توريدات كل عميل خلال اليوم — مسعّرة وغير مسعّرة.</p>
   </div>
-  <div class="d-flex gap-2">
-    <form method="get" class="d-flex gap-1 align-items-center">
-      <input type="date" name="day" value="{{ day.isoformat() }}" class="form-control form-control-sm" dir="ltr">
-      <button class="btn btn-sm btn-outline-secondary">عرض</button>
-    </form>
-    <a href="{{ url_for('milk.daily_production', day=day.isoformat()) }}" class="btn btn-outline-primary"><i class="bi bi-clipboard-data"></i> الإنتاج والفاقد</a>
-    <a href="{{ url_for('milk.create_delivery') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> توريد جديد</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('milk.daily_production', day=day.isoformat()) }}" class="btn btn-outline-primary">
+      <i class="bi bi-clipboard-data"></i> الإنتاج والفاقد
+    </a>
+    <a href="{{ url_for('milk.create_delivery') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> توريد جديد
+    </a>
   </div>
 </div>
 
-{% if unpriced_count %}
-<div class="alert alert-warning d-flex align-items-center gap-2">
-  <i class="bi bi-hourglass-split"></i>
-  فيه <strong>{{ unpriced_count }}</strong> توريد لسه بانتظار التسعير في اليوم ده —
-  مش داخلين في إجمالي اليوم ولا في حساب العميل لحد ما تسعّرهم.
-</div>
-{% endif %}
+{# Day navigator #}
+<form method="get" class="week-nav">
+  <a href="{{ url_for('milk.list_deliveries', day=prev_day.isoformat()) }}"
+     class="btn btn-outline-secondary btn-sm week-prev">
+    <i class="bi bi-arrow-right"></i> اليوم السابق
+  </a>
+  <div class="week-range">
+    <span class="range-badge">
+      <i class="bi bi-calendar3"></i> <span dir="ltr">{{ day }}</span>
+    </span>
+    <input type="date" name="day" value="{{ day.isoformat() }}"
+           onchange="this.form.submit()"
+           class="form-control form-control-sm" style="width:150px" dir="ltr">
+  </div>
+  <a href="{{ url_for('milk.list_deliveries', day=next_day.isoformat()) }}"
+     class="btn btn-outline-secondary btn-sm week-next">
+    اليوم التالي <i class="bi bi-arrow-left"></i>
+  </a>
+</form>
 
-{% if production %}
-<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">إجمالي الكيلوات</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.1f}".format(day_qty) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">إجمالي القيمة</div>
+    <div class="stat-value" style="color: var(--ms-brand-dark);" dir="ltr">{{ "{:,.0f}".format(day_value) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if unpriced_count > 0 %}tone-warning{% endif %}">
+    <div class="stat-label">بانتظار التسعير</div>
+    <div class="stat-value {% if unpriced_count > 0 %}text-warning{% endif %}" dir="ltr">{{ unpriced_count }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if waste and waste > 0 %}tone-danger{% endif %}">
+    <div class="stat-label">الفاقد (كجم)</div>
+    <div class="stat-value {% if waste and waste > 0 %}text-danger{% endif %}" dir="ltr">
+      {% if waste is not none %}{{ "{:,.1f}".format(waste) }}{% else %}—{% endif %}
+    </div>
+  </div></div>
+</div>
+
+{% if not production %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
   <div>
-    <strong>إنتاج المزرعة اليومي:</strong>
-    <span dir="ltr">{{ production.total_kg }}</span> كيلو ·
-    الفاقد: <span dir="ltr" class="fw-bold {% if waste and waste > 0 %}text-danger{% endif %}">{{ waste }}</span> كيلو
+    <i class="bi bi-exclamation-triangle"></i>
+    لسه ما سجلتش الإنتاج الكلي لليوم ده — الفاقد مش هيتحسب.
   </div>
-</div>
-{% else %}
-<div class="alert alert-warning">
-  <i class="bi bi-exclamation-triangle"></i>
-  لسه ما سجلتش الإنتاج الكلي لليوم ده.
-  <a href="{{ url_for('milk.daily_production', day=day.isoformat()) }}" class="alert-link">سجّله دلوقتي</a>
-  علشان تعرف الفاقد.
+  <a href="{{ url_for('milk.daily_production', day=day.isoformat()) }}"
+     class="btn btn-sm btn-warning">
+    <i class="bi bi-clipboard-data"></i> سجّل الإنتاج
+  </a>
 </div>
 {% endif %}
+
+<form method="get" class="filter-row row g-2 align-items-end">
+  <input type="hidden" name="day" value="{{ day.isoformat() }}">
+  <div class="col-md-6">
+    <label>العميل</label>
+    <select name="customer_id" class="form-select form-select-sm">
+      <option value="0">كل العملاء</option>
+      {% for c in customers %}
+      <option value="{{ c.id }}" {% if f_customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4">
+    <label>&nbsp;</label>
+    <div class="form-check pt-1">
+      <input class="form-check-input" type="checkbox" id="unprChk" name="unpriced" value="1"
+             {% if f_unpriced_only %}checked{% endif %} onchange="this.form.submit()">
+      <label class="form-check-label small" for="unprChk">غير المسعّرة فقط</label>
+    </div>
+  </div>
+  <div class="col-md-2 d-grid">
+    <button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> فلتر</button>
+  </div>
+</form>
 
 <div class="card">
   {% if deliveries %}
@@ -50,52 +102,75 @@
       <thead>
         <tr>
           <th>العميل</th>
-          <th>الكمية (kg)</th>
-          <th>بروتين %</th>
-          <th>بكتيريا</th>
-          <th>سعر / kg</th>
-          <th>الإجمالي</th>
+          <th class="text-end">الكمية (كجم)</th>
+          <th class="text-end">بروتين %</th>
+          <th class="text-end">بكتيريا</th>
+          <th class="text-end">سعر / كجم</th>
+          <th class="text-end">الإجمالي</th>
+          <th class="text-center">الحالة</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {% for d in deliveries %}
-        <tr {% if not d.is_priced %}class="table-warning"{% endif %}>
-          <td><a href="{{ url_for('customers.customer_detail', customer_id=d.customer.id) }}">{{ d.customer.name }}</a></td>
-          <td dir="ltr">{{ d.qty_kg }}</td>
-          <td dir="ltr">{{ d.protein_pct if d.protein_pct is not none else '—' }}</td>
-          <td dir="ltr">{{ d.bacteria_count if d.bacteria_count is not none else '—' }}</td>
-          <td dir="ltr">{{ d.unit_price if d.unit_price is not none else '—' }}</td>
-          <td dir="ltr" class="fw-bold">
-            {% if d.is_priced %}
-              {{ d.total_value }}
-            {% else %}
-              <span class="badge bg-warning text-dark">بانتظار التسعير</span>
-            {% endif %}
+        <tr>
+          <td>
+            <span class="customer-cell">
+              <span class="avatar-inline">{{ d.customer.name[:1] }}</span>
+              <a href="{{ url_for('customers.customer_detail', customer_id=d.customer.id) }}"
+                 class="name">{{ d.customer.name }}</a>
+            </span>
           </td>
-          <td class="text-start">
+          <td dir="ltr" class="text-end fw-bold">{{ d.qty_kg }}</td>
+          <td dir="ltr" class="text-end small text-muted">{{ d.protein_pct if d.protein_pct is not none else '—' }}</td>
+          <td dir="ltr" class="text-end small text-muted">{{ d.bacteria_count if d.bacteria_count is not none else '—' }}</td>
+          <td dir="ltr" class="text-end">{{ d.unit_price if d.unit_price is not none else '—' }}</td>
+          <td dir="ltr" class="text-end fw-bold" style="color: var(--ms-brand-dark);">
+            {% if d.is_priced %}{{ d.total_value }}{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
             {% if d.is_locked %}
-              <span class="text-muted small" title="على فاتورة صادرة">
-                <i class="bi bi-lock"></i> مقفول
+              <span class="chip chip-paid"><i class="bi bi-lock"></i> على فاتورة</span>
+            {% elif d.is_priced %}
+              <span class="chip" style="background: var(--ms-brand-tint); color: var(--ms-brand-dark);">
+                <i class="bi bi-check-circle"></i> مسعّرة
               </span>
             {% else %}
+              <span class="chip chip-partial"><i class="bi bi-hourglass-split"></i> بانتظار التسعير</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if not d.is_locked %}
               <a href="{{ url_for('milk.edit_delivery', delivery_id=d.id) }}"
-                 class="btn btn-sm {% if d.is_priced %}btn-outline-secondary{% else %}btn-warning{% endif %}">
+                 class="btn btn-sm {% if d.is_priced %}btn-outline-secondary{% else %}btn-warning{% endif %}"
+                 title="{% if d.is_priced %}تعديل{% else %}سعّره{% endif %}">
                 <i class="bi bi-pencil"></i>
-                {% if d.is_priced %}تعديل{% else %}سعّره{% endif %}
               </a>
             {% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr class="fw-bold" style="background: var(--ms-surface-soft);">
+          <td class="text-end">الإجمالي</td>
+          <td dir="ltr" class="text-end">{{ "{:,.1f}".format(day_qty) }}</td>
+          <td colspan="3"></td>
+          <td dir="ltr" class="text-end" style="color: var(--ms-brand-dark);">
+            {{ "{:,.0f}".format(day_value) }}
+          </td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
     </table>
   </div>
   {% else %}
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
-    <p class="mt-3">مفيش توريدات لليوم ده.</p>
-    <a href="{{ url_for('milk.create_delivery') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة توريد</a>
+    <p class="mt-3">مفيش توريدات لليوم ده {% if f_unpriced_only or f_customer_id %}بالفلاتر دي{% endif %}.</p>
+    <a href="{{ url_for('milk.create_delivery') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إضافة توريد
+    </a>
   </div>
   {% endif %}
 </div>

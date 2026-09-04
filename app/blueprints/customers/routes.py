@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.extensions import db
 from app.forms.sales import CustomerForm, CustomerPaymentForm
@@ -20,9 +20,59 @@ bp = Blueprint("customers", __name__, template_folder="../../templates/customers
 @bp.route("/")
 @login_required
 def list_customers():
-    customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
-    total_owed_to_us = sum((c.balance for c in customers), Decimal("0"))
-    return render_template("customers/list.html", customers=customers, total_owed_to_us=total_owed_to_us)
+    """PHASE 22: KPI-strip + filter-row + rich-chip list."""
+    from datetime import date as _date, timedelta
+
+    q_text = (request.args.get("q") or "").strip()
+    f_contract = (request.args.get("contract") or "all").lower()
+    f_balance = (request.args.get("balance") or "all").lower()
+
+    query = Customer.query.filter_by(is_archived=False)
+    if q_text:
+        like = f"%{q_text}%"
+        query = query.filter(or_(Customer.name.ilike(like), Customer.phone.ilike(like)))
+    if f_contract in ("weekly", "cash"):
+        query = query.filter(Customer.contract_type == f_contract)
+    customers = query.order_by(Customer.name).all()
+
+    # Balance filter applied in Python (balance is a hybrid property)
+    if f_balance == "owes":
+        customers = [c for c in customers if c.balance > 0]
+    elif f_balance == "paid":
+        customers = [c for c in customers if c.balance <= 0]
+
+    total_owed_to_us = sum((c.balance for c in customers if c.balance > 0), Decimal("0"))
+
+    # Overdue: any MilkInvoice for the customer > 15 days outstanding
+    today = _date.today()
+    overdue_ids = set()
+    for inv in MilkInvoice.query.filter(
+        MilkInvoice.is_archived.is_(False),
+        MilkInvoice.status != "draft",
+    ).all():
+        if inv.outstanding_amount > 0 and inv.issue_date and (today - inv.issue_date).days > 15:
+            overdue_ids.add(inv.customer_id)
+    overdue_count = len(overdue_ids)
+
+    # Payments last 30 days
+    since = today - timedelta(days=30)
+    collected_30d = db.session.query(
+        func.coalesce(func.sum(CustomerPayment.amount), 0)
+    ).filter(
+        CustomerPayment.is_archived.is_(False),
+        CustomerPayment.payment_date >= since,
+    ).scalar()
+
+    return render_template(
+        "customers/list.html",
+        customers=customers,
+        total_owed_to_us=total_owed_to_us,
+        active_count=len(customers),
+        overdue_count=overdue_count,
+        overdue_ids=overdue_ids,
+        collected_30d=Decimal(str(collected_30d or 0)),
+        f_q=q_text, f_contract=f_contract, f_balance=f_balance,
+    )
 
 
 def _supplier_link_choices():

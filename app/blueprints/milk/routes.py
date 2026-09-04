@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
@@ -51,17 +51,27 @@ def price_for_quality(
 @bp.route("/deliveries")
 @login_required
 def list_deliveries():
+    """PHASE 22: KPI-strip + filter row (day nav / customer / unpriced-only)."""
     day_str = request.args.get("day")
     day = date.fromisoformat(day_str) if day_str else date.today()
+    prev_day = day - timedelta(days=1)
+    next_day = day + timedelta(days=1)
 
-    deliveries = (
-        MilkDelivery.query.filter_by(delivery_date=day, is_archived=False)
-        .order_by(MilkDelivery.id.desc())
-        .all()
-    )
+    customer_id = request.args.get("customer_id", type=int)
+    unpriced_only = request.args.get("unpriced") == "1"
+
+    q = MilkDelivery.query.filter_by(delivery_date=day, is_archived=False)
+    if customer_id:
+        q = q.filter_by(customer_id=customer_id)
+    deliveries = q.order_by(MilkDelivery.id.desc()).all()
+
+    if unpriced_only:
+        deliveries = [d for d in deliveries if not d.is_priced]
+
     day_qty = sum((d.qty_kg for d in deliveries), Decimal("0"))
-    # TICKET-4: unpriced deliveries have total_value = None
-    day_value = sum((d.total_value for d in deliveries if d.total_value is not None), Decimal("0"))
+    day_value = sum(
+        (d.total_value for d in deliveries if d.total_value is not None), Decimal("0")
+    )
     unpriced_count = sum(1 for d in deliveries if not d.is_priced)
 
     production = DailyProduction.query.filter_by(production_date=day).first()
@@ -69,15 +79,20 @@ def list_deliveries():
     if waste is not None and waste < 0:
         waste = Decimal("0")
 
+    customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+
     return render_template(
         "milk/deliveries.html",
         deliveries=deliveries,
-        day=day,
+        day=day, prev_day=prev_day, next_day=next_day,
         day_qty=day_qty,
         day_value=day_value,
         production=production,
         waste=waste,
         unpriced_count=unpriced_count,
+        customers=customers,
+        f_customer_id=customer_id or 0,
+        f_unpriced_only=unpriced_only,
     )
 
 

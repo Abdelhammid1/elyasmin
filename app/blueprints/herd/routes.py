@@ -170,6 +170,8 @@ def archive_group(group_id: int):
 @bp.route("/")
 @login_required
 def list_cows():
+    """PHASE 22: adds KPI aggregates for the top strip (total / male /
+    female / avg age)."""
     form = CowSearchForm(request.args, meta={"csrf": False})
     form.group_id.choices = _group_choices(include_all=True)
 
@@ -188,7 +190,23 @@ def list_cows():
         query = query.filter_by(status=status)
 
     cows = query.order_by(Cow.ear_tag).all()
-    return render_template("herd/list.html", cows=cows, form=form, q=q)
+
+    # KPIs computed on the currently filtered set — the counts move with
+    # the filter so the operator always knows what he's looking at.
+    total_count = len(cows)
+    male_count = sum(1 for c in cows if c.gender == "male")
+    female_count = sum(1 for c in cows if c.gender == "female")
+    ages = [c.age_months for c in cows if c.age_months is not None]
+    avg_age = round(sum(ages) / len(ages), 1) if ages else 0
+
+    return render_template(
+        "herd/list.html",
+        cows=cows, form=form, q=q,
+        total_count=total_count,
+        male_count=male_count,
+        female_count=female_count,
+        avg_age=avg_age,
+    )
 
 
 # ---------- Cow detail ----------

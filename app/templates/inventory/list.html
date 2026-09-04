@@ -1,24 +1,70 @@
 {% extends "base.html" %}
 {% block title %}المخزون{% endblock %}
 {% block content %}
+
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
   <div>
-    <h1><i class="bi bi-boxes"></i> المخزون ({{ ingredients|length }})</h1>
-    <p class="text-muted mb-0">
-      قيمة المخزون: <span class="fw-bold" dir="ltr">{{ total_stock_value }} جنيه</span> ·
-      مواد تحت الحد الأدنى: <span class="fw-bold text-danger">{{ low_stock_count }}</span>
-    </p>
+    <h1><i class="bi bi-boxes"></i> المخزون</h1>
+    <p class="text-muted mb-0">إدارة المواد الخام والأدوية — رصيد كل مادة وقيمتها التخزينية.</p>
   </div>
-  <a href="{{ url_for('inventory.create_ingredient') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة مادة</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('inventory.all_movements') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-clock-history"></i> كل الحركات
+    </a>
+    <a href="{{ url_for('inventory.valuation') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-clipboard-check"></i> تسوية المخزون
+    </a>
+    <a href="{{ url_for('inventory.create_ingredient') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إضافة مادة
+    </a>
+  </div>
 </div>
 
-<ul class="nav nav-pills mb-3">
-  <li class="nav-item"><a class="nav-link {% if category == 'all' %}active{% endif %}" href="?category=all">الكل</a></li>
-  <li class="nav-item"><a class="nav-link {% if category == 'feed' %}active{% endif %}" href="?category=feed">علف / مواد خام</a></li>
-  <li class="nav-item"><a class="nav-link {% if category == 'medicine' %}active{% endif %}" href="?category=medicine">أدوية بيطرية</a></li>
-  <li class="nav-item"><a class="nav-link {% if category == 'custom' %}active{% endif %}" href="?category=custom">أنواع مخصصة</a></li>
-  <li class="nav-item ms-auto"><a class="nav-link" href="{{ url_for('inventory.all_movements') }}"><i class="bi bi-clock-history"></i> كل الحركات</a></li>
-</ul>
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">قيمة المخزون</div>
+    <div class="stat-value" style="color: var(--ms-brand-dark);" dir="ltr">{{ "{:,.0f}".format(total_stock_value) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if low_stock_count > 0 %}tone-danger{% endif %}">
+    <div class="stat-label">تحت الحد الأدنى</div>
+    <div class="stat-value {% if low_stock_count > 0 %}text-danger{% endif %}" dir="ltr">{{ low_stock_count }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">عدد المواد</div>
+    <div class="stat-value" dir="ltr">{{ "{:,}".format(materials_count) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">حركات اليوم</div>
+    <div class="stat-value" dir="ltr">{{ "{:,}".format(movements_today) }}</div>
+  </div></div>
+</div>
+
+<form method="get" class="filter-row row g-2 align-items-end">
+  <div class="col-md-4">
+    <label>بحث</label>
+    <input type="search" name="q" value="{{ f_q }}" placeholder="اسم المادة"
+           class="form-control form-control-sm">
+  </div>
+  <div class="col-md-4">
+    <label>التصنيف</label>
+    <select name="category" class="form-select form-select-sm">
+      {% for slug, lbl in [('all','الكل'),('feed','علف / مواد خام'),('medicine','أدوية بيطرية'),('custom','أنواع مخصصة')] %}
+      <option value="{{ slug }}" {% if category == slug %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label>&nbsp;</label>
+    <div class="form-check pt-1">
+      <input class="form-check-input" type="checkbox" id="lowChk" name="low" value="1"
+             {% if f_low_only %}checked{% endif %} onchange="this.form.submit()">
+      <label class="form-check-label small" for="lowChk">تحت الحد الأدنى فقط</label>
+    </div>
+  </div>
+  <div class="col-md-2 d-grid">
+    <button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> فلتر</button>
+  </div>
+</form>
 
 <div class="card">
   {% if ingredients %}
@@ -27,32 +73,45 @@
       <thead>
         <tr>
           <th>المادة</th>
-          <th>النوع</th>
+          <th>التصنيف</th>
           <th>الوحدة</th>
-          <th>الرصيد الحالي</th>
-          <th>الحد الأدنى</th>
-          <th>متوسط التكلفة</th>
-          <th>آخر سعر شراء</th>
-          <th>قيمة المخزون</th>
+          <th class="text-end">الرصيد</th>
+          <th class="text-end">الحد الأدنى</th>
+          <th class="text-end">متوسط التكلفة</th>
+          <th class="text-end">قيمة المخزون</th>
+          <th class="text-center">الحالة</th>
           <th class="text-end">إجراءات</th>
         </tr>
       </thead>
       <tbody>
         {% for i in ingredients %}
-        <tr class="{% if i.is_low_stock %}table-danger{% endif %}">
-          <td><a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}"><strong>{{ i.name }}</strong></a>
-            {% if i.is_low_stock %}<i class="bi bi-exclamation-triangle-fill text-danger" title="تحت الحد الأدنى"></i>{% endif %}
+        <tr>
+          <td>
+            <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}"
+               class="fw-bold text-decoration-none text-body">{{ i.name }}</a>
           </td>
-          <td><span class="badge bg-secondary">{{ i.category_label }}</span></td>
-          <td>{{ i.unit_label }}</td>
-          <td dir="ltr" class="fw-bold">{{ i.current_qty }}</td>
-          <td dir="ltr">{{ i.min_qty }}</td>
-          <td dir="ltr" class="fw-bold">{{ i.avg_cost }}</td>
-          <td dir="ltr" class="text-muted">{{ i.last_price }}</td>
-          <td dir="ltr">{{ i.stock_value }}</td>
+          <td>
+            <span class="chip chip-cash" style="background: var(--ms-brand-tint); color: var(--ms-brand-dark);">
+              {{ i.category_label }}
+            </span>
+          </td>
+          <td class="small">{{ i.unit_label }}</td>
+          <td dir="ltr" class="text-end fw-bold">{{ i.current_qty }}</td>
+          <td dir="ltr" class="text-end text-muted">{{ i.min_qty }}</td>
+          <td dir="ltr" class="text-end">{{ i.avg_cost }}</td>
+          <td dir="ltr" class="text-end" style="color: var(--ms-brand-dark);">{{ i.stock_value }}</td>
+          <td class="text-center">
+            {% if i.is_low_stock %}
+              <span class="chip chip-overdue"><i class="bi bi-exclamation-triangle-fill"></i> منخفض</span>
+            {% else %}
+              <span class="chip chip-paid"><i class="bi bi-check-circle"></i> كافي</span>
+            {% endif %}
+          </td>
           <td class="text-end">
-            <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
-            <a href="{{ url_for('inventory.edit_ingredient', ingredient_id=i.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+            <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=i.id) }}"
+               class="btn btn-sm btn-outline-primary" title="فتح"><i class="bi bi-eye"></i></a>
+            <a href="{{ url_for('inventory.edit_ingredient', ingredient_id=i.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="تعديل"><i class="bi bi-pencil"></i></a>
           </td>
         </tr>
         {% endfor %}
@@ -62,9 +121,10 @@
   {% else %}
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
-    <p class="mt-3">مفيش مواد في المخزون لسه.</p>
-    <a href="{{ url_for('inventory.create_ingredient') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة مادة</a>
-    <p class="text-muted small mt-3">أو ابدأ بفاتورة شراء وحدد المواد فيها.</p>
+    <p class="mt-3">مفيش مواد مطابقة للفلتر.</p>
+    <a href="{{ url_for('inventory.create_ingredient') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إضافة مادة
+    </a>
   </div>
   {% endif %}
 </div>

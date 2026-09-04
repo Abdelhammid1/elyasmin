@@ -1,33 +1,61 @@
 {% extends "base.html" %}
 {% block title %}القطيع{% endblock %}
 {% block content %}
+
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <h1><i class="bi bi-heart-pulse"></i> القطيع ({{ cows|length }})</h1>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('herd.create_birth') }}" class="btn btn-outline-primary"><i class="bi bi-egg"></i> تسجيل ولادة</a>
-    <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة بقرة</a>
+  <div>
+    <h1><i class="bi bi-heart-pulse"></i> القطيع</h1>
+    <p class="text-muted mb-0">كل رأس بيانها الشخصية والصحية.</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('herd.groups') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-diagram-3"></i> المجموعات
+    </a>
+    <a href="{{ url_for('herd.create_birth') }}" class="btn btn-outline-primary">
+      <i class="bi bi-egg"></i> تسجيل ولادة
+    </a>
+    <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إضافة بقرة
+    </a>
   </div>
 </div>
 
-<div class="card p-3 mb-3">
-  <form method="get" class="row g-2 align-items-end">
-    <div class="col-md-4">
-      {{ form.q.label(class="form-label small fw-bold") }}
-      {{ form.q(class="form-control", placeholder="مثال: A-101") }}
-    </div>
-    <div class="col-md-3">
-      {{ form.group_id.label(class="form-label small fw-bold") }}
-      {{ form.group_id(class="form-select") }}
-    </div>
-    <div class="col-md-3">
-      {{ form.status.label(class="form-label small fw-bold") }}
-      {{ form.status(class="form-select") }}
-    </div>
-    <div class="col-md-2 d-grid">
-      {{ form.submit(class="btn btn-primary") }}
-    </div>
-  </form>
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">إجمالي القطيع</div>
+    <div class="stat-value" dir="ltr">{{ "{:,}".format(total_count) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">إناث</div>
+    <div class="stat-value" style="color: #a855f7;" dir="ltr">{{ "{:,}".format(female_count) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">ذكور</div>
+    <div class="stat-value" style="color: #2563eb;" dir="ltr">{{ "{:,}".format(male_count) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">متوسط العمر (شهر)</div>
+    <div class="stat-value" dir="ltr">{{ avg_age }}</div>
+  </div></div>
 </div>
+
+<form method="get" class="filter-row row g-2 align-items-end">
+  <div class="col-md-4">
+    {{ form.q.label(class="form-label small mb-1") }}
+    {{ form.q(class="form-control form-control-sm", placeholder="رقم الأذن أو الاسم") }}
+  </div>
+  <div class="col-md-3">
+    {{ form.group_id.label(class="form-label small mb-1") }}
+    {{ form.group_id(class="form-select form-select-sm") }}
+  </div>
+  <div class="col-md-3">
+    {{ form.status.label(class="form-label small mb-1") }}
+    {{ form.status(class="form-select form-select-sm") }}
+  </div>
+  <div class="col-md-2 d-grid">
+    {{ form.submit(class="btn btn-primary btn-sm") }}
+  </div>
+</form>
 
 <div class="card">
   {% if cows %}
@@ -37,30 +65,45 @@
         <tr>
           <th>رقم الأذن</th>
           <th>الاسم</th>
-          <th>الجنس</th>
+          <th class="text-center">الجنس</th>
           <th>المجموعة</th>
-          <th>العمر (شهر)</th>
-          <th>الحالة</th>
+          <th class="text-center">العمر (شهر)</th>
+          <th class="text-center">الحالة</th>
           <th class="text-end">إجراءات</th>
         </tr>
       </thead>
       <tbody>
         {% for cow in cows %}
         <tr>
-          <td><a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"><strong>{{ cow.ear_tag }}</strong></a></td>
-          <td>{{ cow.name or "—" }}</td>
-          <td>{{ cow.gender_label }}</td>
-          <td>{{ cow.group.name }}</td>
-          <td>{{ cow.age_months if cow.age_months is not none else "—" }}</td>
           <td>
-            {% if cow.status == "active" %}<span class="badge badge-active">{{ cow.status_label }}</span>
-            {% elif cow.status == "sold" %}<span class="badge badge-sold">{{ cow.status_label }}</span>
-            {% else %}<span class="badge badge-dead">{{ cow.status_label }}</span>{% endif %}
+            <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"
+               class="fw-bold font-monospace text-decoration-none text-body">{{ cow.ear_tag }}</a>
+          </td>
+          <td>{{ cow.name or "—" }}</td>
+          <td class="text-center">
+            {% if cow.gender == 'female' %}
+              <span class="chip" style="background: #f5e6ff; color: #a855f7;">♀ أنثى</span>
+            {% else %}
+              <span class="chip" style="background: #dbeafe; color: #2563eb;">♂ ذكر</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ cow.group.name }}</td>
+          <td class="text-center" dir="ltr">{{ cow.age_months if cow.age_months is not none else "—" }}</td>
+          <td class="text-center">
+            {% if cow.status == "active" %}
+              <span class="chip chip-paid"><i class="bi bi-check-circle"></i> نشطة</span>
+            {% elif cow.status == "sold" %}
+              <span class="chip chip-cash"><i class="bi bi-cash-coin"></i> مباعة</span>
+            {% else %}
+              <span class="chip chip-unpaid"><i class="bi bi-x-circle"></i> نافقة</span>
+            {% endif %}
           </td>
           <td class="text-end">
-            <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"
+               class="btn btn-sm btn-outline-primary" title="فتح"><i class="bi bi-eye"></i></a>
             {% if cow.status == "active" %}
-            <a href="{{ url_for('herd.move_cow', cow_id=cow.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left-right"></i></a>
+            <a href="{{ url_for('herd.move_cow', cow_id=cow.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="نقل"><i class="bi bi-arrow-left-right"></i></a>
             {% endif %}
           </td>
         </tr>
@@ -71,8 +114,10 @@
   {% else %}
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
-    <p class="mt-3">مفيش نتائج لبحثك.</p>
-    <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة بقرة</a>
+    <p class="mt-3">مفيش نتائج مطابقة — جرّب تشيل الفلاتر أو ابحث بكلمة تانية.</p>
+    <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إضافة بقرة
+    </a>
   </div>
   {% endif %}
 </div>

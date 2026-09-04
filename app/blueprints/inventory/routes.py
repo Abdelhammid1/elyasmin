@@ -91,21 +91,45 @@ def _resolve_category(form) -> str | None:
 @bp.route("/")
 @login_required
 def list_ingredients():
+    """PHASE 22: KPI-strip + filter-row + rich-chip list."""
+    from datetime import date as _date
+    from sqlalchemy import or_
+
     category = request.args.get("category", "all")
+    q_text = (request.args.get("q") or "").strip()
+    low_only = request.args.get("low") == "1"
+
     query = Ingredient.query.filter_by(is_archived=False)
     if category in (Ingredient.CATEGORY_FEED, Ingredient.CATEGORY_MEDICINE):
         query = query.filter_by(category=category)
     elif category == "custom":
         query = query.filter(Ingredient.category.like("custom:%"))
+    if q_text:
+        like = f"%{q_text}%"
+        query = query.filter(Ingredient.name.ilike(like))
     ingredients = query.order_by(Ingredient.category, Ingredient.name).all()
+
+    if low_only:
+        ingredients = [i for i in ingredients if i.is_low_stock]
+
     total_stock_value = sum((i.stock_value for i in ingredients), Decimal("0"))
     low_stock_count = sum(1 for i in ingredients if i.is_low_stock)
+    materials_count = len(ingredients)
+
+    today = _date.today()
+    movements_today = db.session.query(func.count(StockMovement.id)).filter(
+        StockMovement.moved_on == today,
+    ).scalar() or 0
+
     return render_template(
         "inventory/list.html",
         ingredients=ingredients,
         category=category,
         total_stock_value=total_stock_value,
         low_stock_count=low_stock_count,
+        materials_count=materials_count,
+        movements_today=movements_today,
+        f_q=q_text, f_low_only=low_only,
     )
 
 
