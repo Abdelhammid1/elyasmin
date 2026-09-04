@@ -12,11 +12,94 @@
   {# PHASE 23: match marsoud's font stack — Cairo primary + Inter as
      Latin fallback (matches marsoud/base.html:10). Tajawal kept at
      minimal weights so any legacy inline style still resolves. #}
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Cairo:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+  {# DASHBOARD REDESIGN (Material Design 3 pilot) — new font stack used
+     ONLY inside #dash-root via --d-font-* vars in dashboard.css. Loaded
+     globally (one extra <link>, cheap) but never touches body's own
+     --ms-font-sans, so every other page keeps rendering in Tajawal/Cairo
+     exactly as before. #}
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
   {# UI-REFACTOR: tokens FIRST so app.css and every element below can consume the vars. #}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  {# M3 REWRITE: Tailwind, scoped to #dash-root only via important-selector
+     strategy — every Tailwind utility becomes !important but ONLY takes
+     effect inside #dash-root, so Bootstrap (used by 100+ other pages)
+     is completely unaffected. This is the exact tailwind.config used by
+     the reference M3 mockup, so colors/spacing/type match it exactly
+     instead of being hand-translated into --ms-* tokens. #}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      important: '#dash-root',
+      corePlugins: { preflight: false },
+      theme: {
+        extend: {
+          colors: {
+            "primary-container": "#1f607e", "on-primary-container": "#9fd9fc",
+            "primary": "#004863", "on-primary": "#ffffff",
+            "primary-fixed": "#c3e7ff", "primary-fixed-dim": "#94cef0",
+            "secondary": "#565e74", "secondary-container": "#dae2fd",
+            "on-secondary-container": "#5c647a", "secondary-fixed-dim": "#bec6e0",
+            "tertiary": "#004d33", "tertiary-container": "#006746",
+            "on-tertiary": "#ffffff", "on-tertiary-container": "#5beaad",
+            "tertiary-fixed": "#6ffbbe", "tertiary-fixed-dim": "#4edea3",
+            "on-tertiary-fixed": "#002113", "on-tertiary-fixed-variant": "#005236",
+            "error": "#ba1a1a", "error-container": "#ffdad6", "on-error": "#ffffff", "on-error-container": "#93000a",
+            "background": "#f8f9ff", "on-background": "#0b1c30",
+            "surface": "#f8f9ff", "surface-dim": "#cbdbf5", "surface-bright": "#f8f9ff",
+            "surface-container-lowest": "#ffffff", "surface-container-low": "#eff4ff",
+            "surface-container": "#e5eeff", "surface-container-high": "#dce9ff", "surface-container-highest": "#d3e4fe",
+            "on-surface": "#0b1c30", "on-surface-variant": "#40484d",
+            "outline": "#71787e", "outline-variant": "#c0c7ce",
+          },
+          fontFamily: {
+            "body-md": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"],
+            "headline-sm": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"],
+            "headline-lg": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"],
+            "label-sm": ["IBM Plex Sans"], "label-md": ["IBM Plex Sans"], "label-lg": ["IBM Plex Sans"],
+          },
+          fontSize: {
+            "body-sm": ["13px", {lineHeight:"20px"}], "body-md": ["14px", {lineHeight:"22px"}], "body-lg": ["16px", {lineHeight:"26px"}],
+            "label-sm": ["10px", {lineHeight:"14px", letterSpacing:"0.05em", fontWeight:"600"}],
+            "label-md": ["11px", {lineHeight:"16px", letterSpacing:"0.04em", fontWeight:"600"}],
+            "label-lg": ["13px", {lineHeight:"18px", letterSpacing:"0.02em", fontWeight:"500"}],
+            "headline-sm": ["16px", {lineHeight:"24px", fontWeight:"600"}],
+            "headline-md": ["20px", {lineHeight:"28px", fontWeight:"600"}],
+            "headline-lg": ["24px", {lineHeight:"32px", fontWeight:"600"}],
+            "headline-xl": ["30px", {lineHeight:"38px", fontWeight:"600"}],
+          },
+          spacing: {
+            "space-xxs":"0.25rem","space-xs":"0.5rem","space-sm":"0.75rem","space-md":"1rem",
+            "space-lg":"1.5rem","space-xl":"2rem","space-2xl":"3rem",
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+  {# The font-family link alone does nothing — .material-symbols-outlined
+     must map that font onto the span so its text content ("payments",
+     "factory") renders as a glyph instead of literal English text. #}
+  <style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 24px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
 </head>
 <body data-current-page="{{ request.endpoint or 'غير معروف' }}"
       data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}">

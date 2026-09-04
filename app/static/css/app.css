@@ -80,6 +80,12 @@ a:hover { color: var(--brand); text-decoration: underline; }
 .sidebar-section > summary::-webkit-details-marker { display: none; }
 .sidebar-section > summary:hover { background: var(--brand-tint); }
 .sidebar-section .chev {
+  /* HTML order is chev -> span -> ::before(dot). We want visual order
+     dot -> text (packed right) -> chev (pinned far left). order:1
+     pushes the chev after the other two flex items in visual order;
+     margin-inline-start:auto then eats all remaining space in front
+     of it, pinning it to the far (visual) left edge. */
+  order: 1;
   margin-inline-start: auto;
   font-size: 0.9rem !important;
   color: var(--ms-ink-4) !important;
@@ -152,16 +158,10 @@ a:hover { color: var(--brand); text-decoration: underline; }
 /* PHASE 17: per-section color map — matches the sidebar's data-section
    attribute values. Each section's title dot and its items' icons pick
    up the tone; hover/active promote to brand. */
-[data-section="overview"]   { --section-tone: var(--ms-brand); }
-[data-section="herd"]       { --section-tone: var(--ms-violet); }
-[data-section="feed"]       { --section-tone: var(--ms-teal); }
-[data-section="sales"]      { --section-tone: var(--ms-info); }
-[data-section="inventory"]  { --section-tone: var(--ms-warning); }
-[data-section="daily"]      { --section-tone: var(--ms-ink-2); }
-[data-section="finance"]    { --section-tone: var(--ms-brand); }
-[data-section="accounting"] { --section-tone: var(--ms-ink-3); }
-[data-section="reports"]    { --section-tone: var(--ms-success); }
-[data-section="admin"]      { --section-tone: var(--ms-danger); }
+/* Unified brand color: sidebar sections no longer carry a distinct
+   tone per data-section — every icon and the section-title dot fall
+   back to --ms-brand (the client's picked light-blue) via the
+   var(--section-tone, var(--ms-brand)) fallback used everywhere. */
 
 /* Sidebar footer (Manasety partial) sits inside .app-sidebar as .site-footer */
 .app-sidebar .site-footer {
@@ -1109,3 +1109,68 @@ table.inv-items tbody tr.outstanding-row td {
   }
 }
 .print-signature { display: none; }   /* only visible in print */
+
+/* ══════════════════════════════════════════════════════════
+   M3 PILOT — SIDEBAR (global, every page). Same HTML structure
+   and classes as before (.sidebar-brand, .sidebar-item, etc.) —
+   only the visual language changes to match the dashboard pilot.
+   Values match the M3 palette used in dashboard.css's #dash-root
+   block (kept literal here since app.css loads before tokens
+   would otherwise need a --d-* namespace of its own).
+   ══════════════════════════════════════════════════════════ */
+.app-sidebar, .app-sidebar * {
+  font-family: "Plus Jakarta Sans", "Noto Sans Arabic", var(--ms-font-sans) !important;
+}
+.app-sidebar {
+  background: #ffffff;
+  border-inline-end: 1px solid #eff4ff;
+  box-shadow: 1px 0 8px rgba(0,0,0,0.03);
+}
+.sidebar-brand {
+  background: #ffffff;
+  border-bottom: 1px solid #eff4ff;
+}
+.sidebar-brand .brand-title { color: #0b1c30; font-weight: 700; }
+.sidebar-brand .brand-sub   { color: #40484d; }
+
+/* Section titles: plain bold label, no colored dot */
+.sidebar-section-title {
+  color: #0b1c30;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+}
+.sidebar-section-title::before { content: none; }
+.sidebar-section > summary:hover { background: #eff4ff; }
+.sidebar-section .chev { color: #71787e !important; }
+
+/* Nav items: neutral by default, brand tint + brand ink on hover/active,
+   no per-section colored icons */
+.sidebar-item {
+  color: #40484d;
+  border-inline-end-color: transparent;
+}
+.sidebar-item i {
+  color: #71787e !important;
+  opacity: 1;
+}
+.sidebar-item:hover {
+  background: #eff4ff;
+  color: #0b1c30;
+  padding-inline-start: 1.25rem;
+}
+.sidebar-item:hover i { color: #004863 !important; }
+.sidebar-item.active {
+  background: #dce9ff;
+  color: #004863;
+  border-inline-end-color: #004863;
+  font-weight: 600;
+}
+.sidebar-item.active i { color: #004863 !important; }
+
+.app-sidebar .site-footer {
+  border-top: 1px solid #eff4ff;
+  color: #71787e;
+}
+.app-sidebar .site-footer .brand-link { color: #004863; }

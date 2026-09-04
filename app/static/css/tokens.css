@@ -6,11 +6,15 @@
 
 :root {
   /* ---- Brand — sky blue, replaces the old emerald ---- */
-  --ms-brand:          #43b9e9;   /* client-picked */
-  --ms-brand-dark:     #2b95c2;
-  --ms-brand-mid:      #5cc6ef;
-  --ms-brand-tint:     #E6F4FB;   /* nav-item hover, chip fills */
-  --ms-brand-soft:     #D6EDF9;   /* stat-tile brand tone bg */
+  /* Softened from the original client pick (#43b9e9) — same hue family,
+     pulled down in saturation/lightness for a calmer, less "AI-generated"
+     feel closer to marsoud's muted tone. Dark/mid/tint/soft ramps
+     recomputed from this base, same relationships as before. */
+  --ms-brand:          #3aa0d1;   /* softened sky blue */
+  --ms-brand-dark:     #29799e;
+  --ms-brand-mid:      #5cb3da;
+  --ms-brand-tint:     #EAF4F9;   /* nav-item hover, chip fills */
+  --ms-brand-soft:     #DCEBF3;   /* stat-tile brand tone bg */
 
   /* ---- Semantic (used inside dashboard tiles + panels) ---- */
   --ms-success:        #16a34a;
@@ -32,14 +36,18 @@
   --ms-ink-1:          #0f172a;   /* strongest — headings, values */
   --ms-ink-2:          #334155;   /* body text */
   --ms-ink-3:          #64748b;   /* meta / muted */
-  --ms-ink-4:          #94a3b8;   /* placeholders */
+  /* Was #94a3b8 (2.85:1 on white — fails WCAG AA, also reads as
+     washed-out/pale, part of the "too light" feel). Matches marsoud's
+     own --ms-ink-4 value (4.68:1, passes AA). */
+  --ms-ink-4:          #64748b;   /* placeholders */
 
   /* ---- Surfaces ---- */
   --ms-surface:        #ffffff;
   --ms-surface-soft:   #f8fafc;
-  --ms-bg:             #f5f7f9;
-  /* Signature sky gradient — blue variant of marsoud's white→sky-blue */
-  --ms-app-bg:         linear-gradient(180deg, #ffffff 0%, #e8f4fc 100%);
+  --ms-bg:             #f4f5f7;
+  /* Flattened — almustashar-style calm, uniform light-grey ground.
+     No gradient, no brand tint bleeding into the page background. */
+  --ms-app-bg:         #f4f5f7;
 
   /* ---- Lines ---- */
   --ms-line:           #e5e7eb;
@@ -55,7 +63,7 @@
   --ms-shadow-lg:      0 10px 30px rgba(15, 23, 42, 0.09);
 
   /* ---- Typography ---- */
-  --ms-font-sans:      "Cairo", "Inter", "Tajawal", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ms-font-sans:      "Tajawal", "Cairo", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --ms-font-mono:      ui-monospace, "SF Mono", Menlo, monospace;
   --ms-fs-xs:          11.5px;
   --ms-fs-sm:          12.5px;

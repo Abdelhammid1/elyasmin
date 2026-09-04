@@ -4,19 +4,29 @@
    as vanilla CSS on top of Bootstrap; framework migration would be too
    much for one iteration. */
 
+/* DASHBOARD REDESIGN (Material Design 3 pilot) — this block's values
+   are hard-coded to the M3 palette/type-scale instead of the --ms-*
+   tokens on purpose: the dashboard is the pilot for a new visual
+   language, separate from the rest of the app (sidebar, forms, other
+   pages) which must keep rendering exactly as before. Once the pilot
+   is approved, these values migrate into tokens.css as the new
+   canonical --ms-* set and this block goes back to referencing them. */
 #dash-root {
-  --d-brand:       var(--ms-brand);
-  --d-brand-dark:  var(--ms-brand-dark);
-  --d-brand-tint:  var(--ms-brand-tint);
-  --d-brand-soft:  var(--ms-brand-soft);
-  --d-radius:      var(--ms-radius-lg);
-  --d-radius-sm:   var(--ms-radius-md);
-  --d-shadow:      var(--ms-shadow-sm);
-  --d-shadow-hov:  var(--ms-shadow-lg);
-  --d-ink:         var(--ms-ink-1);
+  --d-brand:       #004863;   /* M3 "primary" */
+  --d-brand-dark:  #1f607e;   /* M3 "primary-container" */
+  --d-brand-tint:  #eff4ff;   /* M3 "surface-container-low" */
+  --d-brand-soft:  #dce9ff;   /* M3 "surface-container-high" */
+  --d-radius:      0.5rem;    /* M3 "xl" radius */
+  --d-radius-sm:   0.25rem;   /* M3 "lg" radius */
+  --d-shadow:      0 1px 8px rgba(0,0,0,0.04);
+  --d-shadow-hov:  0 4px 16px rgba(0,0,0,0.08);
+  --d-ink:         #0b1c30;   /* M3 "on-surface" */
+  --d-ink-variant: #40484d;   /* M3 "on-surface-variant" */
+  --d-font:        "Plus Jakarta Sans", "Noto Sans Arabic", var(--ms-font-sans);
 
-  color: var(--ms-ink-2);
-  font-family: var(--ms-font-sans);
+  color: var(--d-ink-variant);
+  font-family: var(--d-font);
+  background: #f8f9ff;   /* M3 "surface" */
 }
 
 /* ================ HEADER ================ */
@@ -189,11 +199,14 @@
   margin-bottom: 12px;
 }
 #dash-root .kpi-ico {
-  width: 36px; height: 36px;
-  border-radius: 10px;
+  /* Smaller + more muted so the icon reads as a small accent, not a
+     colored block competing with the number for attention. */
+  width: 28px; height: 28px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center; justify-content: center;
-  font-size: 18px;
+  font-size: 14px;
+  opacity: 0.85;
 }
 #dash-root .kpi-trend {
   font-size: var(--ms-fs-xs);
@@ -201,9 +214,11 @@
   padding: 2px 8px;
   border-radius: var(--ms-radius-pill);
 }
-#dash-root .trend-up   { color: #065f46; background: #d1fae5; }
-#dash-root .trend-down { color: #991b1b; background: #fee2e2; }
-#dash-root .trend-flat { color: var(--ms-ink-3); background: var(--ms-surface-soft); }
+/* Muted trend badges — no background fill, just a colored small label,
+   so the strongest color on the card stays reserved for the number. */
+#dash-root .trend-up   { color: #059669; background: transparent; padding-inline-start: 0; }
+#dash-root .trend-down { color: #dc2626; background: transparent; padding-inline-start: 0; }
+#dash-root .trend-flat { color: var(--ms-ink-3); background: transparent; padding-inline-start: 0; }
 
 #dash-root .kpi-label {
   font-size: 13px;
@@ -236,12 +251,18 @@
 }
 
 /* Icon tones (marsoud palette + our brand) */
-#dash-root .i-blue   { background: var(--ms-info-soft);    color: var(--ms-info);    }
-#dash-root .i-green  { background: var(--ms-success-soft); color: var(--ms-success); }
-#dash-root .i-amber  { background: var(--ms-warning-soft); color: var(--ms-warning); }
-#dash-root .i-red    { background: var(--ms-danger-soft);  color: var(--ms-danger);  }
-#dash-root .i-teal   { background: var(--ms-teal-soft);    color: var(--ms-teal);    }
-#dash-root .i-violet { background: var(--ms-violet-soft);  color: var(--ms-violet);  }
+/* almustashar-style: icon badges are all one neutral grey tile —
+   color is no longer used to distinguish KPI type, only the label
+   and number carry meaning. */
+#dash-root .i-blue,
+#dash-root .i-green,
+#dash-root .i-amber,
+#dash-root .i-red,
+#dash-root .i-teal,
+#dash-root .i-violet {
+  background: var(--ms-surface-soft);
+  color: var(--ms-ink-3);
+}
 #dash-root .i-brand  { background: var(--d-brand-tint);    color: var(--d-brand-dark); }
 
 /* ================ OPS TILES (farm overview) ================ */
@@ -585,3 +606,929 @@
   padding: 16px;
   box-shadow: var(--d-shadow);
 }
+
+/* ══════════════════════════════════════════════════════════
+   M3 PILOT — full visual overhaul, appended so it wins the
+   cascade over the marsoud-shape rules earlier in this file.
+   Same classes, same Jinja data bindings — only appearance
+   changes. Font forced on every descendant so Arabic text
+   picks up Noto Sans Arabic instead of Cairo/Tajawal here.
+   ══════════════════════════════════════════════════════════ */
+#dash-root, #dash-root * { font-family: var(--d-font) !important; }
+
+/* ---- Hero ---- */
+#dash-root .dash-hero {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 20px;
+}
+#dash-root .dash-hero-wave {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--d-brand-tint);
+  color: var(--d-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+#dash-root .dash-hero h1 { color: var(--d-ink); font-weight: 700; }
+#dash-root .today-chip {
+  background: var(--d-brand-tint);
+  color: var(--d-brand-dark);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+#dash-root .period {
+  background: var(--d-brand-tint);
+  border-radius: 12px;
+  padding: 4px;
+}
+#dash-root .period a {
+  border-radius: 8px;
+  color: var(--d-ink-variant);
+  font-weight: 500;
+}
+#dash-root .period a.on {
+  background: #fff;
+  color: var(--d-brand);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+#dash-root .dash-refresh {
+  border-radius: 12px;
+  border: 1px solid var(--d-brand-tint);
+  background: #fff;
+  color: var(--d-ink-variant);
+}
+
+/* ---- Section labels: drop the colored dot, plain bold heading ---- */
+#dash-root .section-label {
+  color: var(--d-ink);
+  font-weight: 700;
+  font-size: 14px;
+}
+#dash-root .section-label i { color: var(--d-brand); }
+
+/* ---- Financial KPI cards ---- */
+#dash-root .kpi {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .kpi:hover {
+  box-shadow: var(--d-shadow-hov);
+  transform: none;
+  border-color: transparent;
+}
+#dash-root .kpi-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  opacity: 1;
+  font-size: 16px;
+}
+#dash-root .kpi-trend {
+  background: var(--d-brand-tint);
+  border-radius: 999px;
+  font-weight: 700;
+}
+#dash-root .kpi-label {
+  color: var(--d-ink-variant);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+#dash-root .kpi-val {
+  color: var(--d-ink);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+#dash-root .kpi-val .cur { color: var(--d-ink-variant); font-weight: 500; }
+#dash-root .kpi-extra { font-size: 11px; font-weight: 600; }
+
+/* ---- Farm overview telemetry tiles ---- */
+#dash-root .ops { gap: 10px; }
+#dash-root .op {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  padding: 12px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .op:hover { box-shadow: var(--d-shadow-hov); border-color: transparent; }
+#dash-root .op-ico {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  font-size: 14px;
+}
+#dash-root .op-val { color: var(--d-ink); font-weight: 800; font-size: 18px; }
+#dash-root .op-label { color: var(--d-ink-variant); font-size: 11px; }
+#dash-root .op-extra {
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+/* ---- Alerts panels (فواتير متأخرة) ---- */
+#dash-root .d-panel {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+}
+#dash-root .d-panel-head h5 { color: var(--d-ink); font-weight: 700; }
+#dash-root .row-name { color: var(--d-ink); font-weight: 600; }
+#dash-root .row-amt { color: var(--d-ink); font-weight: 700; }
+
+/* ---- Charts section ---- */
+#dash-root .d-card {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+}
+#dash-root .d-card-head h5 { color: var(--d-ink); font-weight: 700; font-size: 14px; }
+#dash-root .d-card-head .sub { color: var(--d-ink-variant); font-size: 12px; }
+#dash-root .bd-name { color: var(--d-ink); font-size: 13px; font-weight: 600; }
+#dash-root .bd-bar { border-radius: 999px; background: var(--d-brand-tint); }
+
+/* ---- Quick actions ---- */
+#dash-root .quick { gap: 10px; }
+#dash-root .q {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  color: var(--d-ink-variant);
+  font-weight: 600;
+  font-size: 12px;
+  transition: box-shadow .15s ease, color .15s ease;
+}
+#dash-root .q:hover {
+  box-shadow: var(--d-shadow-hov);
+  color: var(--d-brand);
+  border-color: transparent;
+}
+#dash-root .q-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+
+/* ---- Overall dashboard background ---- */
+#dash-root { background: #f8f9ff; padding: 4px; border-radius: var(--d-radius); }
+
+/* ══════════════════════════════════════════════════════════
+   M3 PILOT — full visual overhaul, appended so it wins the
+   cascade over the marsoud-shape rules earlier in this file.
+   Same classes, same Jinja data bindings — only appearance
+   changes. Font forced on every descendant so Arabic text
+   picks up Noto Sans Arabic instead of Cairo/Tajawal here.
+   ══════════════════════════════════════════════════════════ */
+#dash-root, #dash-root * { font-family: var(--d-font) !important; }
+
+/* ---- Hero ---- */
+#dash-root .dash-hero {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 20px;
+}
+#dash-root .dash-hero-wave {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--d-brand-tint);
+  color: var(--d-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+#dash-root .dash-hero h1 { color: var(--d-ink); font-weight: 700; }
+#dash-root .today-chip {
+  background: var(--d-brand-tint);
+  color: var(--d-brand-dark);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+#dash-root .period {
+  background: var(--d-brand-tint);
+  border-radius: 12px;
+  padding: 4px;
+}
+#dash-root .period a {
+  border-radius: 8px;
+  color: var(--d-ink-variant);
+  font-weight: 500;
+}
+#dash-root .period a.on {
+  background: #fff;
+  color: var(--d-brand);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+#dash-root .dash-refresh {
+  border-radius: 12px;
+  border: 1px solid var(--d-brand-tint);
+  background: #fff;
+  color: var(--d-ink-variant);
+}
+
+/* ---- Section labels: drop the colored dot, plain bold heading ---- */
+#dash-root .section-label {
+  color: var(--d-ink);
+  font-weight: 700;
+  font-size: 14px;
+}
+#dash-root .section-label i { color: var(--d-brand); }
+
+/* ---- Financial KPI cards ---- */
+#dash-root .kpi {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .kpi:hover {
+  box-shadow: var(--d-shadow-hov);
+  transform: none;
+  border-color: transparent;
+}
+#dash-root .kpi-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  opacity: 1;
+  font-size: 16px;
+}
+#dash-root .kpi-trend {
+  background: var(--d-brand-tint);
+  border-radius: 999px;
+  font-weight: 700;
+}
+#dash-root .kpi-label {
+  color: var(--d-ink-variant);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+#dash-root .kpi-val {
+  color: var(--d-ink);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+#dash-root .kpi-val .cur { color: var(--d-ink-variant); font-weight: 500; }
+#dash-root .kpi-extra { font-size: 11px; font-weight: 600; }
+
+/* ---- Farm overview telemetry tiles ---- */
+#dash-root .ops { gap: 10px; }
+#dash-root .op {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  padding: 12px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .op:hover { box-shadow: var(--d-shadow-hov); border-color: transparent; }
+#dash-root .op-ico {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  font-size: 14px;
+}
+#dash-root .op-val { color: var(--d-ink); font-weight: 800; font-size: 18px; }
+#dash-root .op-label { color: var(--d-ink-variant); font-size: 11px; }
+#dash-root .op-extra {
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+/* ---- Alerts panels (فواتير متأخرة) ---- */
+#dash-root .d-panel {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+}
+#dash-root .d-panel-head h5 { color: var(--d-ink); font-weight: 700; }
+#dash-root .row-name { color: var(--d-ink); font-weight: 600; }
+#dash-root .row-amt { color: var(--d-ink); font-weight: 700; }
+
+/* ---- Charts section ---- */
+#dash-root .d-card {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+}
+#dash-root .d-card-head h5 { color: var(--d-ink); font-weight: 700; font-size: 14px; }
+#dash-root .d-card-head .sub { color: var(--d-ink-variant); font-size: 12px; }
+#dash-root .bd-name { color: var(--d-ink); font-size: 13px; font-weight: 600; }
+#dash-root .bd-bar { border-radius: 999px; background: var(--d-brand-tint); }
+
+/* ---- Quick actions ---- */
+#dash-root .quick { gap: 10px; }
+#dash-root .q {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  color: var(--d-ink-variant);
+  font-weight: 600;
+  font-size: 12px;
+  transition: box-shadow .15s ease, color .15s ease;
+}
+#dash-root .q:hover {
+  box-shadow: var(--d-shadow-hov);
+  color: var(--d-brand);
+  border-color: transparent;
+}
+#dash-root .q-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+
+/* ---- Overall dashboard background ---- */
+#dash-root { background: #f8f9ff; padding: 4px; border-radius: var(--d-radius); }
+
+/* ══════════════════════════════════════════════════════════
+   M3 PILOT — full visual overhaul, appended so it wins the
+   cascade over the marsoud-shape rules earlier in this file.
+   Same classes, same Jinja data bindings — only appearance
+   changes. Font forced on every descendant so Arabic text
+   picks up Noto Sans Arabic instead of Cairo/Tajawal here.
+   ══════════════════════════════════════════════════════════ */
+#dash-root, #dash-root * { font-family: var(--d-font) !important; }
+
+/* ---- Hero ---- */
+#dash-root .dash-hero {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 20px;
+}
+#dash-root .dash-hero-wave {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--d-brand-tint);
+  color: var(--d-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+#dash-root .dash-hero h1 { color: var(--d-ink); font-weight: 700; }
+#dash-root .today-chip {
+  background: var(--d-brand-tint);
+  color: var(--d-brand-dark);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+#dash-root .period {
+  background: var(--d-brand-tint);
+  border-radius: 12px;
+  padding: 4px;
+}
+#dash-root .period a {
+  border-radius: 8px;
+  color: var(--d-ink-variant);
+  font-weight: 500;
+}
+#dash-root .period a.on {
+  background: #fff;
+  color: var(--d-brand);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+#dash-root .dash-refresh {
+  border-radius: 12px;
+  border: 1px solid var(--d-brand-tint);
+  background: #fff;
+  color: var(--d-ink-variant);
+}
+
+/* ---- Section labels: drop the colored dot, plain bold heading ---- */
+#dash-root .section-label {
+  color: var(--d-ink);
+  font-weight: 700;
+  font-size: 14px;
+}
+#dash-root .section-label i { color: var(--d-brand); }
+
+/* ---- Financial KPI cards ---- */
+#dash-root .kpi {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .kpi:hover {
+  box-shadow: var(--d-shadow-hov);
+  transform: none;
+  border-color: transparent;
+}
+#dash-root .kpi-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  opacity: 1;
+  font-size: 16px;
+}
+#dash-root .kpi-trend {
+  background: var(--d-brand-tint);
+  border-radius: 999px;
+  font-weight: 700;
+}
+#dash-root .kpi-label {
+  color: var(--d-ink-variant);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+#dash-root .kpi-val {
+  color: var(--d-ink);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+#dash-root .kpi-val .cur { color: var(--d-ink-variant); font-weight: 500; }
+#dash-root .kpi-extra { font-size: 11px; font-weight: 600; }
+
+/* ---- Farm overview telemetry tiles ---- */
+#dash-root .ops { gap: 10px; }
+#dash-root .op {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  padding: 12px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .op:hover { box-shadow: var(--d-shadow-hov); border-color: transparent; }
+#dash-root .op-ico {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  font-size: 14px;
+}
+#dash-root .op-val { color: var(--d-ink); font-weight: 800; font-size: 18px; }
+#dash-root .op-label { color: var(--d-ink-variant); font-size: 11px; }
+#dash-root .op-extra {
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+/* ---- Alerts panels (فواتير متأخرة) ---- */
+#dash-root .d-panel {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+}
+#dash-root .d-panel-head h5 { color: var(--d-ink); font-weight: 700; }
+#dash-root .row-name { color: var(--d-ink); font-weight: 600; }
+#dash-root .row-amt { color: var(--d-ink); font-weight: 700; }
+
+/* ---- Charts section ---- */
+#dash-root .d-card {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+}
+#dash-root .d-card-head h5 { color: var(--d-ink); font-weight: 700; font-size: 14px; }
+#dash-root .d-card-head .sub { color: var(--d-ink-variant); font-size: 12px; }
+#dash-root .bd-name { color: var(--d-ink); font-size: 13px; font-weight: 600; }
+#dash-root .bd-bar { border-radius: 999px; background: var(--d-brand-tint); }
+
+/* ---- Quick actions ---- */
+#dash-root .quick { gap: 10px; }
+#dash-root .q {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  color: var(--d-ink-variant);
+  font-weight: 600;
+  font-size: 12px;
+  transition: box-shadow .15s ease, color .15s ease;
+}
+#dash-root .q:hover {
+  box-shadow: var(--d-shadow-hov);
+  color: var(--d-brand);
+  border-color: transparent;
+}
+#dash-root .q-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+
+/* ---- Overall dashboard background ---- */
+#dash-root { background: #f8f9ff; padding: 4px; border-radius: var(--d-radius); }
+
+/* ══════════════════════════════════════════════════════════
+   M3 PILOT — full visual overhaul, appended so it wins the
+   cascade over the marsoud-shape rules earlier in this file.
+   Same classes, same Jinja data bindings — only appearance
+   changes. Font forced on every descendant so Arabic text
+   picks up Noto Sans Arabic instead of Cairo/Tajawal here.
+   ══════════════════════════════════════════════════════════ */
+#dash-root, #dash-root * { font-family: var(--d-font) !important; }
+
+/* ---- Hero ---- */
+#dash-root .dash-hero {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 20px;
+}
+#dash-root .dash-hero-wave {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--d-brand-tint);
+  color: var(--d-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+#dash-root .dash-hero h1 { color: var(--d-ink); font-weight: 700; }
+#dash-root .today-chip {
+  background: var(--d-brand-tint);
+  color: var(--d-brand-dark);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+#dash-root .period {
+  background: var(--d-brand-tint);
+  border-radius: 12px;
+  padding: 4px;
+}
+#dash-root .period a {
+  border-radius: 8px;
+  color: var(--d-ink-variant);
+  font-weight: 500;
+}
+#dash-root .period a.on {
+  background: #fff;
+  color: var(--d-brand);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+#dash-root .dash-refresh {
+  border-radius: 12px;
+  border: 1px solid var(--d-brand-tint);
+  background: #fff;
+  color: var(--d-ink-variant);
+}
+
+/* ---- Section labels: drop the colored dot, plain bold heading ---- */
+#dash-root .section-label {
+  color: var(--d-ink);
+  font-weight: 700;
+  font-size: 14px;
+}
+#dash-root .section-label i { color: var(--d-brand); }
+
+/* ---- Financial KPI cards ---- */
+#dash-root .kpi {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .kpi:hover {
+  box-shadow: var(--d-shadow-hov);
+  transform: none;
+  border-color: transparent;
+}
+#dash-root .kpi-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  opacity: 1;
+  font-size: 16px;
+}
+#dash-root .kpi-trend {
+  background: var(--d-brand-tint);
+  border-radius: 999px;
+  font-weight: 700;
+}
+#dash-root .kpi-label {
+  color: var(--d-ink-variant);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+#dash-root .kpi-val {
+  color: var(--d-ink);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+#dash-root .kpi-val .cur { color: var(--d-ink-variant); font-weight: 500; }
+#dash-root .kpi-extra { font-size: 11px; font-weight: 600; }
+
+/* ---- Farm overview telemetry tiles ---- */
+#dash-root .ops { gap: 10px; }
+#dash-root .op {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  padding: 12px;
+  transition: box-shadow .15s ease;
+}
+#dash-root .op:hover { box-shadow: var(--d-shadow-hov); border-color: transparent; }
+#dash-root .op-ico {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--d-brand-tint) !important;
+  color: var(--d-brand) !important;
+  font-size: 14px;
+}
+#dash-root .op-val { color: var(--d-ink); font-weight: 800; font-size: 18px; }
+#dash-root .op-label { color: var(--d-ink-variant); font-size: 11px; }
+#dash-root .op-extra {
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+/* ---- Alerts panels (فواتير متأخرة) ---- */
+#dash-root .d-panel {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+}
+#dash-root .d-panel-head h5 { color: var(--d-ink); font-weight: 700; }
+#dash-root .row-name { color: var(--d-ink); font-weight: 600; }
+#dash-root .row-amt { color: var(--d-ink); font-weight: 700; }
+
+/* ---- Charts section ---- */
+#dash-root .d-card {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+}
+#dash-root .d-card-head h5 { color: var(--d-ink); font-weight: 700; font-size: 14px; }
+#dash-root .d-card-head .sub { color: var(--d-ink-variant); font-size: 12px; }
+#dash-root .bd-name { color: var(--d-ink); font-size: 13px; font-weight: 600; }
+#dash-root .bd-bar { border-radius: 999px; background: var(--d-brand-tint); }
+
+/* ---- Quick actions ---- */
+#dash-root .quick { gap: 10px; }
+#dash-root .q {
+  background: #fff;
+  border: none;
+  border-radius: var(--d-radius-sm);
+  box-shadow: var(--d-shadow);
+  color: var(--d-ink-variant);
+  font-weight: 600;
+  font-size: 12px;
+  transition: box-shadow .15s ease, color .15s ease;
+}
+#dash-root .q:hover {
+  box-shadow: var(--d-shadow-hov);
+  color: var(--d-brand);
+  border-color: transparent;
+}
+#dash-root .q-ico {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--d-brand-tint);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+
+/* ---- Overall dashboard background ---- */
+#dash-root { background: #f8f9ff; padding: 4px; border-radius: var(--d-radius); }
+
+/* ══════════════════════════════════════════════════════════
+   M3 REWRITE — Hero banner (new HTML structure, matches the
+   reference design's ambient-glow hero card).
+   ══════════════════════════════════════════════════════════ */
+#dash-root .m3-hero {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 24px;
+}
+#dash-root .m3-hero-glow-a {
+  position: absolute;
+  left: -80px; top: -80px;
+  width: 280px; height: 280px;
+  border-radius: 50%;
+  background: rgba(148, 206, 240, 0.25);
+  filter: blur(60px);
+  pointer-events: none;
+}
+#dash-root .m3-hero-glow-b {
+  position: absolute;
+  right: 30%; bottom: -100px;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  background: rgba(79, 222, 163, 0.15);
+  filter: blur(60px);
+  pointer-events: none;
+}
+#dash-root .m3-hero-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+#dash-root .m3-hero-text h1 {
+  color: var(--d-ink);
+  font-weight: 700;
+  font-size: 24px;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+#dash-root .m3-wave {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+#dash-root .m3-hero-text h1:hover .m3-wave { transform: rotate(15deg); }
+#dash-root .m3-hero-sub {
+  color: var(--d-ink-variant);
+  font-size: 14px;
+  margin: 6px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#dash-root .m3-hero-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: #c0c7ce;
+  display: inline-block;
+}
+#dash-root .m3-hero-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#dash-root .m3-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#dash-root .m3-refresh-btn {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: none;
+  background: var(--d-brand-tint);
+  color: var(--d-ink-variant);
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+#dash-root .m3-refresh-btn:hover { background: var(--d-brand-soft); }
+
+/* ══════════════════════════════════════════════════════════
+   M3 REWRITE — Financial KPI cards (new HTML structure).
+   ══════════════════════════════════════════════════════════ */
+#dash-root .m3-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+@media (max-width: 1500px) { #dash-root .m3-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { #dash-root .m3-kpis { grid-template-columns: 1fr; } }
+
+#dash-root .m3-kpi {
+  display: block;
+  background: #fff;
+  border-radius: var(--d-radius);
+  box-shadow: var(--d-shadow);
+  padding: 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow .15s ease;
+}
+#dash-root .m3-kpi:hover {
+  box-shadow: var(--d-shadow-hov);
+  text-decoration: none;
+}
+#dash-root .m3-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+#dash-root .m3-kpi-label {
+  color: var(--d-ink-variant);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: block;
+}
+#dash-root .m3-kpi-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 4px;
+}
+#dash-root .m3-kpi-val {
+  color: var(--d-ink);
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+#dash-root .m3-kpi-cur {
+  color: var(--d-ink-variant);
+  font-size: 12px;
+  font-weight: 500;
+}
+#dash-root .m3-kpi-ico {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: var(--d-brand-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+#dash-root .m3-kpi-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f4f9;
+}
+#dash-root .m3-trend {
+  font-size: 12px;
+  font-weight: 700;
+}
+#dash-root .m3-trend.up   { color: #16a34a; }
+#dash-root .m3-trend.down { color: #dc2626; }
+#dash-root .m3-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+#dash-root .m3-badge.warn   { background: #fef3c7; color: #92400e; }
+#dash-root .m3-badge.danger { background: #fee2e2; color: #991b1b; }

@@ -3,344 +3,454 @@
 {% block content %}
 <div id="dash-root">
 
-  {# ============ PHASE 17: greeting hero ============ #}
-  <div class="dash-hero">
-    <div class="dash-hero-l">
-      <div class="dash-hero-wave">👋</div>
-      <div>
-        <h1>أهلاً {{ current_user.name }}</h1>
-        <p class="dash-hero-sub">
-          <span class="today-chip"><i class="bi bi-calendar3"></i>
-            {{ now().strftime('%A · %Y-%m-%d') }}
-          </span>
-          <span class="today-hint">هنا الملخص السريع لوضع المزرعة النهارده.</span>
-        </p>
-      </div>
+  {# ============ M3 REWRITE: hero banner ============ #}
+  <section class="relative overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm p-space-lg flex flex-col xl:flex-row xl:items-center justify-between gap-space-md">
+    <div class="space-y-space-xxs z-10">
+      <h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight font-bold">
+        أهلاً بك، {{ current_user.name }}
+        <span class="inline-block transform origin-bottom-right hover:rotate-12 transition-transform duration-300">👋</span>
+      </h1>
+      <p class="font-body-md text-body-md text-on-surface-variant flex items-center gap-2">
+        <span>هنا الملخص السريع لوضع المزرعة اليوم</span>
+        <span class="inline-block w-1 h-1 rounded-full bg-outline-variant"></span>
+        <span class="flex items-center gap-1">
+          <i class="bi bi-calendar3 text-[16px]"></i>
+          {{ now().strftime('%A · %Y-%m-%d') }}
+        </span>
+      </p>
     </div>
-    <div class="dash-hero-r">
-      <div class="period" role="tablist" aria-label="فترة التحليل">
+    <div class="flex items-center gap-space-xs flex-wrap z-10">
+      <div class="p-1 rounded-xl bg-surface-container-low flex items-center shadow-inner">
         <a href="{{ url_for('dashboard.index', period='day') }}"
-           class="{% if period == 'day' %}on{% endif %}">اليوم</a>
+           class="px-3 py-1.5 rounded-lg font-label-lg text-label-lg transition-all {% if period == 'day' %}font-semibold text-primary bg-surface-container-lowest shadow-sm{% else %}font-medium text-on-surface-variant hover:text-on-surface{% endif %}">اليوم</a>
         <a href="{{ url_for('dashboard.index', period='week') }}"
-           class="{% if period == 'week' %}on{% endif %}">الأسبوع</a>
+           class="px-3 py-1.5 rounded-lg font-label-lg text-label-lg transition-all {% if period == 'week' %}font-semibold text-primary bg-surface-container-lowest shadow-sm{% else %}font-medium text-on-surface-variant hover:text-on-surface{% endif %}">الأسبوع</a>
         <a href="{{ url_for('dashboard.index', period='month') }}"
-           class="{% if period == 'month' %}on{% endif %}">الشهر</a>
+           class="px-3 py-1.5 rounded-lg font-label-lg text-label-lg transition-all {% if period == 'month' %}font-semibold text-primary bg-surface-container-lowest shadow-sm{% else %}font-medium text-on-surface-variant hover:text-on-surface{% endif %}">الشهر</a>
         <a href="{{ url_for('dashboard.index', period='year') }}"
-           class="{% if period == 'year' %}on{% endif %}">السنة</a>
+           class="px-3 py-1.5 rounded-lg font-label-lg text-label-lg transition-all {% if period == 'year' %}font-semibold text-primary bg-surface-container-lowest shadow-sm{% else %}font-medium text-on-surface-variant hover:text-on-surface{% endif %}">السنة</a>
       </div>
-      <button type="button" class="dash-refresh"
-              onclick="window.location.reload()"
-              title="تحديث الآن">
-        <i class="bi bi-arrow-clockwise"></i>
+      <button type="button" onclick="window.location.reload()" title="تحديث الآن"
+              class="h-10 px-4 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-semibold flex items-center gap-2 shadow-sm hover:bg-primary-container transition-colors active:scale-[0.99]">
+        <i class="bi bi-arrow-clockwise text-[18px]"></i>
+        <span>تحديث</span>
       </button>
     </div>
-  </div>
+    <div class="absolute -left-20 -top-20 w-80 h-80 rounded-full bg-primary-fixed-dim/20 blur-3xl pointer-events-none"></div>
+    <div class="absolute right-1/3 -bottom-24 w-64 h-64 rounded-full bg-tertiary-fixed/15 blur-3xl pointer-events-none"></div>
+  </section>
 
   {# ============ الصحة المالية ============ #}
-  <div class="section-label" data-section="finance">
-    <i class="bi bi-heart-pulse"></i><span>الصحة المالية</span>
-  </div>
-  <div class="kpis">
+  <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md mt-space-lg">
     {# Cash #}
-    <a class="kpi" href="{{ url_for('accounts.list_accounts') }}" title="السيولة المتاحة">
-      <div class="kpi-head">
-        <div class="kpi-ico i-blue">💧</div>
-        {% if kpis.cash.trend %}
-        <div class="kpi-trend {% if kpis.cash.trend > 0 %}trend-up{% elif kpis.cash.trend < 0 %}trend-down{% else %}trend-flat{% endif %}">
-          {% if kpis.cash.trend > 0 %}↑{% elif kpis.cash.trend < 0 %}↓{% else %}—{% endif %} {{ kpis.cash.trend }}%
+    <a href="{{ url_for('accounts.list_accounts') }}" title="السيولة المتاحة"
+       class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between relative overflow-hidden group no-underline">
+      <div class="flex items-start justify-between">
+        <div class="space-y-1">
+          <span class="font-label-md text-label-md text-on-surface-variant tracking-wider">السيولة المتاحة</span>
+          <div class="flex items-baseline gap-1">
+            <span class="font-headline-xl text-headline-xl text-on-surface font-bold">{{ "{:,.0f}".format(kpis.cash.value) }}</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">جنيه</span>
+          </div>
         </div>
-        {% endif %}
+        <div class="w-10 h-10 rounded-xl bg-primary-fixed/50 flex items-center justify-center text-primary">
+          <i class="bi bi-droplet-fill text-[22px]"></i>
+        </div>
       </div>
-      <div class="kpi-label">السيولة المتاحة</div>
-      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.cash.value) }}</div>
-      <div class="spark-wrap"><canvas data-spark="{{ kpis.cash.spark|join(',') }}" data-color="#2b95c2"></canvas></div>
+      <div class="my-space-xs pt-2"><div class="spark-wrap"><canvas data-spark="{{ kpis.cash.spark|join(',') }}" data-color="#004863"></canvas></div></div>
+      {% if kpis.cash.trend %}
+      <div class="flex items-center justify-between pt-1 font-label-sm text-label-sm">
+        <span class="inline-flex items-center gap-0.5 font-semibold {% if kpis.cash.trend > 0 %}text-tertiary-container{% elif kpis.cash.trend < 0 %}text-error{% else %}text-on-surface-variant{% endif %}">
+          {% if kpis.cash.trend > 0 %}↑{% elif kpis.cash.trend < 0 %}↓{% else %}—{% endif %} {{ kpis.cash.trend }}%
+        </span>
+      </div>
+      {% endif %}
     </a>
 
     {# Net profit #}
-    <a class="kpi" href="{{ url_for('accounting.income_statement_view') }}" title="صافي الربح">
-      <div class="kpi-head">
-        <div class="kpi-ico i-green">📈</div>
-        <div class="kpi-trend {% if kpis.net_profit.trend > 0 %}trend-up{% elif kpis.net_profit.trend < 0 %}trend-down{% else %}trend-flat{% endif %}">
-          {% if kpis.net_profit.trend > 0 %}↑{% elif kpis.net_profit.trend < 0 %}↓{% else %}—{% endif %} {{ kpis.net_profit.trend }}%
+    <a href="{{ url_for('accounting.income_statement_view') }}" title="صافي الربح"
+       class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group no-underline">
+      <div class="flex items-start justify-between">
+        <div class="space-y-1">
+          <span class="font-label-md text-label-md text-on-surface-variant tracking-wider">صافي الربح ({{ period_label }})</span>
+          <div class="flex items-baseline gap-1">
+            <span class="font-headline-xl text-headline-xl text-on-surface font-bold">{{ "{:,.0f}".format(kpis.net_profit.value) }}</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">جنيه</span>
+          </div>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-primary">
+          <i class="bi bi-graph-up-arrow text-[22px]"></i>
         </div>
       </div>
-      <div class="kpi-label">صافي الربح ({{ period_label }})</div>
-      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.net_profit.value) }}</div>
-      <div class="spark-wrap"><canvas data-spark="{{ kpis.net_profit.spark|join(',') }}" data-color="#16a34a"></canvas></div>
+      <div class="my-space-xs pt-2"><div class="spark-wrap"><canvas data-spark="{{ kpis.net_profit.spark|join(',') }}" data-color="#004863"></canvas></div></div>
+      <div class="flex items-center justify-between pt-1 font-label-sm text-label-sm">
+        <span class="inline-flex items-center gap-0.5 font-semibold {% if kpis.net_profit.trend > 0 %}text-tertiary-container{% elif kpis.net_profit.trend < 0 %}text-error{% else %}text-on-surface-variant{% endif %}">
+          {% if kpis.net_profit.trend > 0 %}↑{% elif kpis.net_profit.trend < 0 %}↓{% else %}—{% endif %} {{ kpis.net_profit.trend }}%
+        </span>
+      </div>
     </a>
 
     {# AR #}
-    <a class="kpi" href="{{ url_for('customers.dues') }}" title="مستحق لك من العملاء">
-      <div class="kpi-head">
-        <div class="kpi-ico i-amber">⬇</div>
+    <a href="{{ url_for('customers.dues') }}" title="مستحق لك من العملاء"
+       class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group no-underline">
+      <div class="flex items-start justify-between">
+        <div class="space-y-1">
+          <span class="font-label-md text-label-md text-on-surface-variant tracking-wider">مستحق لك (عملاء)</span>
+          <div class="flex items-baseline gap-1">
+            <span class="font-headline-xl text-headline-xl text-on-surface font-bold">{{ "{:,.0f}".format(kpis.ar.value) }}</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">جنيه</span>
+          </div>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container">
+          <i class="bi bi-arrow-down-circle text-[22px]"></i>
+        </div>
       </div>
-      <div class="kpi-label">مستحق لك (عملاء)</div>
-      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.ar.value) }}</div>
       {% if overdue_customers %}
-      <div class="kpi-extra tag-amber">⏱ {{ overdue_customers|length }} فاتورة متأخرة</div>
+      <div class="my-space-xs p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-error"></span>
+          <span class="font-label-md text-label-md font-semibold text-on-surface">{{ overdue_customers|length }} فاتورة متأخرة</span>
+        </div>
+      </div>
+      {% else %}
+      <div class="my-space-xs pt-2"><div class="spark-wrap"><canvas data-spark="{{ kpis.ar.spark|join(',') }}" data-color="#004863"></canvas></div></div>
       {% endif %}
-      <div class="spark-wrap"><canvas data-spark="{{ kpis.ar.spark|join(',') }}" data-color="#d97706"></canvas></div>
     </a>
 
     {# AP #}
-    <a class="kpi" href="{{ url_for('suppliers.dues') }}" title="مستحق عليك للموردين">
-      <div class="kpi-head">
-        <div class="kpi-ico i-red">⬆</div>
+    <a href="{{ url_for('suppliers.dues') }}" title="مستحق عليك للموردين"
+       class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group no-underline">
+      <div class="flex items-start justify-between">
+        <div class="space-y-1">
+          <span class="font-label-md text-label-md text-on-surface-variant tracking-wider">مستحق عليك (موردين)</span>
+          <div class="flex items-baseline gap-1">
+            <span class="font-headline-xl text-headline-xl text-on-surface font-bold">{{ "{:,.0f}".format(kpis.ap.value) }}</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">جنيه</span>
+          </div>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-secondary">
+          <i class="bi bi-building text-[22px]"></i>
+        </div>
       </div>
-      <div class="kpi-label">مستحق عليك (موردين)</div>
-      <div class="kpi-val"><span class="cur">جنيه</span>{{ "{:,.0f}".format(kpis.ap.value) }}</div>
       {% if overdue_suppliers %}
-      <div class="kpi-extra tag-red">⚠ {{ overdue_suppliers|length }} فاتورة تحتاج قرار</div>
+      <div class="my-space-xs p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-error"></span>
+          <span class="font-label-md text-label-md font-semibold text-on-surface">{{ overdue_suppliers|length }} فاتورة تحتاج قرار</span>
+        </div>
+      </div>
+      {% else %}
+      <div class="my-space-xs pt-2"><div class="spark-wrap"><canvas data-spark="{{ kpis.ap.spark|join(',') }}" data-color="#004863"></canvas></div></div>
       {% endif %}
-      <div class="spark-wrap"><canvas data-spark="{{ kpis.ap.spark|join(',') }}" data-color="#dc4640"></canvas></div>
     </a>
-  </div>
+  </section>
 
   {# ============ نظرة على المزرعة ============ #}
-  <div class="section-label" data-section="herd">
-    <i class="bi bi-clipboard-data"></i><span>نظرة على المزرعة</span>
-  </div>
-  <div class="ops">
-    <a class="op" href="{{ url_for('herd.list_cows') }}">
-      <div class="op-ico i-teal">🐄</div>
-      <div>
-        <div class="op-val">{{ "{:,}".format(total_active) }}</div>
-        <div class="op-label">إجمالي القطيع (نشط)</div>
-        <div class="op-extra tag-green">منها {{ milking_group_count }} في الحليب</div>
+  <section class="space-y-space-xs mt-space-lg">
+    <div class="flex items-center justify-between px-1">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-tertiary"></span>
+        <h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">نظرة على المزرعة</h2>
       </div>
-    </a>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-space-sm">
+      <a href="{{ url_for('herd.list_cows') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">إجمالي القطيع (نشط)</span>
+          <i class="bi bi-heart-pulse text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <div class="flex items-baseline gap-1">
+            <span class="font-headline-lg text-headline-lg font-bold text-on-surface">{{ "{:,}".format(total_active) }}</span>
+          </div>
+        </div>
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">منها {{ milking_group_count }} في الحليب</span>
+      </a>
 
-    <a class="op" href="{{ url_for('milk.list_deliveries') }}">
-      <div class="op-ico i-blue">💧</div>
-      <div>
-        <div class="op-val">{{ "{:,.0f}".format(yesterday_milk_kg) }} كجم</div>
-        <div class="op-label">لبن أمس</div>
+      <a href="{{ url_for('milk.list_deliveries') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">لبن أمس</span>
+          <i class="bi bi-droplet text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold text-on-surface">{{ "{:,.0f}".format(yesterday_milk_kg) }} كجم</span>
+        </div>
         {% if yesterday_milk_value %}
-        <div class="op-extra tag-green">بقيمة {{ "{:,.0f}".format(yesterday_milk_value) }} جنيه</div>
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">بقيمة {{ "{:,.0f}".format(yesterday_milk_value) }} جنيه</span>
         {% elif yesterday_waste and yesterday_waste > 0 %}
-        <div class="op-extra tag-amber">⚠ فاقد {{ "{:,.0f}".format(yesterday_waste) }} كجم</div>
+        <span class="font-label-sm text-label-sm text-error font-semibold">⚠ فاقد {{ "{:,.0f}".format(yesterday_waste) }} كجم</span>
         {% else %}
-        <div class="op-extra tag-green">في الميعاد</div>
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">في الميعاد</span>
         {% endif %}
-      </div>
-    </a>
+      </a>
 
-    <a class="op" href="{{ url_for('feed.list_tanks') }}">
-      <div class="op-ico i-green">🌾</div>
-      <div>
-        <div class="op-val">{{ tank_count }}</div>
-        <div class="op-label">خزانات العلف النشطة</div>
+      <a href="{{ url_for('feed.list_tanks') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">خزانات العلف النشطة</span>
+          <i class="bi bi-flower1 text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold text-on-surface">{{ tank_count }}</span>
+        </div>
         {% if avg_feed_cost > 0 %}
-        <div class="op-extra tag-green">متوسط تكلفة الكيلو {{ avg_feed_cost }} جنيه</div>
+        <span class="font-label-sm text-label-sm text-secondary">متوسط تكلفة الكيلو {{ avg_feed_cost }} جنيه</span>
         {% else %}
-        <div class="op-extra tag-amber">مفيش رصيد حالي في الخزانات</div>
+        <span class="font-label-sm text-label-sm text-error font-semibold">مفيش رصيد حالي في الخزانات</span>
         {% endif %}
-      </div>
-    </a>
+      </a>
 
-    <a class="op" href="{{ url_for('inventory.list_ingredients') }}">
-      <div class="op-ico i-amber">📦</div>
-      <div>
-        <div class="op-val">{{ low_stock_ings|length }}</div>
-        <div class="op-label">مواد تحت الحد الأدنى</div>
+      <a href="{{ url_for('inventory.list_ingredients') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">مواد تحت الحد الأدنى</span>
+          <i class="bi bi-box-seam text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold {% if low_stock_ings %}text-error{% else %}text-on-surface{% endif %}">{{ low_stock_ings|length }}</span>
+        </div>
         {% if low_stock_ings %}
-        <div class="op-extra tag-red">⚠ محتاجة شراء عاجل</div>
+        <span class="font-label-sm text-label-sm text-error font-semibold">⚠ محتاجة شراء عاجل</span>
         {% else %}
-        <div class="op-extra tag-green">المخزون مستقر</div>
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">المخزون مستقر</span>
         {% endif %}
-      </div>
-    </a>
+      </a>
 
-    <a class="op" href="{{ url_for('inventory.list_ingredients') }}">
-      <div class="op-ico i-red">💊</div>
-      <div>
-        <div class="op-val">{{ expiring_soon_lots|length }}</div>
-        <div class="op-label">دواء ينتهي قريباً</div>
+      <a href="{{ url_for('inventory.list_ingredients') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">دواء ينتهي قريباً</span>
+          <i class="bi bi-capsule text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold {% if expiring_soon_lots %}text-error{% else %}text-tertiary-container{% endif %}">{{ expiring_soon_lots|length }}</span>
+        </div>
         {% if expiring_soon_lots %}
-        <div class="op-extra tag-red">⏰ خلال 30 يوم</div>
+        <span class="font-label-sm text-label-sm text-error font-semibold">⏰ خلال 30 يوم</span>
         {% else %}
-        <div class="op-extra tag-green">لا يوجد ما ينتهي قريبًا</div>
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">التحصينات مكتملة</span>
         {% endif %}
-      </div>
-    </a>
+      </a>
 
-    <a class="op" href="{{ url_for('checks.index') }}">
-      <div class="op-ico i-violet">💳</div>
-      <div>
-        <div class="op-val">{{ upcoming_checks|length }}</div>
-        <div class="op-label">شيكات مستحقة قريباً</div>
+      <a href="{{ url_for('checks.index') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">شيكات مستحقة قريباً</span>
+          <i class="bi bi-credit-card text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold text-on-surface">{{ upcoming_checks|length }}</span>
+        </div>
         {% if overdue_checks_count > 0 %}
-        <div class="op-extra tag-red">⏰ {{ overdue_checks_count }} متأخرة</div>
+        <span class="font-label-sm text-label-sm text-error font-semibold">⏰ {{ overdue_checks_count }} متأخرة</span>
         {% elif upcoming_checks %}
-        <div class="op-extra tag-amber">خلال أسبوع</div>
+        <span class="font-label-sm text-label-sm text-secondary font-medium">خلال أسبوع</span>
         {% else %}
-        <div class="op-extra tag-green">مفيش شيكات قريبة</div>
+        <span class="font-label-sm text-label-sm text-tertiary font-medium">مفيش شيكات قريبة</span>
         {% endif %}
-      </div>
-    </a>
+      </a>
 
-    <a class="op" href="{{ url_for('suppliers.list_suppliers') }}">
-      <div class="op-ico i-red">🏢</div>
-      <div>
-        <div class="op-val">{{ active_suppliers_count }}</div>
-        <div class="op-label">موردون نشطون</div>
+      <a href="{{ url_for('suppliers.list_suppliers') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">موردون نشطون</span>
+          <i class="bi bi-building text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold text-on-surface">{{ active_suppliers_count }}</span>
+        </div>
         {% if overdue_suppliers %}
-        <div class="op-extra tag-red">⏰ {{ overdue_suppliers|length }} برصيد متأخر</div>
+        <span class="font-label-sm text-label-sm text-error font-semibold">⏰ {{ overdue_suppliers|length }} برصيد متأخر</span>
         {% else %}
-        <div class="op-extra tag-green">لا أرصدة متأخرة</div>
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">لا أرصدة متأخرة</span>
         {% endif %}
-      </div>
-    </a>
+      </a>
 
-    <a class="op" href="{{ url_for('labor.list_workers') }}">
-      <div class="op-ico i-brand">👨‍🌾</div>
-      <div>
-        <div class="op-val">{{ active_workers_count }}</div>
-        <div class="op-label">عمالة نشطة</div>
-        <div class="op-extra tag-green">تسجيل الحضور اليومي</div>
-      </div>
-    </a>
-  </div>
+      <a href="{{ url_for('labor.list_workers') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">عمالة نشطة</span>
+          <i class="bi bi-person-badge text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold text-on-surface">{{ active_workers_count }}</span>
+        </div>
+        <span class="font-label-sm text-label-sm text-tertiary-container font-semibold">تسجيل الحضور اليومي</span>
+      </a>
+    </div>
+  </section>
 
   {# ============ يحتاج انتباهك الآن ============ #}
   {% if overdue_customers or overdue_suppliers %}
-  <div class="section-label" data-section="admin">
-    <i class="bi bi-bell-fill"></i><span>يحتاج انتباهك الآن</span>
-  </div>
-  <div class="action-grid">
-    {# overdue customer invoices — AR (money owed TO us). Kept red. #}
-    <div class="d-panel panel-red">
-      <div class="d-panel-head">
-        <div class="icon i-red"><i class="bi bi-alarm"></i></div>
-        <h5>فواتير عملاء متأخرة</h5>
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-space-md mt-space-lg">
+    <div class="rounded-xl bg-surface-container-lowest shadow-sm p-space-md">
+      <div class="flex items-center gap-2 mb-space-xs">
+        <div class="w-8 h-8 rounded-lg bg-error-container flex items-center justify-center text-error">
+          <i class="bi bi-exclamation-triangle-fill text-[18px]"></i>
+        </div>
+        <h3 class="font-headline-sm text-headline-sm text-on-surface font-bold flex-1">فواتير عملاء متأخرة</h3>
         {% if overdue_customers %}
-        <span class="pill pill-red">{{ overdue_customers|length }} فاتورة</span>
+        <span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-error-container text-error font-semibold">{{ overdue_customers|length }} فاتورة</span>
         {% endif %}
       </div>
-      <div class="d-panel-meta">مستحقة ولم تُحصَّل بعد</div>
       {% if overdue_customers %}
+        <div class="space-y-1">
         {% for r in overdue_customers %}
-        <a class="d-row" href="{{ url_for('milk.view_invoice', invoice_id=r.id) }}">
-          <div class="row-l">
-            <div class="row-ava">{{ r.customer_initials }}</div>
+        <a href="{{ url_for('milk.view_invoice', invoice_id=r.id) }}" class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-low transition-colors no-underline">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center font-label-sm text-label-sm font-bold text-on-secondary-container">{{ r.customer_initials }}</div>
             <div>
-              <div class="row-name">{{ r.customer_name }}</div>
-              <div class="row-sub">فاتورة {{ r.number }} · {{ r.issue_date }}</div>
+              <div class="font-label-lg text-label-lg font-semibold text-on-surface">{{ r.customer_name }}</div>
+              <div class="font-label-sm text-label-sm text-on-surface-variant">فاتورة {{ r.number }} · {{ r.issue_date }}</div>
             </div>
           </div>
-          <div class="row-r">
-            <div class="row-amt">{{ "{:,.0f}".format(r.amount) }}</div>
-            <div class="row-tag tag-red">متأخرة {{ r.days_late }} يوم</div>
+          <div class="text-left">
+            <div class="font-label-lg text-label-lg font-bold text-on-surface">{{ "{:,.0f}".format(r.amount) }}</div>
+            <div class="font-label-sm text-label-sm text-error">متأخرة {{ r.days_late }} يوم</div>
           </div>
         </a>
         {% endfor %}
-        <div class="d-panel-foot">
-          <span>الإجمالي المتأخر: <b>{{ "{:,.0f}".format(overdue_customers_total) }}</b> جنيه</span>
-          <a href="{{ url_for('customers.dues') }}">عرض الكل →</a>
+        </div>
+        <div class="pt-space-xs mt-space-xs border-t border-outline-variant flex items-center justify-between font-label-sm text-label-sm">
+          <span class="text-on-surface-variant">الإجمالي: <b class="text-on-surface">{{ "{:,.0f}".format(overdue_customers_total) }}</b> جنيه</span>
+          <a href="{{ url_for('customers.dues') }}" class="text-primary font-semibold">عرض الكل ←</a>
         </div>
       {% else %}
-        <div class="empty-state"><span class="icon">✅</span>لا توجد فواتير متأخرة</div>
+        <div class="text-center py-space-lg text-on-surface-variant font-body-sm text-body-sm">✅ لا توجد فواتير متأخرة</div>
       {% endif %}
     </div>
 
-    {# overdue supplier bills — AP (money WE owe). Amber to distinguish
-       from the customer AR panel above. #}
-    <div class="d-panel panel-amber">
-      <div class="d-panel-head">
-        <div class="icon i-amber"><i class="bi bi-cash-coin"></i></div>
-        <h5>فواتير موردين متأخرة</h5>
+    <div class="rounded-xl bg-surface-container-lowest shadow-sm p-space-md">
+      <div class="flex items-center gap-2 mb-space-xs">
+        <div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+          <i class="bi bi-cash-coin text-[18px]"></i>
+        </div>
+        <h3 class="font-headline-sm text-headline-sm text-on-surface font-bold flex-1">فواتير موردين متأخرة</h3>
         {% if overdue_suppliers %}
-        <span class="pill pill-amber">{{ overdue_suppliers|length }} فاتورة</span>
+        <span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-surface-container-high text-secondary font-semibold">{{ overdue_suppliers|length }} فاتورة</span>
         {% endif %}
       </div>
-      <div class="d-panel-meta">تحتاج قرار — لن تختفي حتى تتحرك</div>
       {% if overdue_suppliers %}
+        <div class="space-y-1">
         {% for r in overdue_suppliers %}
-        <a class="d-row" href="{{ url_for('purchases.view_invoice', invoice_id=r.id) }}">
-          <div class="row-l">
-            <div class="row-ava">{{ r.supplier_initials }}</div>
+        <a href="{{ url_for('purchases.view_invoice', invoice_id=r.id) }}" class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-low transition-colors no-underline">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center font-label-sm text-label-sm font-bold text-secondary">{{ r.supplier_initials }}</div>
             <div>
-              <div class="row-name">{{ r.supplier_name }}</div>
-              <div class="row-sub">فاتورة {{ r.number }} · {{ r.invoice_date }}</div>
+              <div class="font-label-lg text-label-lg font-semibold text-on-surface">{{ r.supplier_name }}</div>
+              <div class="font-label-sm text-label-sm text-on-surface-variant">فاتورة {{ r.number }} · {{ r.invoice_date }}</div>
             </div>
           </div>
-          <div class="row-r">
-            <div class="row-amt">{{ "{:,.0f}".format(r.amount) }}</div>
-            <div class="row-tag tag-amber">متأخرة {{ r.days_late }} يوم</div>
+          <div class="text-left">
+            <div class="font-label-lg text-label-lg font-bold text-on-surface">{{ "{:,.0f}".format(r.amount) }}</div>
+            <div class="font-label-sm text-label-sm text-secondary">متأخرة {{ r.days_late }} يوم</div>
           </div>
         </a>
         {% endfor %}
-        <div class="d-panel-foot">
-          <span>الإجمالي المتأخر: <b>{{ "{:,.0f}".format(overdue_suppliers_total) }}</b> جنيه</span>
-          <a href="{{ url_for('suppliers.dues') }}">عرض الكل →</a>
+        </div>
+        <div class="pt-space-xs mt-space-xs border-t border-outline-variant flex items-center justify-between font-label-sm text-label-sm">
+          <span class="text-on-surface-variant">الإجمالي: <b class="text-on-surface">{{ "{:,.0f}".format(overdue_suppliers_total) }}</b> جنيه</span>
+          <a href="{{ url_for('suppliers.dues') }}" class="text-primary font-semibold">عرض الكل ←</a>
         </div>
       {% else %}
-        <div class="empty-state"><span class="icon">✅</span>لا توجد فواتير متأخرة</div>
+        <div class="text-center py-space-lg text-on-surface-variant font-body-sm text-body-sm">✅ لا توجد فواتير متأخرة</div>
       {% endif %}
     </div>
-  </div>
+  </section>
   {% endif %}
 
   {# ============ الاتجاه المالي ============ #}
-  <div class="section-label" data-section="reports">
-    <i class="bi bi-graph-up"></i><span>الاتجاه المالي</span>
-  </div>
-  <div class="lower-grid">
-    <div class="d-card">
-      <div class="d-card-head">
+  <section class="grid grid-cols-1 lg:grid-cols-12 gap-space-md mt-space-lg">
+    <div class="lg:col-span-8 rounded-xl bg-surface-container-lowest shadow-sm p-space-md flex flex-col">
+      <div class="flex items-center justify-between mb-space-sm">
         <div>
-          <h5>الإيراد مقابل تكلفة العلف</h5>
-          <div class="sub">آخر 6 شهور</div>
+          <h3 class="font-headline-md text-headline-md text-on-surface font-bold">الإيراد مقابل تكلفة العلف</h3>
+          <span class="font-body-sm text-body-sm text-on-surface-variant">آخر 6 شهور</span>
         </div>
-        <div class="legend">
-          <span><span class="sw" style="background:#16a34a"></span>إيراد اللبن</span>
-          <span><span class="sw" style="background:#dc4640"></span>تكلفة العلف</span>
+        <div class="flex items-center gap-space-sm">
+          <span class="flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface"><span class="w-3 h-3 rounded bg-tertiary"></span>إيراد اللبن</span>
+          <span class="flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant"><span class="w-3 h-3 rounded bg-error"></span>تكلفة العلف</span>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="dashTrend"></canvas></div>
     </div>
 
-    <div class="d-card">
-      <div class="d-card-head">
-        <div>
-          <h5>توزيع المصروفات</h5>
-          <div class="sub">هذا {{ period_label }}</div>
-        </div>
+    <div class="lg:col-span-4 rounded-xl bg-surface-container-lowest shadow-sm p-space-md flex flex-col">
+      <div class="mb-space-sm">
+        <h3 class="font-headline-md text-headline-md text-on-surface font-bold">توزيع المصروفات</h3>
+        <span class="font-body-sm text-body-sm text-on-surface-variant">هذا {{ period_label }}</span>
       </div>
       {% if expense_breakdown %}
+      <div class="space-y-space-sm">
       {% for r in expense_breakdown %}
-      <div class="bd-item">
-        <div class="bd-row">
-          <div class="bd-name"><span class="bd-dot" style="background:{{ r.color }}"></span>{{ r.name }}</div>
-          <div class="bd-right"><span class="pct">{{ r.pct }}%</span>{{ "{:,.0f}".format(r.amount) }}</div>
+      <div class="space-y-1">
+        <div class="flex justify-between font-label-md text-label-md">
+          <span class="flex items-center gap-1.5 text-on-surface font-semibold"><span class="w-2.5 h-2.5 rounded-sm" style="background:{{ r.color }}"></span>{{ r.name }}</span>
+          <span class="text-on-surface font-bold">{{ "{:,.0f}".format(r.amount) }} ({{ r.pct }}%)</span>
         </div>
-        <div class="bd-bar"><i style="width:{{ r.pct }}%; background:{{ r.color }}"></i></div>
+        <div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
+          <div class="h-full rounded-full" style="width:{{ r.pct }}%; background:{{ r.color }}"></div>
+        </div>
       </div>
       {% endfor %}
+      </div>
       {% else %}
-      <div class="empty-state"><span class="icon">📭</span>مفيش مصروفات في الفترة دي</div>
+      <div class="flex-1 flex flex-col items-center justify-center py-space-xl text-center">
+        <div class="w-16 h-16 rounded-2xl bg-surface-container-low flex items-center justify-center text-3xl mb-space-xs">📭</div>
+        <p class="font-body-sm text-body-sm text-on-surface-variant">مفيش مصروفات في الفترة دي</p>
+      </div>
       {% endif %}
     </div>
-  </div>
+  </section>
 
-  {# ============ ⚡ إجراءات سريعة ============ #}
-  <div class="section-label" data-section="feed">
-    <i class="bi bi-lightning-charge-fill"></i><span>إجراءات سريعة</span>
-  </div>
-  <div class="quick">
-    <a class="q" href="{{ url_for('milk.list_invoices') }}"><span class="q-ico">🧾</span>فاتورة بيع</a>
-    <a class="q" href="{{ url_for('purchases.create_invoice') }}"><span class="q-ico">📥</span>فاتورة شراء</a>
-    <a class="q" href="{{ url_for('milk.create_delivery') }}"><span class="q-ico">💧</span>توريد لبن</a>
-    <a class="q" href="{{ url_for('customers.list_customers') }}"><span class="q-ico">💵</span>تحصيل من عميل</a>
-    <a class="q" href="{{ url_for('suppliers.list_suppliers') }}"><span class="q-ico">💰</span>دفعة لمورد</a>
-    <a class="q" href="{{ url_for('returns.sales_new') }}"><span class="q-ico">↩️</span>مرتجع مبيعات</a>
-    <a class="q" href="{{ url_for('returns.purchases_new') }}"><span class="q-ico">↩️</span>مرتجع مشتريات</a>
-    <a class="q" href="{{ url_for('accounting.journal_list') }}"><span class="q-ico">📊</span>القيود اليومية</a>
-    <a class="q" href="{{ url_for('accounting.chart_of_accounts') }}"><span class="q-ico">🌳</span>دليل الحسابات</a>
-    <a class="q" href="{{ url_for('accounts.list_accounts') }}"><span class="q-ico">🏦</span>الخزينة</a>
-    <a class="q" href="{{ url_for('checks.index') }}"><span class="q-ico">💳</span>الشيكات</a>
-    <a class="q" href="{{ url_for('accounting.income_statement_view') }}"><span class="q-ico">📈</span>قائمة الدخل</a>
-  </div>
+  {# ============ إجراءات سريعة ============ #}
+  <section class="space-y-space-sm mt-space-lg">
+    <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold px-1">إجراءات سريعة</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-space-sm">
+      <a href="{{ url_for('milk.list_invoices') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-receipt text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">فاتورة بيع</span>
+      </a>
+      <a href="{{ url_for('purchases.create_invoice') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary mb-1.5"><i class="bi bi-box-seam text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">فاتورة شراء</span>
+      </a>
+      <a href="{{ url_for('milk.create_delivery') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-truck text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">توريد لبن</span>
+      </a>
+      <a href="{{ url_for('customers.list_customers') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-tertiary-fixed/60 flex items-center justify-center text-on-tertiary-fixed mb-1.5"><i class="bi bi-cash text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">تحصيل من عميل</span>
+      </a>
+      <a href="{{ url_for('suppliers.list_suppliers') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary mb-1.5"><i class="bi bi-cash-coin text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">دفعة لمورد</span>
+      </a>
+      <a href="{{ url_for('returns.sales_new') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant mb-1.5"><i class="bi bi-arrow-return-left text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">مرتجع مبيعات</span>
+      </a>
+      <a href="{{ url_for('returns.purchases_new') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant mb-1.5"><i class="bi bi-arrow-repeat text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">مرتجع مشتريات</span>
+      </a>
+      <a href="{{ url_for('accounting.journal_list') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-journal-text text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">القيود اليومية</span>
+      </a>
+      <a href="{{ url_for('accounting.chart_of_accounts') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-tertiary-fixed/60 flex items-center justify-center text-on-tertiary-fixed mb-1.5"><i class="bi bi-diagram-3 text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">دليل الحسابات</span>
+      </a>
+      <a href="{{ url_for('accounts.list_accounts') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant mb-1.5"><i class="bi bi-credit-card text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">الخزينة</span>
+      </a>
+      <a href="{{ url_for('checks.index') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-arrow-down-circle text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">الشيكات</span>
+      </a>
+      <a href="{{ url_for('accounting.income_statement_view') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
+        <div class="w-9 h-9 rounded-lg bg-tertiary-fixed/60 flex items-center justify-center text-on-tertiary-fixed mb-1.5"><i class="bi bi-bar-chart-line text-[20px]"></i></div>
+        <span class="font-label-md text-label-md font-semibold text-on-surface">قائمة الدخل</span>
+      </a>
+    </div>
+  </section>
 
 </div>
 {% endblock %}
@@ -352,7 +462,7 @@
     if (!window.Chart) { setTimeout(renderSparks, 200); return; }
     document.querySelectorAll('canvas[data-spark]').forEach(function (canvas) {
       var raw = canvas.getAttribute('data-spark');
-      var color = canvas.getAttribute('data-color') || '#43b9e9';
+      var color = canvas.getAttribute('data-color') || '#004863';
       if (!raw) return;
       var pts = raw.split(',').map(Number);
       new Chart(canvas, {
@@ -392,13 +502,13 @@
           {
             label: 'إيراد اللبن',
             data: data.map(function (r) { return r.revenue; }),
-            backgroundColor: '#16a34a',
+            backgroundColor: '#004d33',
             borderRadius: 6, maxBarThickness: 24,
           },
           {
             label: 'تكلفة العلف',
             data: data.map(function (r) { return r.feed_cost; }),
-            backgroundColor: '#dc4640',
+            backgroundColor: '#ba1a1a',
             borderRadius: 6, maxBarThickness: 24,
           },
         ],
@@ -422,10 +532,6 @@
 
   renderSparks();
   renderTrend();
-
-  // PHASE 17: 60-s auto-refresh removed — it was jerking the scroll
-  // position and interrupting reading. Replaced with the manual
-  // .dash-refresh button in the hero.
 })();
 </script>
 {% endblock %}
