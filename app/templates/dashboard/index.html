@@ -400,55 +400,104 @@
   {# ============ إجراءات سريعة ============ #}
   <section class="space-y-space-sm mt-space-lg">
     <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold px-1">إجراءات سريعة</h2>
-    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-space-sm">
-      <a href="{{ url_for('milk.list_invoices') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-receipt text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">فاتورة بيع</span>
-      </a>
-      <a href="{{ url_for('purchases.create_invoice') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary mb-1.5"><i class="bi bi-box-seam text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">فاتورة شراء</span>
-      </a>
-      <a href="{{ url_for('milk.create_delivery') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-truck text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">توريد لبن</span>
-      </a>
-      <a href="{{ url_for('customers.list_customers') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-tertiary-fixed/60 flex items-center justify-center text-on-tertiary-fixed mb-1.5"><i class="bi bi-cash text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">تحصيل من عميل</span>
-      </a>
-      <a href="{{ url_for('suppliers.list_suppliers') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary mb-1.5"><i class="bi bi-cash-coin text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">دفعة لمورد</span>
-      </a>
-      <a href="{{ url_for('returns.sales_new') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant mb-1.5"><i class="bi bi-arrow-return-left text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">مرتجع مبيعات</span>
-      </a>
-      <a href="{{ url_for('returns.purchases_new') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant mb-1.5"><i class="bi bi-arrow-repeat text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">مرتجع مشتريات</span>
-      </a>
-      <a href="{{ url_for('accounting.journal_list') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-journal-text text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">القيود اليومية</span>
-      </a>
-      <a href="{{ url_for('accounting.chart_of_accounts') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-tertiary-fixed/60 flex items-center justify-center text-on-tertiary-fixed mb-1.5"><i class="bi bi-diagram-3 text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">دليل الحسابات</span>
-      </a>
-      <a href="{{ url_for('accounts.list_accounts') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant mb-1.5"><i class="bi bi-credit-card text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">الخزينة</span>
-      </a>
-      <a href="{{ url_for('checks.index') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary mb-1.5"><i class="bi bi-arrow-down-circle text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">الشيكات</span>
-      </a>
-      <a href="{{ url_for('accounting.income_statement_view') }}" class="bg-surface-container-lowest p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center no-underline">
-        <div class="w-9 h-9 rounded-lg bg-tertiary-fixed/60 flex items-center justify-center text-on-tertiary-fixed mb-1.5"><i class="bi bi-bar-chart-line text-[20px]"></i></div>
-        <span class="font-label-md text-label-md font-semibold text-on-surface">قائمة الدخل</span>
-      </a>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+
+      {# Group 1: sales & supply #}
+      <div class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm space-y-space-sm">
+        <div class="flex items-center gap-2 pb-space-xxs">
+          <div class="w-8 h-8 rounded-lg bg-primary-fixed/50 flex items-center justify-center text-primary">
+            <i class="bi bi-truck"></i>
+          </div>
+          <h4 class="font-headline-sm text-headline-sm text-on-surface font-semibold">المبيعات والتوريد</h4>
+        </div>
+        <div class="space-y-space-xs">
+          <a href="{{ url_for('milk.create_delivery') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-droplet text-primary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">توريد لبن</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">تسجيل توريد يومي جديد</span></div>
+          </a>
+          <a href="{{ url_for('milk.list_invoices') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-receipt text-primary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">فاتورة بيع</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">بيع ألبان أو منتجات</span></div>
+          </a>
+          <a href="{{ url_for('customers.list_customers') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-cash text-primary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">تحصيل من عميل</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">نقدي، تحويل، أو شيك</span></div>
+          </a>
+          <a href="{{ url_for('returns.sales_new') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-arrow-return-left text-primary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">مرتجع مبيعات</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">إشعار دائن لعميل</span></div>
+          </a>
+        </div>
+      </div>
+
+      {# Group 2: purchasing & inventory #}
+      <div class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm space-y-space-sm">
+        <div class="flex items-center gap-2 pb-space-xxs">
+          <div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+            <i class="bi bi-box-seam"></i>
+          </div>
+          <h4 class="font-headline-sm text-headline-sm text-on-surface font-semibold">المشتريات والمخزون</h4>
+        </div>
+        <div class="space-y-space-xs">
+          <a href="{{ url_for('purchases.create_invoice') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-inboxes text-secondary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">فاتورة شراء</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">استلام شحنة أعلاف أو مواد</span></div>
+          </a>
+          <a href="{{ url_for('suppliers.list_suppliers') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-cash-coin text-secondary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">دفعة لمورد</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">سداد كلي أو جزئي</span></div>
+          </a>
+          <a href="{{ url_for('returns.purchases_new') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-arrow-repeat text-secondary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">مرتجع مشتريات</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">إشعار مدين لمورد</span></div>
+          </a>
+          <a href="{{ url_for('accounts.list_accounts') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-credit-card text-secondary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">الخزينة</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">أرصدة الحسابات النقدية</span></div>
+          </a>
+        </div>
+      </div>
+
+      {# Group 3: accounting & reports #}
+      <div class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm space-y-space-sm">
+        <div class="flex items-center gap-2 pb-space-xxs">
+          <div class="w-8 h-8 rounded-lg bg-tertiary-fixed/60 flex items-center justify-center text-on-tertiary-fixed">
+            <i class="bi bi-journal-text"></i>
+          </div>
+          <h4 class="font-headline-sm text-headline-sm text-on-surface font-semibold">المحاسبة والتقارير</h4>
+        </div>
+        <div class="space-y-space-xs">
+          <a href="{{ url_for('accounting.journal_list') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-journal-text text-tertiary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">القيود اليومية</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">دفتر اليومية المحاسبي</span></div>
+          </a>
+          <a href="{{ url_for('accounting.chart_of_accounts') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-diagram-3 text-tertiary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">دليل الحسابات</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">شجرة الحسابات الكاملة</span></div>
+          </a>
+          <a href="{{ url_for('checks.index') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-receipt-cutoff text-tertiary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">الشيكات</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">تحت التحصيل وتحت الدفع</span></div>
+          </a>
+          <a href="{{ url_for('accounting.income_statement_view') }}" class="w-full p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center gap-2.5 no-underline">
+            <i class="bi bi-bar-chart-line text-tertiary text-[18px]"></i>
+            <div><span class="font-label-lg text-label-lg font-semibold text-on-surface block">قائمة الدخل</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">الإيرادات والمصروفات</span></div>
+          </a>
+        </div>
+      </div>
+
     </div>
   </section>
 
