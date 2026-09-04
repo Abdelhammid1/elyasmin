@@ -3,26 +3,43 @@
 {% block content %}
 <div id="dash-root">
 
-  {# ============ HEADER ============ #}
-  <div class="dash-head">
-    <div>
-      <h1>لوحة المعلومات</h1>
-      <p class="dash-sub">نظرة سريعة على وضع المزرعة · تحديث تلقائي كل دقيقة</p>
+  {# ============ PHASE 17: greeting hero ============ #}
+  <div class="dash-hero">
+    <div class="dash-hero-l">
+      <div class="dash-hero-wave">👋</div>
+      <div>
+        <h1>أهلاً {{ current_user.name }}</h1>
+        <p class="dash-hero-sub">
+          <span class="today-chip"><i class="bi bi-calendar3"></i>
+            {{ now().strftime('%A · %Y-%m-%d') }}
+          </span>
+          <span class="today-hint">هنا الملخص السريع لوضع المزرعة النهارده.</span>
+        </p>
+      </div>
     </div>
-    <div class="period" role="tablist" aria-label="فترة التحليل">
-      <a href="{{ url_for('dashboard.index', period='day') }}"
-         class="{% if period == 'day' %}on{% endif %}">اليوم</a>
-      <a href="{{ url_for('dashboard.index', period='week') }}"
-         class="{% if period == 'week' %}on{% endif %}">الأسبوع</a>
-      <a href="{{ url_for('dashboard.index', period='month') }}"
-         class="{% if period == 'month' %}on{% endif %}">الشهر</a>
-      <a href="{{ url_for('dashboard.index', period='year') }}"
-         class="{% if period == 'year' %}on{% endif %}">السنة</a>
+    <div class="dash-hero-r">
+      <div class="period" role="tablist" aria-label="فترة التحليل">
+        <a href="{{ url_for('dashboard.index', period='day') }}"
+           class="{% if period == 'day' %}on{% endif %}">اليوم</a>
+        <a href="{{ url_for('dashboard.index', period='week') }}"
+           class="{% if period == 'week' %}on{% endif %}">الأسبوع</a>
+        <a href="{{ url_for('dashboard.index', period='month') }}"
+           class="{% if period == 'month' %}on{% endif %}">الشهر</a>
+        <a href="{{ url_for('dashboard.index', period='year') }}"
+           class="{% if period == 'year' %}on{% endif %}">السنة</a>
+      </div>
+      <button type="button" class="dash-refresh"
+              onclick="window.location.reload()"
+              title="تحديث الآن">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
     </div>
   </div>
 
-  {# ============ 💚 الصحة المالية ============ #}
-  <div class="section-label"><span>💚 الصحة المالية</span></div>
+  {# ============ الصحة المالية ============ #}
+  <div class="section-label" data-section="finance">
+    <i class="bi bi-heart-pulse"></i><span>الصحة المالية</span>
+  </div>
   <div class="kpis">
     {# Cash #}
     <a class="kpi" href="{{ url_for('accounts.list_accounts') }}" title="السيولة المتاحة">
@@ -79,8 +96,10 @@
     </a>
   </div>
 
-  {# ============ 🐄 نظرة على المزرعة ============ #}
-  <div class="section-label"><span>🐄 نظرة على المزرعة</span></div>
+  {# ============ نظرة على المزرعة ============ #}
+  <div class="section-label" data-section="herd">
+    <i class="bi bi-clipboard-data"></i><span>نظرة على المزرعة</span>
+  </div>
   <div class="ops">
     <a class="op" href="{{ url_for('herd.list_cows') }}">
       <div class="op-ico i-teal">🐄</div>
@@ -183,14 +202,16 @@
     </a>
   </div>
 
-  {# ============ 🔔 يحتاج انتباهك الآن ============ #}
+  {# ============ يحتاج انتباهك الآن ============ #}
   {% if overdue_customers or overdue_suppliers %}
-  <div class="section-label"><span>🔔 يحتاج انتباهك الآن</span></div>
+  <div class="section-label" data-section="admin">
+    <i class="bi bi-bell-fill"></i><span>يحتاج انتباهك الآن</span>
+  </div>
   <div class="action-grid">
-    {# overdue customer invoices #}
+    {# overdue customer invoices — AR (money owed TO us). Kept red. #}
     <div class="d-panel panel-red">
       <div class="d-panel-head">
-        <div class="icon i-red">⏰</div>
+        <div class="icon i-red"><i class="bi bi-alarm"></i></div>
         <h5>فواتير عملاء متأخرة</h5>
         {% if overdue_customers %}
         <span class="pill pill-red">{{ overdue_customers|length }} فاتورة</span>
@@ -222,13 +243,14 @@
       {% endif %}
     </div>
 
-    {# overdue supplier bills #}
-    <div class="d-panel panel-red">
+    {# overdue supplier bills — AP (money WE owe). Amber to distinguish
+       from the customer AR panel above. #}
+    <div class="d-panel panel-amber">
       <div class="d-panel-head">
-        <div class="icon i-red">💸</div>
+        <div class="icon i-amber"><i class="bi bi-cash-coin"></i></div>
         <h5>فواتير موردين متأخرة</h5>
         {% if overdue_suppliers %}
-        <span class="pill pill-red">{{ overdue_suppliers|length }} فاتورة</span>
+        <span class="pill pill-amber">{{ overdue_suppliers|length }} فاتورة</span>
         {% endif %}
       </div>
       <div class="d-panel-meta">تحتاج قرار — لن تختفي حتى تتحرك</div>
@@ -244,7 +266,7 @@
           </div>
           <div class="row-r">
             <div class="row-amt">{{ "{:,.0f}".format(r.amount) }}</div>
-            <div class="row-tag tag-red">متأخرة {{ r.days_late }} يوم</div>
+            <div class="row-tag tag-amber">متأخرة {{ r.days_late }} يوم</div>
           </div>
         </a>
         {% endfor %}
@@ -259,8 +281,10 @@
   </div>
   {% endif %}
 
-  {# ============ 📊 الاتجاه المالي ============ #}
-  <div class="section-label"><span>📊 الاتجاه المالي</span></div>
+  {# ============ الاتجاه المالي ============ #}
+  <div class="section-label" data-section="reports">
+    <i class="bi bi-graph-up"></i><span>الاتجاه المالي</span>
+  </div>
   <div class="lower-grid">
     <div class="d-card">
       <div class="d-card-head">
@@ -300,7 +324,9 @@
   </div>
 
   {# ============ ⚡ إجراءات سريعة ============ #}
-  <div class="section-label"><span>⚡ إجراءات سريعة</span></div>
+  <div class="section-label" data-section="feed">
+    <i class="bi bi-lightning-charge-fill"></i><span>إجراءات سريعة</span>
+  </div>
   <div class="quick">
     <a class="q" href="{{ url_for('milk.list_invoices') }}"><span class="q-ico">🧾</span>فاتورة بيع</a>
     <a class="q" href="{{ url_for('purchases.create_invoice') }}"><span class="q-ico">📥</span>فاتورة شراء</a>
@@ -397,8 +423,9 @@
   renderSparks();
   renderTrend();
 
-  // Auto-refresh every 60 seconds — preserves the previous dashboard's contract.
-  setTimeout(function () { window.location.reload(); }, 60000);
+  // PHASE 17: 60-s auto-refresh removed — it was jerking the scroll
+  // position and interrupting reading. Replaced with the manual
+  // .dash-refresh button in the hero.
 })();
 </script>
 {% endblock %}

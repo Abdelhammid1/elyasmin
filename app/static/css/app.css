@@ -40,20 +40,23 @@ a:hover { color: var(--brand); text-decoration: underline; }
   overflow: hidden;
 }
 
+/* PHASE 17 (STYLE P17-1): warmer brand block — sky gradient top strip,
+   bigger logo (48→52), typographic bump on title (1.05→1.15) and
+   sub-line (0.7→0.8). */
 .sidebar-brand {
-  padding: 1.15rem 1.25rem;
+  padding: 1.35rem 1.25rem 1.25rem;
   border-bottom: 1px solid var(--neutral-soft);
+  background: linear-gradient(180deg, var(--ms-brand-tint) 0%, var(--ms-surface) 100%);
   display: flex;
-  gap: 0.75rem;
+  gap: 0.85rem;
   align-items: center;
   text-decoration: none;
   color: inherit;
 }
 .sidebar-brand:hover { text-decoration: none; }
-/* PHASE 14: bump from 44 → 48 now that the mark fills the frame (no whitespace padding). */
-.sidebar-brand img { width: 48px; height: 48px; object-fit: contain; flex-shrink: 0; }
-.sidebar-brand .brand-title { font-size: 1.05rem; font-weight: 800; color: var(--ink-1); line-height: 1.1; }
-.sidebar-brand .brand-sub   { font-size: 0.7rem;  color: var(--ink-3); margin-top: 3px; }
+.sidebar-brand img { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; }
+.sidebar-brand .brand-title { font-size: 1.15rem; font-weight: 800; color: var(--ink-1); line-height: 1.15; }
+.sidebar-brand .brand-sub   { font-size: 0.8rem;  color: var(--ink-3); margin-top: 3px; }
 
 .sidebar-nav {
   flex: 1;
@@ -61,37 +64,80 @@ a:hover { color: var(--brand); text-decoration: underline; }
   padding: 0.5rem 0 1.5rem;
 }
 
+/* PHASE 17: section title carries a small colored dot before the label
+   (color picked from the [data-section] token map below). */
 .sidebar-section-title {
-  padding: 0.85rem 1.25rem 0.35rem;
-  font-size: 0.7rem;
+  position: relative;
+  padding: 1rem 1.25rem 0.4rem 1.25rem;
+  font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--ink-4);
+  letter-spacing: 0.4px;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.sidebar-section-title::before {
+  content: "";
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 999px;
+  background: var(--section-tone, var(--ms-line-strong));
+  flex-shrink: 0;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem 1.25rem;
+  gap: 0.7rem;
+  padding: 0.58rem 1.25rem;
   color: var(--ink-2);
   font-weight: 500;
   font-size: 0.9rem;
   border-inline-end: 3px solid transparent;   /* accent stripe sits on the outer edge (left in RTL) */
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.2s ease, color 0.15s ease, border-color 0.15s ease, padding-inline-start 0.2s ease;
   text-decoration: none;
 }
-.sidebar-item i { font-size: 1.05rem; color: var(--ink-3); width: 20px; text-align: center; }
-.sidebar-item:hover { background: var(--brand-tint); color: var(--ink-1); text-decoration: none; }
-.sidebar-item:hover i { color: var(--brand-dark); }
+/* PHASE 17: icons pick up their section's tone at 85% (subtle color hint),
+   full brand color on hover/active. Base fallback keeps grey for items
+   without a data-section (e.g. the top لوحة التحكم link). */
+.sidebar-item i {
+  font-size: 1.1rem;
+  color: var(--section-tone, var(--ink-3));
+  width: 22px;
+  text-align: center;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.sidebar-item:hover {
+  background: var(--brand-tint);
+  color: var(--ink-1);
+  text-decoration: none;
+  padding-inline-start: 1.4rem;   /* subtle "docking" nudge */
+}
+.sidebar-item:hover i { opacity: 1; color: var(--brand-dark); }
 .sidebar-item.active {
   background: var(--brand-tint);
   color: var(--brand-dark);
   border-inline-end-color: var(--brand);
   font-weight: 700;
 }
-.sidebar-item.active i { color: var(--brand-dark); }
+.sidebar-item.active i { opacity: 1; color: var(--brand-dark); }
+
+/* PHASE 17: per-section color map — matches the sidebar's data-section
+   attribute values. Each section's title dot and its items' icons pick
+   up the tone; hover/active promote to brand. */
+[data-section="overview"]   { --section-tone: var(--ms-brand); }
+[data-section="herd"]       { --section-tone: var(--ms-violet); }
+[data-section="feed"]       { --section-tone: var(--ms-teal); }
+[data-section="sales"]      { --section-tone: var(--ms-info); }
+[data-section="inventory"]  { --section-tone: var(--ms-warning); }
+[data-section="daily"]      { --section-tone: var(--ms-ink-2); }
+[data-section="finance"]    { --section-tone: var(--ms-brand); }
+[data-section="accounting"] { --section-tone: var(--ms-ink-3); }
+[data-section="reports"]    { --section-tone: var(--ms-success); }
+[data-section="admin"]      { --section-tone: var(--ms-danger); }
 
 /* Sidebar footer (Manasety partial) sits inside .app-sidebar as .site-footer */
 .app-sidebar .site-footer {
