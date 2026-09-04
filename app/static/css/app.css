@@ -568,6 +568,36 @@ table th[dir="ltr"] {
 .invoice-footer-row.outstanding.due .amount { color: var(--ms-danger); }
 .invoice-footer-row.outstanding.settled .amount { color: var(--ms-success); }
 
+/* ============ PHASE 17-3: INVOICE STATUS HERO CHIP ============
+   Large status pill that sits under the invoice header — tells the
+   viewer at a glance whether the invoice is paid, partial, overdue,
+   or a draft. Bigger than the row chip so it reads from across the
+   room. */
+.invoice-status-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  border-radius: var(--ms-radius-pill);
+  font-size: 15px;
+  font-weight: 800;
+  margin: -6px 0 18px;
+}
+.invoice-status-hero i { font-size: 18px; }
+.invoice-status-hero .hero-sub {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+  margin-inline-start: 6px;
+  padding-inline-start: 10px;
+  border-inline-start: 1px solid currentColor;
+}
+.invoice-status-hero.hero-paid    { color: var(--ms-brand-dark); background: var(--ms-success-soft); }
+.invoice-status-hero.hero-partial { color: #92400e;              background: var(--ms-warning-soft); }
+.invoice-status-hero.hero-overdue { color: #991b1b;              background: var(--ms-danger-soft);  }
+.invoice-status-hero.hero-unpaid  { color: var(--ms-ink-2);      background: var(--ms-line);         }
+.invoice-status-hero.hero-draft   { color: var(--ms-ink-3);      background: var(--ms-surface-soft); border: 1px dashed var(--ms-line-strong); }
+
 /* ============ PHASE 17: STATUS CHIPS ============
    Small pill labels for row status, richer than Bootstrap badges —
    used in invoice lists, aging tables, leave-queue etc. */

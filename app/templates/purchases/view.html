@@ -2,26 +2,11 @@
 {% block title %}فاتورة شراء {{ company.format_invoice_number('purchase', invoice.id) if company else '#' ~ invoice.id }}{% endblock %}
 {% block content %}
 
-{# ============ ACTION BAR ============ #}
-{# PHASE 10 (YAS-UX-1): every action on the invoice reachable from one
-   row above the invoice — طباعة / PDF / Excel / سدّد / مرتجع / كرر /
-   حذف / إيميل / القيد المحاسبي. Same shape as the milk invoice view. #}
+{# ============ PHASE 17 (STYLE P17-3): compact action bar ============
+   Primary 3 actions stay visible; secondary actions fold into the
+   "المزيد" dropdown so the bar doesn't look like a busy button wall. #}
 <div class="invoice-actions no-print">
   <span class="actions-label"><i class="bi bi-lightning-charge"></i> إجراءات</span>
-
-  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-    <i class="bi bi-printer"></i> طباعة / PDF
-  </button>
-
-  <a href="{{ url_for('purchases.invoice_pdf', invoice_id=invoice.id) }}"
-     class="btn btn-outline-danger btn-sm">
-    <i class="bi bi-file-earmark-pdf"></i> PDF
-  </a>
-
-  <a href="{{ url_for('purchases.invoice_excel', invoice_id=invoice.id) }}"
-     class="btn btn-outline-success btn-sm">
-    <i class="bi bi-file-earmark-excel"></i> Excel
-  </a>
 
   {% if invoice.outstanding_amount > 0 %}
   <button type="button" class="btn btn-primary btn-sm"
@@ -35,45 +20,62 @@
   </button>
   {% endif %}
 
-  <a href="{{ url_for('returns.purchases_new', supplier_id=invoice.supplier_id) }}"
-     class="btn btn-outline-warning btn-sm">
-    <i class="bi bi-arrow-return-left"></i> مرتجع
+  <a href="{{ url_for('purchases.invoice_pdf', invoice_id=invoice.id) }}"
+     class="btn btn-outline-danger btn-sm">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
   </a>
 
-  <a href="{{ url_for('purchases.duplicate', invoice_id=invoice.id) }}"
-     class="btn btn-outline-info btn-sm">
-    <i class="bi bi-files"></i> كرر
-  </a>
-
-  {# Round-trip link to the journal entry — YAS-ACC-1 #}
-  {% set je = find_journal_entry_for('PurchaseInvoice', invoice.id) %}
-  {% if je %}
-  <a href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}"
-     class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-journal-bookmark"></i> القيد المحاسبي
-  </a>
-  {% endif %}
-
-  {# Email — YAS-UX-5 deferred until Resend API key is provided #}
-  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
-          title="قريبًا — يحتاج تفعيل خدمة الإيميل (Resend)">
-    <i class="bi bi-envelope"></i> إيميل
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+    <i class="bi bi-printer"></i> طباعة
   </button>
 
-  {% if current_user.is_admin %}
-  <form method="post"
-        action="{{ url_for('purchases.delete_invoice', invoice_id=invoice.id) }}"
-        onsubmit="return confirm('تأكيد حذف الفاتورة؟ العملية دي بتعكس القيد المحاسبي والمخزون تلقائيًا.');"
-        class="d-inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-outline-danger btn-sm">
-      <i class="bi bi-trash"></i> حذف
+  <div class="dropdown d-inline-block">
+    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+            data-bs-toggle="dropdown">
+      <i class="bi bi-three-dots"></i> المزيد
     </button>
-  </form>
-  {% endif %}
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item"
+             href="{{ url_for('purchases.invoice_excel', invoice_id=invoice.id) }}">
+        <i class="bi bi-file-earmark-excel text-success"></i> تصدير Excel
+      </a></li>
+      <li><a class="dropdown-item"
+             href="{{ url_for('returns.purchases_new', supplier_id=invoice.supplier_id) }}">
+        <i class="bi bi-arrow-return-left text-warning"></i> إنشاء مرتجع
+      </a></li>
+      <li><a class="dropdown-item"
+             href="{{ url_for('purchases.duplicate', invoice_id=invoice.id) }}">
+        <i class="bi bi-files text-info"></i> تكرار الفاتورة
+      </a></li>
+      {% set je = find_journal_entry_for('PurchaseInvoice', invoice.id) %}
+      {% if je %}
+      <li><a class="dropdown-item"
+             href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}">
+        <i class="bi bi-journal-bookmark text-primary"></i> عرض القيد المحاسبي
+      </a></li>
+      {% endif %}
+      <li><span class="dropdown-item disabled" title="قريبًا — يحتاج تفعيل خدمة الإيميل">
+        <i class="bi bi-envelope"></i> إرسال بالإيميل
+      </span></li>
+      {% if current_user.is_admin %}
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <form method="post"
+              action="{{ url_for('purchases.delete_invoice', invoice_id=invoice.id) }}"
+              onsubmit="return confirm('تأكيد حذف الفاتورة؟ العملية دي بتعكس القيد المحاسبي والمخزون تلقائيًا.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="dropdown-item text-danger">
+            <i class="bi bi-trash"></i> حذف الفاتورة
+          </button>
+        </form>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
 </div>
 
 {# ============ SHARED HEADER — reads CompanyProfile (YAS-SET-3) ============ #}
+<div class="invoice-header">
 {% from "_invoice_header.html" import render_invoice_header, render_bank_strip %}
 {{ render_invoice_header(
     kind="purchase",
@@ -87,9 +89,38 @@
     status_tone='success' if invoice.payment_type == 'cash' else 'warning',
     company=company,
 ) }}
+</div>
+
+{# PHASE 17 (STYLE P17-3): status hero chip — the single line that
+   tells the viewer everything about payment state, computed here in
+   Jinja from outstanding_amount + invoice_date. #}
+{% set days_old = (today_iso and (today_iso|string|length)) %}
+{% set _today = today %}
+{% set days_late = ((_today - invoice.invoice_date).days) if _today else 0 %}
+{% if invoice.outstanding_amount <= 0 %}
+  <div class="invoice-status-hero hero-paid">
+    <i class="bi bi-check-circle-fill"></i> مسدّدة بالكامل
+    <span class="hero-sub">تم دفع {{ "{:,.2f}".format(invoice.total) }} جنيه</span>
+  </div>
+{% elif days_late > 15 %}
+  <div class="invoice-status-hero hero-overdue">
+    <i class="bi bi-alarm-fill"></i> متأخرة {{ days_late }} يوم
+    <span class="hero-sub">متبقّي {{ "{:,.2f}".format(invoice.outstanding_amount) }} جنيه</span>
+  </div>
+{% elif (invoice.paid_amount or 0) > 0 or (invoice.allocated_amount or 0) > 0 %}
+  <div class="invoice-status-hero hero-partial">
+    <i class="bi bi-pie-chart-fill"></i> جزئية
+    <span class="hero-sub">مدفوع {{ "{:,.2f}".format(invoice.paid_amount + invoice.allocated_amount) }} من {{ "{:,.2f}".format(invoice.total) }}</span>
+  </div>
+{% else %}
+  <div class="invoice-status-hero hero-unpaid">
+    <i class="bi bi-hourglass-split"></i> في انتظار السداد
+    <span class="hero-sub">متبقّي {{ "{:,.2f}".format(invoice.outstanding_amount) }} جنيه</span>
+  </div>
+{% endif %}
 
 {# ============ LINE ITEMS ============ #}
-<div class="card p-3 mb-3">
+<div class="card p-3 mb-3 invoice-items">
   <h5 class="mb-3"><i class="bi bi-list-ul"></i> بنود الفاتورة</h5>
   <div class="table-responsive">
     <table class="table mb-0">
@@ -122,7 +153,7 @@
 </div>
 
 {# ============ FOOTER: subtotal / discounts / taxes / total / paid / outstanding ============ #}
-<div class="invoice-footer-block">
+<div class="invoice-footer-block invoice-totals">
   <div class="invoice-footer-row">
     <span class="label">المجموع الفرعي</span>
     <span class="amount" dir="ltr">{{ invoice.subtotal }}</span>
@@ -178,7 +209,7 @@
 </div>
 
 {# ============ ALLOCATIONS ============ #}
-<div class="card mt-3">
+<div class="card mt-3 invoice-payments">
   <div class="card-header d-flex justify-content-between align-items-center"
        style="background: var(--ms-brand-tint); color: var(--ms-brand-dark);">
     <span class="fw-bold"><i class="bi bi-cash-coin"></i> الدفعات المخصصة لهذه الفاتورة</span>
@@ -268,7 +299,7 @@
 {% endif %}
 
 {# ============ BANK STRIP (YAS-SET-3) ============ #}
-{{ render_bank_strip(company) }}
+<div class="invoice-bank">{{ render_bank_strip(company) }}</div>
 
 {# ============ PAY MODAL (YAS-UX-4 — wired in commit 3) ============ #}
 {% if invoice.outstanding_amount > 0 %}

@@ -539,13 +539,16 @@ def view_invoice(invoice_id: int):
         return render_template("errors/404.html"), 404
     # PHASE 10 (YAS-UX-4): the "تحصيل الآن" modal needs the treasury
     # accounts + today's date pre-populated.
+    # PHASE 17-3: `today` also drives the status-hero overdue math.
     from datetime import date
     from app.utils import accounts as acc
+    today = date.today()
     return render_template(
         "milk/invoice_view.html",
         invoice=invoice,
         treasury_choices=acc.active_choices(),
-        today_iso=date.today().isoformat(),
+        today_iso=today.isoformat(),
+        today=today,
     )
 
 

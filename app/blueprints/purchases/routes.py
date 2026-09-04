@@ -461,12 +461,15 @@ def view_invoice(invoice_id: int):
         abort(404)
     # PHASE 10 (YAS-UX-4): the "سدّد الآن" modal needs the treasury
     # accounts + today's date pre-populated so the form is one-click.
+    # PHASE 17-3: `today` also drives the status-hero chip's overdue math.
     from datetime import date
+    today = date.today()
     return render_template(
         "purchases/view.html",
         invoice=invoice,
         treasury_choices=acc.active_choices(),
-        today_iso=date.today().isoformat(),
+        today_iso=today.isoformat(),
+        today=today,
     )
 
 

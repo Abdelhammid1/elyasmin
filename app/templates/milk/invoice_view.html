@@ -1,76 +1,82 @@
 {% extends "base.html" %}
 {% block title %}فاتورة بيع {{ company.format_invoice_number('sale', invoice.id) if company else '#' ~ invoice.id }}{% endblock %}
 {% block content %}
-{# PHASE 10 (YAS-UX-1): action bar mirroring the purchase invoice — same
-   shape, same buttons, so the two invoice types feel like the same app. #}
+{# PHASE 17 (STYLE P17-3): compact action bar — 3 primary actions
+   + المزيد dropdown. Same layout as the purchase invoice. #}
 <div class="invoice-actions no-print">
   <span class="actions-label"><i class="bi bi-lightning-charge"></i> إجراءات</span>
-
-  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-    <i class="bi bi-printer"></i> طباعة / PDF
-  </button>
-  <a href="{{ url_for('milk.invoice_pdf', invoice_id=invoice.id) }}"
-     class="btn btn-outline-danger btn-sm">
-    <i class="bi bi-file-earmark-pdf"></i> PDF
-  </a>
-  <a href="{{ url_for('milk.invoice_excel', invoice_id=invoice.id) }}"
-     class="btn btn-outline-success btn-sm">
-    <i class="bi bi-file-earmark-excel"></i> Excel
-  </a>
 
   {% if invoice.status == 'draft' %}
   <form method="post" action="{{ url_for('milk.issue_invoice', invoice_id=invoice.id) }}" class="d-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> اعتماد</button>
   </form>
+  {% elif invoice.outstanding_amount > 0 %}
+  <button type="button" class="btn btn-primary btn-sm"
+          data-bs-toggle="modal" data-bs-target="#collectInvoiceModal">
+    <i class="bi bi-cash-coin"></i> تحصيل الآن
+  </button>
+  {% else %}
+  <button type="button" class="btn btn-outline-success btn-sm" disabled
+          title="الفاتورة مُحصّلة بالكامل">
+    <i class="bi bi-check-circle"></i> مُحصّلة بالكامل
+  </button>
   {% endif %}
 
-  {% if invoice.status != 'draft' %}
-    {% if invoice.outstanding_amount > 0 %}
-    <button type="button" class="btn btn-primary btn-sm"
-            data-bs-toggle="modal" data-bs-target="#collectInvoiceModal">
-      <i class="bi bi-cash-coin"></i> تحصيل الآن
-    </button>
-    {% else %}
-    <button type="button" class="btn btn-outline-success btn-sm" disabled
-            title="الفاتورة مُحصّلة بالكامل">
-      <i class="bi bi-check-circle"></i> مُحصّلة بالكامل
-    </button>
-    {% endif %}
-
-    <a href="{{ url_for('returns.sales_new', customer_id=invoice.customer_id) }}"
-       class="btn btn-outline-warning btn-sm">
-      <i class="bi bi-arrow-return-left"></i> مرتجع
-    </a>
-  {% endif %}
-
-  {% set je = find_journal_entry_for('MilkInvoice', invoice.id) %}
-  {% if je %}
-  <a href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}"
-     class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-journal-bookmark"></i> القيد المحاسبي
+  <a href="{{ url_for('milk.invoice_pdf', invoice_id=invoice.id) }}"
+     class="btn btn-outline-danger btn-sm">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
   </a>
-  {% endif %}
 
-  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
-          title="قريبًا — يحتاج تفعيل خدمة الإيميل (Resend)">
-    <i class="bi bi-envelope"></i> إيميل
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+    <i class="bi bi-printer"></i> طباعة
   </button>
 
-  {% if current_user.is_admin %}
-  <form method="post"
-        action="{{ url_for('milk.delete_invoice', invoice_id=invoice.id) }}"
-        onsubmit="return confirm('تأكيد حذف الفاتورة؟ العملية دي بتعكس القيد المحاسبي تلقائيًا.');"
-        class="d-inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-outline-danger btn-sm">
-      <i class="bi bi-trash"></i> حذف
+  <div class="dropdown d-inline-block">
+    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+            data-bs-toggle="dropdown">
+      <i class="bi bi-three-dots"></i> المزيد
     </button>
-  </form>
-  {% endif %}
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item"
+             href="{{ url_for('milk.invoice_excel', invoice_id=invoice.id) }}">
+        <i class="bi bi-file-earmark-excel text-success"></i> تصدير Excel
+      </a></li>
+      {% if invoice.status != 'draft' %}
+      <li><a class="dropdown-item"
+             href="{{ url_for('returns.sales_new', customer_id=invoice.customer_id) }}">
+        <i class="bi bi-arrow-return-left text-warning"></i> إنشاء مرتجع
+      </a></li>
+      {% endif %}
+      {% set je = find_journal_entry_for('MilkInvoice', invoice.id) %}
+      {% if je %}
+      <li><a class="dropdown-item"
+             href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}">
+        <i class="bi bi-journal-bookmark text-primary"></i> عرض القيد المحاسبي
+      </a></li>
+      {% endif %}
+      <li><span class="dropdown-item disabled" title="قريبًا — يحتاج تفعيل خدمة الإيميل">
+        <i class="bi bi-envelope"></i> إرسال بالإيميل
+      </span></li>
+      {% if current_user.is_admin %}
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <form method="post"
+              action="{{ url_for('milk.delete_invoice', invoice_id=invoice.id) }}"
+              onsubmit="return confirm('تأكيد حذف الفاتورة؟ العملية دي بتعكس القيد المحاسبي تلقائيًا.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="dropdown-item text-danger">
+            <i class="bi bi-trash"></i> حذف الفاتورة
+          </button>
+        </form>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
 </div>
 
 {# Shared invoice header — reads CompanyProfile (YAS-SET-3) #}
+<div class="invoice-header">
 {% from "_invoice_header.html" import render_invoice_header, render_bank_strip %}
 {{ render_invoice_header(
     kind="sale",
@@ -84,74 +90,146 @@
     status_tone='success' if invoice.status == 'issued' else 'warning',
     company=company,
 ) }}
+</div>
 <p class="text-muted small text-center no-print mb-3">
   الفترة: <span dir="ltr">{{ invoice.period_from }} → {{ invoice.period_to }}</span>
   {% if invoice.invoice_number %}· الرقم الخارجي: <span dir="ltr">{{ invoice.invoice_number }}</span>{% endif %}
 </p>
+
+{# PHASE 17 (STYLE P17-3): status hero chip — mirrors purchase invoice. #}
+{% set days_late = ((today - invoice.issue_date).days) if today and invoice.issue_date else 0 %}
+{% if invoice.status == 'draft' %}
+  <div class="invoice-status-hero hero-draft">
+    <i class="bi bi-pencil-square"></i> مسوّدة
+    <span class="hero-sub">اعتمدها من زرار "اعتماد" عشان تدخل الدفتر</span>
+  </div>
+{% elif invoice.outstanding_amount <= 0 %}
+  <div class="invoice-status-hero hero-paid">
+    <i class="bi bi-check-circle-fill"></i> محصّلة بالكامل
+    <span class="hero-sub">تم تحصيل {{ "{:,.2f}".format(invoice.grand_total) }} جنيه</span>
+  </div>
+{% elif days_late > 15 %}
+  <div class="invoice-status-hero hero-overdue">
+    <i class="bi bi-alarm-fill"></i> متأخرة {{ days_late }} يوم
+    <span class="hero-sub">متبقّي {{ "{:,.2f}".format(invoice.outstanding_amount) }} جنيه</span>
+  </div>
+{% elif (invoice.paid_amount or 0) > 0 %}
+  <div class="invoice-status-hero hero-partial">
+    <i class="bi bi-pie-chart-fill"></i> جزئية
+    <span class="hero-sub">مُحصّل {{ "{:,.2f}".format(invoice.paid_amount) }} من {{ "{:,.2f}".format(invoice.grand_total) }}</span>
+  </div>
+{% else %}
+  <div class="invoice-status-hero hero-unpaid">
+    <i class="bi bi-hourglass-split"></i> في انتظار التحصيل
+    <span class="hero-sub">متبقّي {{ "{:,.2f}".format(invoice.outstanding_amount) }} جنيه</span>
+  </div>
+{% endif %}
 
 <div class="print-only text-center mb-3" style="display:none;">
   <h2>فاتورة بيع اللبن #{{ invoice.id }}</h2>
   <div>العميل: {{ invoice.customer.name }} · الفترة: {{ invoice.period_from }} → {{ invoice.period_to }}</div>
 </div>
 
-<div class="card p-2 mb-3">
+{# PHASE 17 (STYLE P17-3): split the 25-col overflow table into a
+   compact primary view + collapsible details row. Primary shows
+   date, qty, unit, price, total; the toggle expands to fat/
+   protein/bacteria/transport/other/deductions. Same data, one
+   fewer horizontal scroll. #}
+<div class="card p-3 mb-3 invoice-items milk-deliveries-table">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-droplet"></i> توريدات اللبن على الفاتورة</h5>
+    <button type="button" class="btn btn-sm btn-outline-secondary no-print"
+            onclick="document.querySelectorAll('.milk-detail-row').forEach(function(e){e.classList.toggle('d-none');});
+                     this.querySelector('span').textContent = this.querySelector('span').textContent === 'إخفاء التفاصيل' ? 'عرض تفاصيل الجودة' : 'إخفاء التفاصيل';">
+      <i class="bi bi-arrows-expand"></i> <span>عرض تفاصيل الجودة</span>
+    </button>
+  </div>
   <div class="table-responsive">
-    <table class="table table-sm table-bordered mb-0 text-center" style="font-size: 0.75rem;">
-      <thead style="background: var(--ink-1); color: #fff;">
+    <table class="table table-sm table-hover align-middle mb-0 text-center">
+      <thead>
         <tr>
-          <th>م</th><th>التاريخ</th><th>يوم</th><th>شهر</th><th>اسم العميل</th>
-          <th>نوع العملية</th><th>النشاط</th><th>البند</th><th>اسم المنتج</th>
-          <th>الكمية</th><th>الوحدة</th><th>السعر</th><th>الثمن</th>
-          <th>الدهن</th><th>البروتين</th><th>البكتيريا</th><th>النقل</th><th>أخرى</th><th>الإجمالي</th>
-          <th>خ كمية</th><th>خ نقدي</th><th>كسور</th><th>الصافي</th><th>إجمالي الفاتورة</th><th>ملاحظات</th>
+          <th>م</th>
+          <th>التاريخ</th>
+          <th>الكمية (كجم)</th>
+          <th>السعر</th>
+          <th>الأساسي</th>
+          <th class="text-success">الإجمالي</th>
+          <th>ملاحظات</th>
         </tr>
       </thead>
       <tbody>
-        {% set day_labels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] %}
-        {% set month_labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
         {% for d in invoice.deliveries %}
         <tr>
-          <td>{{ loop.index }}</td>
+          <td dir="ltr">{{ loop.index }}</td>
           <td dir="ltr">{{ d.delivery_date }}</td>
-          <td dir="ltr">{{ day_labels[d.delivery_date.weekday()] }}</td>
-          <td dir="ltr">{{ month_labels[d.delivery_date.month - 1] }}</td>
-          <td>{{ invoice.customer.name }}</td>
-          <td>{{ 'أجل' if invoice.customer.contract_type == 'weekly' else 'نقدي' }}</td>
-          <td>الإنتاج الحيواني</td>
-          <td>مبيعات ألبان خام</td>
-          <td>ألبان خام</td>
           <td dir="ltr">{{ d.qty_kg }}</td>
-          <td>كيلوجرام</td>
           <td dir="ltr">{{ d.unit_price }}</td>
           <td dir="ltr">{{ d.base_value }}</td>
-          <td dir="ltr">{{ d.fat_amount }}</td>
-          <td dir="ltr">{{ d.protein_amount }}</td>
-          <td dir="ltr">{{ d.bacteria_amount }}</td>
-          <td dir="ltr">{{ d.transport_amount }}</td>
-          <td dir="ltr">{{ d.other_amount }}</td>
-          <td dir="ltr" class="fw-bold">{{ d.subtotal }}</td>
-          <td dir="ltr">{{ d.qty_deduction }}</td>
-          <td dir="ltr">{{ d.cash_deduction }}</td>
-          <td dir="ltr">{{ d.rounding }}</td>
           <td dir="ltr" class="fw-bold text-success">{{ d.total_value }}</td>
-          <td dir="ltr" class="fw-bold">{% if loop.last %}{{ invoice.grand_total }}{% endif %}</td>
-          <td class="small">{{ d.notes or "" }}</td>
+          <td class="small text-muted">{{ d.notes or "—" }}</td>
+        </tr>
+        {# Detail row — hidden by default, revealed by the toggle. #}
+        <tr class="milk-detail-row d-none" style="background: var(--ms-surface-soft);">
+          <td colspan="7">
+            <div class="d-flex flex-wrap justify-content-center gap-3 small text-muted">
+              <span>الدهن: <span dir="ltr" class="fw-bold text-body">{{ d.fat_amount }}</span></span>
+              <span>البروتين: <span dir="ltr" class="fw-bold text-body">{{ d.protein_amount }}</span></span>
+              <span>البكتيريا: <span dir="ltr" class="fw-bold text-body">{{ d.bacteria_amount }}</span></span>
+              <span>النقل: <span dir="ltr" class="fw-bold text-body">{{ d.transport_amount }}</span></span>
+              <span>أخرى: <span dir="ltr" class="fw-bold text-body">{{ d.other_amount }}</span></span>
+              <span>خصم كمية: <span dir="ltr" class="fw-bold text-body">{{ d.qty_deduction }}</span></span>
+              <span>خصم نقدي: <span dir="ltr" class="fw-bold text-body">{{ d.cash_deduction }}</span></span>
+              <span>كسور: <span dir="ltr" class="fw-bold text-body">{{ d.rounding }}</span></span>
+              <span>الإجمالي قبل الخصم: <span dir="ltr" class="fw-bold text-body">{{ d.subtotal }}</span></span>
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
       <tfoot>
-        <tr style="background: var(--neutral-bg);">
-          <th colspan="22" class="text-end">إجمالي الفاتورة</th>
-          <th dir="ltr" class="fs-6">{{ invoice.grand_total }}</th>
-          <th colspan="2"></th>
+        <tr>
+          <th colspan="5" class="text-end">إجمالي الفاتورة</th>
+          <th dir="ltr" class="fs-6 text-success">{{ invoice.grand_total }}</th>
+          <th></th>
         </tr>
       </tfoot>
     </table>
   </div>
 </div>
 
+{# PHASE 17 (STYLE P17-3): sky-blue totals card — visual parity with
+   the purchase invoice. #}
+<div class="invoice-footer-block invoice-totals">
+  <div class="invoice-footer-row">
+    <span class="label">المجموع الفرعي</span>
+    <span class="amount" dir="ltr">{{ invoice.grand_total }}</span>
+  </div>
+  <div class="invoice-footer-row total">
+    <span class="label">إجمالي الفاتورة</span>
+    <span class="amount" dir="ltr">{{ invoice.grand_total }}</span>
+  </div>
+  {% if invoice.paid_amount %}
+  <div class="invoice-footer-row paid">
+    <span class="label">المُحصّل</span>
+    <span class="amount text-success" dir="ltr">− {{ invoice.paid_amount }}</span>
+  </div>
+  {% endif %}
+  {% if invoice.returned_amount %}
+  <div class="invoice-footer-row">
+    <span class="label">المرتجع</span>
+    <span class="amount text-warning" dir="ltr">− {{ invoice.returned_amount }}</span>
+  </div>
+  {% endif %}
+  <div class="invoice-footer-row outstanding {% if invoice.outstanding_amount > 0 %}due{% else %}settled{% endif %}">
+    <span class="label">
+      {% if invoice.outstanding_amount > 0 %}المتبقّي للتحصيل{% else %}تم التحصيل بالكامل{% endif %}
+    </span>
+    <span class="amount" dir="ltr">{{ invoice.outstanding_amount }}</span>
+  </div>
+</div>
+
 {# PHASE 3: payments allocated to this invoice #}
-<div class="card mt-3">
+<div class="card mt-3 invoice-payments">
   <div class="card-header d-flex justify-content-between align-items-center"
        style="background: var(--brand-tint); color: var(--brand-dark);">
     <span class="fw-bold"><i class="bi bi-cash-coin"></i> الدفعات المخصصة لهذه الفاتورة</span>
@@ -227,7 +305,7 @@
 </div>
 
 {# ============ BANK STRIP (YAS-SET-3) ============ #}
-{{ render_bank_strip(company) }}
+<div class="invoice-bank">{{ render_bank_strip(company) }}</div>
 
 {# PHASE 10 (YAS-UX-4): collect-payment modal for milk invoices — mirrors
    the purchase invoice's "سدّد الآن" flow. Reuses the customer payment +
