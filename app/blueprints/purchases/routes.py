@@ -26,13 +26,80 @@ def _to_decimal(raw: str, field_name: str) -> Decimal | None:
 @bp.route("/")
 @login_required
 def list_invoices():
-    invoices = (
-        PurchaseInvoice.query.filter_by(is_archived=False)
-        .order_by(PurchaseInvoice.invoice_date.desc(), PurchaseInvoice.id.desc())
-        .limit(200)
-        .all()
+    """PHASE 17 (STYLE P17-2): filter + KPI strip on top.
+
+    Query params (all optional):
+      date_from, date_to  — invoice_date range
+      supplier_id         — filter to one supplier
+      status              — 'all' | 'paid' | 'partial' | 'overdue' | 'unpaid'
+      q                   — free-text search on supplier name or original invoice no
+    """
+    from datetime import date as _date, timedelta
+
+    q = PurchaseInvoice.query.filter_by(is_archived=False)
+
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    if fm:
+        q = q.filter(PurchaseInvoice.invoice_date >= _date.fromisoformat(fm))
+    if to:
+        q = q.filter(PurchaseInvoice.invoice_date <= _date.fromisoformat(to))
+    sid = request.args.get("supplier_id", type=int)
+    if sid:
+        q = q.filter(PurchaseInvoice.supplier_id == sid)
+    text = (request.args.get("q") or "").strip()
+    if text:
+        q = q.join(Supplier).filter(
+            db.or_(
+                Supplier.name.ilike(f"%{text}%"),
+                PurchaseInvoice.original_invoice_no.ilike(f"%{text}%"),
+            )
+        )
+
+    invoices = q.order_by(
+        PurchaseInvoice.invoice_date.desc(), PurchaseInvoice.id.desc()
+    ).limit(500).all()
+
+    # Status filter is applied in Python because 'outstanding_amount' is
+    # a hybrid/derived property, not a column.
+    status = (request.args.get("status") or "all").lower()
+    today = _date.today()
+
+    def _row_status(inv):
+        if inv.outstanding_amount <= Decimal("0.01"):
+            return "paid"
+        # Anything older than 15 days that's still outstanding = overdue.
+        days = (today - inv.invoice_date).days if inv.invoice_date else 0
+        if days > 15:
+            return "overdue"
+        if float(inv.paid_amount or 0) > 0 or float(inv.allocated_amount or 0) > 0:
+            return "partial"
+        return "unpaid"
+
+    for inv in invoices:
+        inv._status_slug = _row_status(inv)
+    if status != "all":
+        invoices = [i for i in invoices if i._status_slug == status]
+
+    # KPI strip
+    kpi_count = len(invoices)
+    kpi_total = sum((Decimal(str(i.total or 0)) for i in invoices), Decimal("0"))
+    kpi_outstanding = sum(
+        (Decimal(str(i.outstanding_amount or 0)) for i in invoices), Decimal("0")
     )
-    return render_template("purchases/list.html", invoices=invoices)
+    kpi_overdue = sum(1 for i in invoices if i._status_slug == "overdue")
+
+    suppliers = (
+        Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
+    )
+    return render_template(
+        "purchases/list.html",
+        invoices=invoices, suppliers=suppliers, today=today,
+        kpi_count=kpi_count, kpi_total=kpi_total,
+        kpi_outstanding=kpi_outstanding, kpi_overdue=kpi_overdue,
+        f_date_from=fm or "", f_date_to=to or "",
+        f_supplier_id=sid or 0, f_status=status, f_q=text,
+    )
 
 
 @bp.route("/new", methods=["GET", "POST"])

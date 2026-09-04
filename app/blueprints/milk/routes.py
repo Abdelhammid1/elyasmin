@@ -388,13 +388,68 @@ def daily_production():
 @bp.route("/invoices")
 @login_required
 def list_invoices():
-    invoices = (
-        MilkInvoice.query.filter_by(is_archived=False)
-        .order_by(MilkInvoice.issue_date.desc(), MilkInvoice.id.desc())
-        .limit(200)
-        .all()
+    """PHASE 17 (STYLE P17-2): filter + KPI strip on top."""
+    from datetime import date as _date
+
+    q = MilkInvoice.query.filter_by(is_archived=False)
+    fm = request.args.get("date_from")
+    to = request.args.get("date_to")
+    if fm:
+        q = q.filter(MilkInvoice.issue_date >= _date.fromisoformat(fm))
+    if to:
+        q = q.filter(MilkInvoice.issue_date <= _date.fromisoformat(to))
+    cid = request.args.get("customer_id", type=int)
+    if cid:
+        q = q.filter(MilkInvoice.customer_id == cid)
+    text = (request.args.get("q") or "").strip()
+    if text:
+        q = q.join(Customer).filter(
+            db.or_(
+                Customer.name.ilike(f"%{text}%"),
+                MilkInvoice.invoice_number.ilike(f"%{text}%"),
+            )
+        )
+
+    invoices = q.order_by(
+        MilkInvoice.issue_date.desc(), MilkInvoice.id.desc()
+    ).limit(500).all()
+
+    status = (request.args.get("status") or "all").lower()
+    today = _date.today()
+
+    def _row_status(inv):
+        if inv.status == "draft":
+            return "draft"
+        if inv.outstanding_amount <= Decimal("0.01"):
+            return "paid"
+        days = (today - inv.issue_date).days if inv.issue_date else 0
+        if days > 15:
+            return "overdue"
+        if inv.paid_amount > 0:
+            return "partial"
+        return "unpaid"
+
+    for inv in invoices:
+        inv._status_slug = _row_status(inv)
+    if status != "all":
+        invoices = [i for i in invoices if i._status_slug == status]
+
+    kpi_count = len(invoices)
+    kpi_total = sum((Decimal(str(i.grand_total or 0)) for i in invoices), Decimal("0"))
+    kpi_outstanding = sum(
+        (Decimal(str(i.outstanding_amount or 0)) for i in invoices), Decimal("0")
     )
-    return render_template("milk/invoices_list.html", invoices=invoices)
+    kpi_overdue = sum(1 for i in invoices if i._status_slug == "overdue")
+
+    customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    return render_template(
+        "milk/invoices_list.html",
+        invoices=invoices, customers=customers, today=today,
+        kpi_count=kpi_count, kpi_total=kpi_total,
+        kpi_outstanding=kpi_outstanding, kpi_overdue=kpi_overdue,
+        f_date_from=fm or "", f_date_to=to or "",
+        f_customer_id=cid or 0, f_status=status, f_q=text,
+    )
 
 
 @bp.route("/invoices/new", methods=["GET", "POST"])

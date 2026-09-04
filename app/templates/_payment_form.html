@@ -1,0 +1,204 @@
+{# PHASE 17 (STYLE P17-2): shared record-payment macro.
+
+   Consolidates the two near-identical forms that used to live inside
+   suppliers/detail.html and customers/detail.html. Both sides carry
+   the same shape: amount + date + method + account + notes, an
+   allocation grid over open invoices with auto-distribute JS, an
+   overpay warning, and a live "الخلاصة قبل الإرسال" summary panel.
+
+   Args:
+     side           — "supplier" | "customer" (drives labels + IDs)
+     form           — bound WTForms instance (WorkerPaymentForm shape)
+     action_url     — POST target
+     current_balance— float, for the overpay warning
+     open_invoices  — iterable of open invoices; each must expose
+                      id, outstanding_amount, and one of
+                      (invoice_date, invoice_number) OR (issue_date, original_invoice_no)
+     view_endpoint  — 'purchases.view_invoice' | 'milk.view_invoice'
+#}
+
+{% macro render_payment_form(side, form, action_url, current_balance, open_invoices, view_endpoint) %}
+{% set is_supplier = (side == 'supplier') %}
+{% set party_word = 'المورد' if is_supplier else 'العميل' %}
+{% set action_verb = 'دفعة' if is_supplier else 'تحصيل' %}
+{% set uid = 'pay-' ~ side %}
+
+<div class="card p-3">
+  <h5 class="mb-1"><i class="bi bi-cash-coin"></i>
+    {% if is_supplier %}تسجيل دفعة جديدة{% else %}تسجيل تحصيل جديد{% endif %}
+  </h5>
+  <p class="text-muted small mb-3">
+    الرصيد الحالي: <span dir="ltr" class="fw-bold">{{ current_balance }}</span> جنيه
+  </p>
+
+  <form method="post" action="{{ action_url }}" novalidate
+        id="{{ uid }}-form" data-side="{{ side }}"
+        data-balance="{{ current_balance }}">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+      {{ form.amount.label(class="form-label fw-bold") }}
+      <div class="input-group">
+        {{ form.amount(class="form-control", dir="ltr", step="0.01",
+                       **{'data-role':'amount'}) }}
+        <span class="input-group-text">جنيه</span>
+      </div>
+    </div>
+
+    <div class="row g-2">
+      <div class="col-6 mb-3">
+        {{ form.payment_date.label(class="form-label fw-bold") }}
+        {{ form.payment_date(class="form-control", dir="ltr", type="date") }}
+      </div>
+      <div class="col-6 mb-3">
+        {{ form.method.label(class="form-label fw-bold") }}
+        {{ form.method(class="form-select") }}
+      </div>
+    </div>
+
+    <div class="mb-3">
+      {{ form.account_id.label(class="form-label fw-bold") }}
+      {{ form.account_id(class="form-select") }}
+      {% for e in form.account_id.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.notes.label(class="form-label fw-bold") }}
+      {{ form.notes(class="form-control", rows=2) }}
+    </div>
+
+    {# Overpay warning (both sides now — customer side used to miss this). #}
+    <div class="alert alert-warning d-none" data-role="overpay-warn">
+      <i class="bi bi-exclamation-triangle"></i>
+      المبلغ ده أكبر من الرصيد المستحق. لو أكيد اضغط تأكيد وأرسل.
+      <div class="form-check mt-2">
+        <input class="form-check-input" type="checkbox" data-role="overpay-check">
+        <label class="form-check-label">
+          أكيد أ{% if is_supplier %}دفع{% else %}حصّل{% endif %} أكتر من الرصيد
+        </label>
+      </div>
+    </div>
+    <input type="hidden" name="confirm_overpay" value="0" data-role="overpay-confirm">
+
+    {# Allocation grid — appears only when there ARE open invoices. #}
+    {% if open_invoices %}
+    <div class="mb-3">
+      <label class="form-label fw-bold mb-2">
+        <i class="bi bi-list-check"></i> توزيع على الفواتير
+        <span class="text-muted small fw-normal">(اختياري — اللي يفضل بيتحسب على الحساب)</span>
+      </label>
+      <div class="table-responsive" style="max-height: 260px; overflow-y: auto;">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>فاتورة</th>
+              <th>تاريخ</th>
+              <th class="text-end">المتبقّي</th>
+              <th style="width:110px">توزيع</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in open_invoices %}
+            <tr>
+              <td>
+                <a href="{{ url_for(view_endpoint, invoice_id=inv.id) }}">#{{ inv.id }}</a>
+                {% set ext = inv.original_invoice_no if is_supplier else inv.invoice_number %}
+                {% if ext %}<span class="text-muted small">({{ ext }})</span>{% endif %}
+              </td>
+              <td dir="ltr">
+                {{ inv.invoice_date if is_supplier else inv.issue_date }}
+              </td>
+              <td dir="ltr" class="text-end fw-bold"
+                  data-outstanding="{{ inv.outstanding_amount }}">
+                {{ inv.outstanding_amount }}
+              </td>
+              <td>
+                <input type="text" inputmode="decimal"
+                       class="form-control form-control-sm"
+                       data-role="alloc"
+                       name="alloc_inv_{{ inv.id }}" dir="ltr" value="">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    {# Empty state — used to render nothing, so the user had no idea why
+       the grid disappeared. Now says why. #}
+    <div class="alert alert-light border text-center mb-3">
+      <i class="bi bi-check-circle text-success"></i>
+      مفيش فواتير مفتوحة — الدفعة كلها هتترحّل على الحساب.
+    </div>
+    {% endif %}
+
+    {# Live summary before submit. #}
+    <div class="d-flex justify-content-between align-items-center small mb-3 p-2"
+         style="background: var(--ms-brand-tint); border-radius: var(--ms-radius-md);">
+      <span><i class="bi bi-info-circle"></i> الخلاصة قبل الإرسال:</span>
+      <span>
+        <span data-role="summary-count">0</span> فاتورة ·
+        على الحساب <span dir="ltr" data-role="summary-onaccount">0.00</span>
+      </span>
+    </div>
+
+    {{ form.submit(class="btn btn-primary w-100 btn-lg") }}
+  </form>
+</div>
+
+<script>
+  // Scoped to this one form via [data-side] on the root — the macro can
+  // render multiple times on the same page without collisions.
+  (function () {
+    var root = document.getElementById('{{ uid }}-form');
+    if (!root) return;
+    var balance = parseFloat(root.dataset.balance) || 0;
+    var amt = root.querySelector('[data-role="amount"]');
+    var warn = root.querySelector('[data-role="overpay-warn"]');
+    var chk = root.querySelector('[data-role="overpay-check"]');
+    var conf = root.querySelector('[data-role="overpay-confirm"]');
+    var inputs = Array.from(root.querySelectorAll('[data-role="alloc"]'));
+    var sumCount = root.querySelector('[data-role="summary-count"]');
+    var sumOn = root.querySelector('[data-role="summary-onaccount"]');
+
+    function pay() { return parseFloat(amt.value) || 0; }
+    function autoFill() {
+      var remaining = pay();
+      inputs.forEach(function (inp) {
+        var row = inp.closest('tr');
+        var out = parseFloat(row.querySelector('[data-outstanding]').dataset.outstanding) || 0;
+        if (remaining <= 0) { inp.value = ''; return; }
+        var take = Math.min(out, remaining);
+        inp.value = take > 0 ? take.toFixed(2) : '';
+        remaining -= take;
+      });
+      recompute();
+    }
+    function recompute() {
+      var alloc = 0, count = 0;
+      inputs.forEach(function (i) {
+        var v = parseFloat(i.value) || 0;
+        if (v > 0) { alloc += v; count += 1; }
+      });
+      var total = pay();
+      if (sumCount) sumCount.textContent = count;
+      if (sumOn) sumOn.textContent = Math.max(0, total - alloc).toFixed(2);
+
+      if (total > balance && balance > 0) {
+        warn && warn.classList.remove('d-none');
+      } else {
+        warn && warn.classList.add('d-none');
+        if (chk) chk.checked = false;
+        if (conf) conf.value = '0';
+      }
+    }
+    if (amt) amt.addEventListener('input', autoFill);
+    inputs.forEach(function (i) { i.addEventListener('input', recompute); });
+    if (chk) chk.addEventListener('change', function () {
+      if (conf) conf.value = chk.checked ? '1' : '0';
+    });
+    recompute();
+  })();
+</script>
+{% endmacro %}

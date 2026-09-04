@@ -187,153 +187,17 @@
   </div>
 
   <div class="col-lg-5">
-    <div class="card p-3">
-      <h5 class="mb-3"><i class="bi bi-cash-coin"></i> تسجيل دفعة جديدة</h5>
-      <form method="post" action="{{ url_for('suppliers.record_payment', supplier_id=supplier.id) }}" novalidate id="paymentForm">
-        {{ payment_form.hidden_tag() }}
-
-        <div class="mb-3">
-          {{ payment_form.amount.label(class="form-label fw-bold") }}
-          <div class="input-group">
-            {{ payment_form.amount(class="form-control", dir="ltr", step="0.01", id="paymentAmount") }}
-            <span class="input-group-text">جنيه</span>
-          </div>
-          <small class="text-muted">الرصيد المستحق حالياً: <span dir="ltr">{{ supplier.balance_due }}</span></small>
-        </div>
-
-        <div class="mb-3">
-          {{ payment_form.payment_date.label(class="form-label fw-bold") }}
-          {{ payment_form.payment_date(class="form-control", dir="ltr", type="date") }}
-        </div>
-
-        <div class="mb-3">
-          {{ payment_form.method.label(class="form-label fw-bold") }}
-          {{ payment_form.method(class="form-select") }}
-        </div>
-        <div class="mb-3">
-          {{ payment_form.account_id.label(class="form-label fw-bold") }}
-          {{ payment_form.account_id(class="form-select") }}
-          {% for e in payment_form.account_id.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
-        </div>
-
-        <div class="mb-3">
-          {{ payment_form.notes.label(class="form-label fw-bold") }}
-          {{ payment_form.notes(class="form-control", rows=2) }}
-        </div>
-
-        <div class="alert alert-warning d-none" id="overpayWarn">
-          <i class="bi bi-exclamation-triangle"></i>
-          المبلغ ده أكبر من الرصيد المستحق. لو أكيد اضغط تأكيد وأرسل.
-          <div class="form-check mt-2">
-            <input class="form-check-input" type="checkbox" id="overpayCheck">
-            <label class="form-check-label" for="overpayCheck">أكيد أدفع أكتر من الرصيد</label>
-          </div>
-        </div>
-
-        <input type="hidden" name="confirm_overpay" value="0" id="confirmOverpay">
-
-        {% if open_invoices %}
-        {# PHASE 4: allocate the payment across specific credit invoices. #}
-        <div class="mb-3">
-          <label class="form-label fw-bold mb-2">
-            <i class="bi bi-list-check"></i> توزيع على الفواتير
-            <span class="text-muted small fw-normal">(اختياري — اللي يفضل بيتحسب على الحساب)</span>
-          </label>
-          <div class="table-responsive" style="max-height: 260px; overflow-y: auto;">
-            <table class="table table-sm mb-0" id="supAllocGrid">
-              <thead>
-                <tr>
-                  <th>فاتورة</th>
-                  <th>تاريخ</th>
-                  <th class="text-end">المتبقّي</th>
-                  <th style="width:110px">توزيع</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for inv in open_invoices %}
-                <tr>
-                  <td>
-                    <a href="{{ url_for('purchases.view_invoice', invoice_id=inv.id) }}">#{{ inv.id }}</a>
-                    {% if inv.original_invoice_no %}<span class="text-muted small">({{ inv.original_invoice_no }})</span>{% endif %}
-                  </td>
-                  <td dir="ltr">{{ inv.invoice_date }}</td>
-                  <td dir="ltr" class="num text-end fw-bold" data-outstanding="{{ inv.outstanding_amount }}">
-                    {{ inv.outstanding_amount }}
-                  </td>
-                  <td>
-                    <input type="text" inputmode="decimal" class="form-control form-control-sm sup-alloc-input"
-                           name="alloc_inv_{{ inv.id }}" dir="ltr" value="">
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-              <tfoot>
-                <tr class="fw-bold small">
-                  <td colspan="3" class="text-end">الموزّع / على الحساب</td>
-                  <td dir="ltr" class="num text-end">
-                    <span id="supAllocated">0.00</span> / <span id="supOnaccount" class="text-muted">0.00</span>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-        <script>
-          (function () {
-            var amt = document.getElementById('paymentAmount');
-            var inputs = Array.from(document.querySelectorAll('.sup-alloc-input'));
-            function pay() { return parseFloat(amt.value) || 0; }
-            function autoFill() {
-              var remaining = pay();
-              inputs.forEach(function (inp) {
-                var row = inp.closest('tr');
-                var out = parseFloat(row.querySelector('[data-outstanding]').dataset.outstanding) || 0;
-                if (remaining <= 0) { inp.value = ''; return; }
-                var take = Math.min(out, remaining);
-                inp.value = take > 0 ? take.toFixed(2) : '';
-                remaining -= take;
-              });
-              recompute();
-            }
-            function recompute() {
-              var alloc = 0;
-              inputs.forEach(function (i) { alloc += parseFloat(i.value) || 0; });
-              var total = pay();
-              document.getElementById('supAllocated').textContent = alloc.toFixed(2);
-              document.getElementById('supOnaccount').textContent = (total - alloc).toFixed(2);
-            }
-            if (amt) amt.addEventListener('input', autoFill);
-            inputs.forEach(function (i) { i.addEventListener('input', recompute); });
-          })();
-        </script>
-        {% endif %}
-
-        {{ payment_form.submit(class="btn btn-primary w-100") }}
-      </form>
-    </div>
+    {# PHASE 17 (STYLE P17-2): shared payment-form macro replaces the
+       ~120 lines of duplicated form + JS that used to live here. #}
+    {% from "_payment_form.html" import render_payment_form %}
+    {{ render_payment_form(
+         side='supplier',
+         form=payment_form,
+         action_url=url_for('suppliers.record_payment', supplier_id=supplier.id),
+         current_balance=supplier.balance_due,
+         open_invoices=open_invoices,
+         view_endpoint='purchases.view_invoice'
+       ) }}
   </div>
 </div>
-
-<script>
-  const amountInput = document.getElementById('paymentAmount');
-  const balance = parseFloat("{{ supplier.balance_due }}");
-  const warn = document.getElementById('overpayWarn');
-  const overpayCheck = document.getElementById('overpayCheck');
-  const confirmField = document.getElementById('confirmOverpay');
-
-  function toggleWarn() {
-    const val = parseFloat(amountInput.value || "0");
-    if (val > balance) {
-      warn.classList.remove('d-none');
-    } else {
-      warn.classList.add('d-none');
-      confirmField.value = "0";
-      overpayCheck.checked = false;
-    }
-  }
-  amountInput.addEventListener('input', toggleWarn);
-  overpayCheck.addEventListener('change', function() {
-    confirmField.value = this.checked ? "1" : "0";
-  });
-</script>
 {% endblock %}

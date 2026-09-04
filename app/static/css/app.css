@@ -568,6 +568,41 @@ table th[dir="ltr"] {
 .invoice-footer-row.outstanding.due .amount { color: var(--ms-danger); }
 .invoice-footer-row.outstanding.settled .amount { color: var(--ms-success); }
 
+/* ============ PHASE 17: STATUS CHIPS ============
+   Small pill labels for row status, richer than Bootstrap badges —
+   used in invoice lists, aging tables, leave-queue etc. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--ms-radius-pill);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.chip i { font-size: 12px; }
+.chip.chip-paid    { color: var(--ms-brand-dark); background: var(--ms-success-soft); }
+.chip.chip-partial { color: #92400e;              background: var(--ms-warning-soft); }
+.chip.chip-overdue { color: #991b1b;              background: var(--ms-danger-soft);  }
+.chip.chip-unpaid  { color: var(--ms-ink-2);      background: var(--ms-line);         }
+.chip.chip-draft   { color: var(--ms-ink-3);      background: var(--ms-surface-soft); }
+.chip.chip-cash    { color: var(--ms-brand-dark); background: var(--ms-info-soft);    }
+.chip.chip-credit  { color: #92400e;              background: var(--ms-warning-soft); }
+
+/* Filter row on list pages — small form controls that don't dominate */
+.filter-row {
+  background: var(--ms-surface);
+  border: 1px solid var(--ms-line);
+  border-radius: var(--ms-radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.filter-row label { font-size: 11.5px; font-weight: 600;
+                     color: var(--ms-ink-3); margin-bottom: 3px; }
+.filter-row .form-control-sm, .filter-row .form-select-sm { font-size: 13px; }
+
 /* ============ PRINT ============
    PHASE 16 FIX: was minimal — hid the chrome but printed the on-screen
    layout as-is. Redone so browser-print (Ctrl+P) and the server-side PDF
