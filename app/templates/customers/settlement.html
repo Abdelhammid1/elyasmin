@@ -1,75 +1,260 @@
 {% extends "base.html" %}
 {% block title %}تسوية فواتير العملاء الأسبوعية{% endblock %}
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <div>
-    <h1><i class="bi bi-calendar-week"></i> تسوية فواتير العملاء الأسبوعية</h1>
-    <p class="text-muted mb-0">تجميع توريدات اللبن غير المفوترة في فاتورة أسبوعية لكل عميل — بعد الحفظ التوريدات تتقفل وتتبقى الفاتورة قابلة للطباعة والتحصيل.</p>
-    <p class="text-muted mb-0">من <span dir="ltr">{{ start }}</span> إلى <span dir="ltr">{{ end }}</span></p>
+
+{# PHASE 21 (STYLE): weekly settlement redesign — hero + week navigator +
+   4-up KPIs + 2-col form-with-preview layout. Reuses the .form-grid /
+   .preview-card primitives from Phase 20. #}
+
+<div class="page-header">
+  <h1><i class="bi bi-calendar-week"></i> تسوية فواتير العملاء الأسبوعية</h1>
+  <p class="text-muted mb-0">
+    تجميع توريدات اللبن غير المفوترة في فاتورة أسبوعية لكل عميل — بعد الحفظ
+    التوريدات تتقفل وتبقى الفاتورة قابلة للطباعة والتحصيل.
+  </p>
+</div>
+
+{# Week navigator #}
+<form method="get" class="week-nav">
+  <a href="{{ url_for('customers.weekly_settlement', end=prev_end.isoformat()) }}"
+     class="btn btn-outline-secondary btn-sm week-prev">
+    <i class="bi bi-arrow-right"></i> الأسبوع السابق
+  </a>
+  <div class="week-range">
+    <span class="range-badge">
+      <i class="bi bi-calendar3"></i>
+      من <span dir="ltr">{{ start }}</span> إلى <span dir="ltr">{{ end }}</span>
+    </span>
+    <input type="date" name="end" value="{{ end.isoformat() }}"
+           onchange="this.form.submit()"
+           class="form-control form-control-sm" style="width:150px" dir="ltr">
   </div>
-  <div class="d-flex gap-2 flex-wrap">
-    {% if current_user.is_admin %}
-    <form method="post" action="{{ url_for('customers.generate_weekly_invoices') }}"
-          onsubmit="return confirm('توليد فواتير للأسبوع الحالي لكل عميل عقده أسبوعي؟')">
-      <button class="btn btn-outline-success">
-        <i class="bi bi-file-earmark-plus"></i> توليد فواتير الأسبوع
-      </button>
-    </form>
-    {% endif %}
-    <a href="{{ url_for('customers.dues') }}" class="btn btn-outline-warning">
-      <i class="bi bi-alarm"></i> المستحقات
-    </a>
-    <form method="get" class="d-flex gap-2 align-items-center">
-      <label class="small mb-0">نهاية الأسبوع:</label>
-      <input type="date" name="end" value="{{ end.isoformat() }}" class="form-control form-control-sm" dir="ltr">
-      <button class="btn btn-sm btn-primary">تحديث</button>
-    </form>
+  <a href="{{ url_for('customers.weekly_settlement', end=next_end.isoformat()) }}"
+     class="btn btn-outline-secondary btn-sm week-next">
+    الأسبوع التالي <i class="bi bi-arrow-left"></i>
+  </a>
+</form>
+
+{# 4-up KPI strip #}
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">عملاء نشطين</div>
+      <div class="stat-value" dir="ltr">{{ "{:,}".format(active_count) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي الكيلوات (الأسبوع)</div>
+      <div class="stat-value" dir="ltr">{{ "{:,.0f}".format(total_qty) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card">
+      <div class="stat-label">إجمالي القيمة (الأسبوع)</div>
+      <div class="stat-value" style="color: var(--ms-brand-dark);" dir="ltr">
+        {{ "{:,.0f}".format(total_value) }}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card stat-card {% if total_owed > 0 %}tone-danger{% endif %}">
+      <div class="stat-label">مستحقات متراكمة</div>
+      <div class="stat-value {% if total_owed > 0 %}text-danger{% endif %}" dir="ltr">
+        {{ "{:,.0f}".format(total_owed) }}
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="card">
-  {% if rows %}
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead>
-        <tr>
-          <th>العميل</th>
-          <th>إجمالي كيلوات الأسبوع</th>
-          <th>إجمالي القيمة</th>
-          <th>الرصيد المستحق الكلي</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% set gt_qty = namespace(v=0) %}
-        {% set gt_val = namespace(v=0) %}
-        {% set gt_bal = namespace(v=0) %}
-        {% for r in rows %}
-        <tr>
-          <td><a href="{{ url_for('customers.customer_detail', customer_id=r.customer.id) }}"><strong>{{ r.customer.name }}</strong></a></td>
-          <td dir="ltr">{{ r.week_qty }}</td>
-          <td dir="ltr" class="fw-bold">{{ r.week_value }}</td>
-          <td dir="ltr" class="{% if r.total_owed > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">{{ r.total_owed }}</td>
-        </tr>
-        {% set gt_qty.v = gt_qty.v + r.week_qty %}
-        {% set gt_val.v = gt_val.v + r.week_value %}
-        {% set gt_bal.v = gt_bal.v + r.total_owed %}
-        {% endfor %}
-      </tbody>
-      <tfoot class="table-light">
-        <tr>
-          <th>الإجمالي</th>
-          <th dir="ltr">{{ gt_qty.v }}</th>
-          <th dir="ltr">{{ gt_val.v }}</th>
-          <th dir="ltr">{{ gt_bal.v }}</th>
-        </tr>
-      </tfoot>
-    </table>
+<div class="form-grid">
+
+  {# ============ MAIN — customer table ============ #}
+  <div class="card form-main">
+    <div class="form-hero">
+      <div class="hero-ico" style="background: #fff; color: var(--ms-brand-dark);">
+        <i class="bi bi-people-fill"></i>
+      </div>
+      <div class="hero-text">
+        <h1>حركة العملاء هذا الأسبوع</h1>
+        <p>{{ rows|length }} عميل عليه نشاط أو رصيد — كل صف حالته واضحة على اليمين.</p>
+      </div>
+    </div>
+
+    <div class="form-body p-0">
+      {% if rows %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width: 32%;">العميل</th>
+              <th class="text-center">الأيام</th>
+              <th class="text-end">الكميّة (كجم)</th>
+              <th class="text-end">قيمة الأسبوع</th>
+              <th class="text-end">الرصيد الكلي</th>
+              <th class="text-center">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>
+                <span class="customer-cell">
+                  <span class="avatar-inline">{{ r.customer.name[:1] }}</span>
+                  <span>
+                    <a href="{{ url_for('customers.customer_detail', customer_id=r.customer.id) }}"
+                       class="name">{{ r.customer.name }}</a>
+                    <div class="sub">
+                      {% if r.customer.contract_type == 'weekly' %}عقد أسبوعي{% else %}نقدي عند الاستلام{% endif %}
+                    </div>
+                  </span>
+                </span>
+              </td>
+              <td class="text-center">
+                {% if r.delivery_days > 0 %}
+                <span class="chip chip-cash" style="background: var(--ms-brand-tint); color: var(--ms-brand-dark);">
+                  <i class="bi bi-calendar-check"></i> {{ r.delivery_days }} يوم
+                </span>
+                {% else %}
+                <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td dir="ltr" class="text-end">{{ "{:,.0f}".format(r.week_qty) }}</td>
+              <td dir="ltr" class="text-end fw-bold" style="color: var(--ms-brand-dark);">
+                {{ "{:,.2f}".format(r.week_value) }}
+              </td>
+              <td dir="ltr" class="text-end fw-bold {% if r.total_owed > 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ "{:,.2f}".format(r.total_owed) }}
+              </td>
+              <td class="text-center">
+                {% if r.status == 'invoiced' %}
+                  <a href="{{ url_for('milk.view_invoice', invoice_id=r.invoice.id) }}"
+                     class="chip chip-paid text-decoration-none">
+                    <i class="bi bi-check-circle-fill"></i> اتفوترت
+                  </a>
+                {% elif r.status == 'ready' %}
+                  <span class="chip chip-partial">
+                    <i class="bi bi-hourglass-split"></i> جاهزة للفوترة
+                  </span>
+                {% elif r.status == 'cash' %}
+                  <span class="chip chip-cash">
+                    <i class="bi bi-cash"></i> نقدي
+                  </span>
+                {% else %}
+                  <span class="chip chip-unpaid">
+                    <i class="bi bi-dash-circle"></i> رصيد متبقّي
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold" style="background: var(--ms-surface-soft);">
+              <td class="text-end">الإجمالي</td>
+              <td class="text-center text-muted small">—</td>
+              <td dir="ltr" class="text-end">{{ "{:,.0f}".format(total_qty) }}</td>
+              <td dir="ltr" class="text-end" style="color: var(--ms-brand-dark);">
+                {{ "{:,.2f}".format(total_value) }}
+              </td>
+              <td dir="ltr" class="text-end {% if total_owed > 0 %}text-danger{% endif %}">
+                {{ "{:,.2f}".format(total_owed) }}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox display-4 d-block mb-2 opacity-50"></i>
+        مفيش نشاط ولا مستحقات في الأسبوع ده — جرّب اختار أسبوع تاني.
+      </div>
+      {% endif %}
+    </div>
   </div>
-  {% else %}
-  <div class="text-center py-5 text-muted">
-    <i class="bi bi-inbox display-4"></i>
-    <p class="mt-3">مفيش نشاط في الأسبوع ده.</p>
-  </div>
-  {% endif %}
+
+  {# ============ RIGHT RAIL ============ #}
+  <aside class="form-rail">
+
+    {# Generation preview #}
+    <div class="card preview-card">
+      <h6><i class="bi bi-magic"></i> توليد فواتير الأسبوع</h6>
+
+      <div class="preview-hero">
+        <div class="hero-metric">
+          <div class="lbl">جاهزة</div>
+          <div class="val" style="color: #B45309;">{{ ready_count }}</div>
+        </div>
+        <div class="hero-metric">
+          <div class="lbl">اتفوترت</div>
+          <div class="val" style="color: #16a34a;">{{ invoiced_count }}</div>
+        </div>
+        <div class="hero-metric tone-cost">
+          <div class="lbl">القيمة المتوقعة</div>
+          <div class="val" style="font-size:14px;" dir="ltr">
+            {{ "{:,.0f}".format(ready_value) }}
+          </div>
+        </div>
+      </div>
+
+      {% if current_user.is_admin and ready_count > 0 %}
+      <form method="post"
+            action="{{ url_for('customers.generate_weekly_invoices') }}"
+            onsubmit="return confirm('توليد {{ ready_count }} فاتورة لعملاء العقد الأسبوعي؟');">
+        <button class="btn btn-primary w-100">
+          <i class="bi bi-file-earmark-plus"></i>
+          توليد {{ ready_count }} فاتورة
+        </button>
+      </form>
+      <small class="text-muted d-block mt-2 text-center">
+        كل عميل عقده أسبوعي وعنده توريدات غير مفوترة الأسبوع ده هيتعمله فاتورة تلقائيًا.
+      </small>
+      {% elif ready_count == 0 and invoiced_count > 0 %}
+      <div class="alert alert-light border small mb-0 text-center">
+        <i class="bi bi-check-circle text-success"></i>
+        كل العملاء اتفوتروا الأسبوع ده — تمام!
+      </div>
+      {% elif ready_count == 0 %}
+      <div class="alert alert-light border small mb-0 text-center">
+        <i class="bi bi-info-circle text-muted"></i>
+        مفيش عملاء عندهم توريدات غير مفوترة الأسبوع ده.
+      </div>
+      {% elif not current_user.is_admin %}
+      <div class="alert alert-light border small mb-0 text-center">
+        <i class="bi bi-lock text-muted"></i>
+        توليد الفواتير للأدمن فقط.
+      </div>
+      {% endif %}
+    </div>
+
+    {# Accumulated dues card #}
+    <div class="card">
+      <h6><i class="bi bi-alarm text-warning"></i> المستحقات المتراكمة</h6>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="text-muted small">إجمالي المستحق:</span>
+        <span dir="ltr" class="fw-bold {% if total_owed > 0 %}text-danger{% endif %}"
+              style="font-size: 18px;">
+          {{ "{:,.0f}".format(total_owed) }} جنيه
+        </span>
+      </div>
+      <a href="{{ url_for('customers.dues') }}"
+         class="btn btn-outline-primary btn-sm w-100">
+        <i class="bi bi-graph-down-arrow"></i> عرض أعمار الديون
+      </a>
+    </div>
+
+    {# Explainer #}
+    <div class="card">
+      <h6><i class="bi bi-info-circle"></i> ازاي بيشتغل؟</h6>
+      <ul class="small text-muted mb-0" style="padding-inline-start:1rem; line-height:1.9;">
+        <li>الصفحة بتجمع توريدات كل عميل خلال 7 أيام.</li>
+        <li>الفواتير بتتعمل تلقائيًا للعقود <strong>الأسبوعية</strong> بس.</li>
+        <li>بعد الحفظ التوريدات تتقفل، وتبقى الفاتورة قابلة للتحصيل من صفحتها.</li>
+      </ul>
+    </div>
+
+  </aside>
 </div>
+
 {% endblock %}

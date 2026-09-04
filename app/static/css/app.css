@@ -568,6 +568,58 @@ table th[dir="ltr"] {
 .invoice-footer-row.outstanding.due .amount { color: var(--ms-danger); }
 .invoice-footer-row.outstanding.settled .amount { color: var(--ms-success); }
 
+/* ============ PHASE 21: WEEK NAVIGATOR + AVATAR INLINE ============ */
+.week-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  background: var(--ms-surface);
+  border: 1px solid var(--ms-line);
+  border-radius: var(--ms-radius-lg);
+  box-shadow: var(--ms-shadow-sm);
+}
+.week-nav .btn {
+  justify-self: start;
+}
+.week-nav .btn.week-next { justify-self: end; }
+.week-nav .week-range {
+  display: flex; align-items: center; gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.week-nav .range-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  background: var(--ms-brand-tint);
+  color: var(--ms-brand-dark);
+  border-radius: var(--ms-radius-pill);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Compact inline avatar circle (initials) — reusable primitive */
+.avatar-inline {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--ms-brand-tint);
+  color: var(--ms-brand-dark);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px;
+  flex-shrink: 0;
+}
+
+.customer-cell {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-width: 0;
+}
+.customer-cell .name {
+  color: var(--ms-ink-1); font-weight: 700; text-decoration: none;
+}
+.customer-cell .name:hover { color: var(--ms-brand-dark); }
+.customer-cell .sub { font-size: 11px; color: var(--ms-ink-3); }
+
 /* ============ PHASE 20: FORM-WITH-PREVIEW ============
    Reusable 2-col shell for input forms that benefit from a live
    preview of what's about to happen — feed run, invoice create,

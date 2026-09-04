@@ -288,6 +288,8 @@ def weekly_settlement():
     end_str = request.args.get("end")
     end = date.fromisoformat(end_str) if end_str else date.today()
     start = end - timedelta(days=6)
+    prev_end = end - timedelta(days=7)
+    next_end = end + timedelta(days=7)
 
     customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
     rows = []
@@ -295,6 +297,7 @@ def weekly_settlement():
         agg = db.session.query(
             func.coalesce(func.sum(MilkDelivery.qty_kg), 0),
             func.coalesce(func.sum(MilkDelivery.total_value), 0),
+            func.count(func.distinct(MilkDelivery.delivery_date)),
         ).filter(
             MilkDelivery.customer_id == c.id,
             MilkDelivery.delivery_date >= start,
@@ -303,16 +306,57 @@ def weekly_settlement():
         ).one()
         total_qty = Decimal(str(agg[0] or 0))
         total_value = Decimal(str(agg[1] or 0))
+        delivery_days = int(agg[2] or 0)
         if total_qty == 0 and c.balance == 0:
             continue
+
+        # PHASE 21: has this customer already been invoiced for this window?
+        existing_invoice = (
+            MilkInvoice.query
+            .filter_by(customer_id=c.id, is_archived=False,
+                       period_from=start, period_to=end)
+            .first()
+        )
+
+        # Status chip decision
+        if total_qty == 0:
+            status = "no-activity"   # only carries a historic balance
+        elif existing_invoice:
+            status = "invoiced"
+        elif c.contract_type == "weekly":
+            status = "ready"         # will be picked up by bulk generator
+        else:
+            status = "cash"          # cash contract — no invoice needed
+
         rows.append({
             "customer": c,
             "week_qty": total_qty,
             "week_value": total_value,
+            "delivery_days": delivery_days,
             "total_owed": c.balance,
+            "status": status,
+            "invoice": existing_invoice,
         })
+
+    # KPI totals for the hero strip + preview card
+    active_count = sum(1 for r in rows if r["week_qty"] > 0)
+    total_qty = sum((r["week_qty"] for r in rows), Decimal("0"))
+    total_value = sum((r["week_value"] for r in rows), Decimal("0"))
+    total_owed = sum((r["total_owed"] for r in rows if r["total_owed"] > 0),
+                     Decimal("0"))
+    ready_count = sum(1 for r in rows if r["status"] == "ready")
+    ready_value = sum((r["week_value"] for r in rows if r["status"] == "ready"),
+                      Decimal("0"))
+    invoiced_count = sum(1 for r in rows if r["status"] == "invoiced")
+
     return render_template(
-        "customers/settlement.html", rows=rows, start=start, end=end,
+        "customers/settlement.html",
+        rows=rows, start=start, end=end,
+        prev_end=prev_end, next_end=next_end,
+        active_count=active_count,
+        total_qty=total_qty, total_value=total_value, total_owed=total_owed,
+        ready_count=ready_count, ready_value=ready_value,
+        invoiced_count=invoiced_count,
     )
 
 
