@@ -9,7 +9,9 @@
     <p class="text-muted mb-0">{{ ingredient.category_label }} · وحدة القياس: {{ ingredient.unit_label }}</p>
   </div>
   <div class="d-flex gap-2">
+    {% if can_write %}
     <a href="{{ url_for('inventory.edit_ingredient', ingredient_id=ingredient.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+    {% endif %}
   </div>
 </div>
 

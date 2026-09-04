@@ -10,7 +10,9 @@
     </p>
   </div>
   <div class="d-flex gap-2">
+    {% if can_write %}
     <a href="{{ url_for('accounts.transfer') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left-right"></i> تحويل</a>
+    {% endif %}
     <a href="{{ url_for('accounts.list_accounts') }}" class="btn btn-outline-secondary">كل الحسابات</a>
   </div>
 </div>

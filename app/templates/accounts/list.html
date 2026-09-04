@@ -7,12 +7,16 @@
     <p class="text-muted mb-0">رصيدك في كل حساب لحظة بلحظة.</p>
   </div>
   <div class="d-flex gap-2">
+    {% if can_write %}
     <a href="{{ url_for('accounts.transfer') }}" class="btn btn-outline-primary">
       <i class="bi bi-arrow-left-right"></i> تحويل بين حسابين
     </a>
+    {% endif %}
+    {% if can_write %}
     <a href="{{ url_for('accounts.create_account') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> حساب جديد
     </a>
+    {% endif %}
   </div>
 </div>
 
@@ -69,17 +73,21 @@
               <a href="{{ url_for('accounts.statement', account_id=a.id) }}" class="btn btn-outline-secondary">
                 <i class="bi bi-list-ul"></i> كشف حساب
               </a>
+              {% if can_write %}
               <a href="{{ url_for('accounts.edit_account', account_id=a.id) }}" class="btn btn-outline-secondary">
                 <i class="bi bi-pencil"></i>
               </a>
+              {% endif %}
             </div>
             {% if a.current_balance == 0 %}
+            {% if can_write %}
             <form method="post" action="{{ url_for('accounts.archive_account', account_id=a.id) }}"
                   class="d-inline" onsubmit="return confirm('تأرشف الحساب {{ a.name }}؟');">
               <button class="btn btn-sm btn-outline-danger" title="أرشفة (الرصيد صفر)">
                 <i class="bi bi-archive"></i>
               </button>
             </form>
+            {% endif %}
             {% endif %}
           </td>
         </tr>
@@ -91,9 +99,11 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-safe display-4"></i>
     <p class="mt-3">مفيش حسابات لسه. ابدأ بإضافة الخزنة النقدية.</p>
+    {% if can_write %}
     <a href="{{ url_for('accounts.create_account') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> حساب جديد
     </a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

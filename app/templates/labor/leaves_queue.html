@@ -43,23 +43,27 @@
           <span dir="ltr">{{ l.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
         </td>
         <td>
+          {% if can_write %}
           <form method="post" action="{{ url_for('labor.approve_leave', leave_id=l.id) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-sm btn-success" onclick="return confirm('اعتماد الطلب؟')">
               <i class="bi bi-check-lg"></i> اعتماد
             </button>
           </form>
+          {% endif %}
           <button type="button" class="btn btn-sm btn-outline-danger"
                   data-bs-toggle="collapse" data-bs-target="#reject-q-{{ l.id }}">
             <i class="bi bi-x-lg"></i> رفض
           </button>
           <div class="collapse mt-2" id="reject-q-{{ l.id }}">
+            {% if can_write %}
             <form method="post" action="{{ url_for('labor.reject_leave', leave_id=l.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <textarea name="decision_note" class="form-control form-control-sm mb-2"
                         rows="2" placeholder="سبب الرفض (اختياري)"></textarea>
               <button class="btn btn-sm btn-danger w-100">تأكيد الرفض</button>
             </form>
+            {% endif %}
           </div>
         </td>
       </tr>

@@ -8,7 +8,9 @@
       {% if worker.phone %} · <span dir="ltr">{{ worker.phone }}</span>{% endif %}
     </p>
   </div>
+  {% if can_write %}
   <a href="{{ url_for('labor.edit_worker', worker_id=worker.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+  {% endif %}
 </div>
 
 {# PHASE 15 (YAS-HR-1): expanded to 5 headline cards — 3 month cards
@@ -179,23 +181,27 @@
             </td>
             <td>
               {% if l.status == 'pending' and current_user.is_admin %}
+              {% if can_write %}
               <form method="post" action="{{ url_for('labor.approve_leave', leave_id=l.id) }}" class="d-inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-sm btn-success" onclick="return confirm('اعتماد الطلب؟')">
                   <i class="bi bi-check-lg"></i> اعتماد
                 </button>
               </form>
+              {% endif %}
               <button type="button" class="btn btn-sm btn-outline-danger"
                       data-bs-toggle="collapse" data-bs-target="#reject-{{ l.id }}">
                 <i class="bi bi-x-lg"></i> رفض
               </button>
               <div class="collapse mt-2" id="reject-{{ l.id }}">
+                {% if can_write %}
                 <form method="post" action="{{ url_for('labor.reject_leave', leave_id=l.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <textarea name="decision_note" class="form-control form-control-sm mb-2"
                             rows="2" placeholder="سبب الرفض (اختياري)"></textarea>
                   <button class="btn btn-sm btn-danger w-100">تأكيد الرفض</button>
                 </form>
+                {% endif %}
               </div>
               {% endif %}
             </td>

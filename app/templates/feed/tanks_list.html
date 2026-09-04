@@ -10,9 +10,11 @@
       بقيمة <span dir="ltr" class="fw-bold">{{ total_value }} جنيه</span>
     </p>
   </div>
+  {% if can_write %}
   <a href="{{ url_for('feed.create_run') }}" class="btn btn-primary">
     <i class="bi bi-play-circle"></i> تشغيل جديد
   </a>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -42,10 +44,12 @@
           <td dir="ltr">{{ row.tank.current_value if row.tank else '—' }}</td>
           <td class="text-start">
             <div class="btn-group btn-group-sm">
+              {% if can_write %}
               <a href="{{ url_for('feed.create_feeding', group_id=row.group.id) }}"
                  class="btn btn-warning">
                 <i class="bi bi-basket2"></i> تغذية
               </a>
+              {% endif %}
               <a href="{{ url_for('feed.group_allowances', group_id=row.group.id) }}"
                  class="btn btn-outline-secondary" title="المواد المسموح إضافتها">
                 <i class="bi bi-check2-square"></i>

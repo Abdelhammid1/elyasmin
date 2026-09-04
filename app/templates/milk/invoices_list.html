@@ -6,9 +6,11 @@
     <h1><i class="bi bi-receipt-cutoff"></i> فواتير بيع اللبن</h1>
     <p class="text-muted mb-0">كل فواتير مبيعات اللبن — فلتر بالعميل أو التاريخ أو الحالة.</p>
   </div>
+  {% if can_write %}
   <a href="{{ url_for('milk.create_invoice') }}" class="btn btn-primary">
     <i class="bi bi-plus-lg"></i> فاتورة جديدة
   </a>
+  {% endif %}
 </div>
 
 {# PHASE 17 (STYLE P17-2): KPI strip + filter row + status chips. #}
@@ -137,9 +139,11 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش فواتير مطابقة للفلتر — جرّب توسّع النطاق.</p>
+    {% if can_write %}
     <a href="{{ url_for('milk.create_invoice') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> إنشاء فاتورة
     </a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

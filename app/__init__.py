@@ -147,6 +147,21 @@ def create_app(config_name: str | None = None) -> Flask:
         }
 
     @app.context_processor
+    def inject_role_helpers():
+        """PHASE 27 (SEC-2): expose the current user's write permission
+        to every template so `{% if can_write %}` can wrap write buttons.
+        Backend already blocks the write via @write_required — this just
+        hides the button so viewers don't see a link that would 403.
+        `user_role` is exposed for the top-bar viewer chip."""
+        from flask_login import current_user
+        if not getattr(current_user, "is_authenticated", False):
+            return {"can_write": False, "user_role": None}
+        return {
+            "can_write": bool(getattr(current_user, "can_write", False)),
+            "user_role": getattr(current_user, "role", None),
+        }
+
+    @app.context_processor
     def inject_pending_leaves():
         """PHASE 15 (YAS-HR-1): live badge on the sidebar's leave link for
         admins. Cheap COUNT with a status index, one per request."""

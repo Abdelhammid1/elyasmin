@@ -6,7 +6,9 @@
   <div class="d-flex gap-2">
     <a href="{{ url_for('labor.report') }}" class="btn btn-outline-secondary"><i class="bi bi-clipboard-data"></i> التقرير الشامل</a>
     <a href="{{ url_for('labor.daily_attendance') }}" class="btn btn-outline-primary"><i class="bi bi-calendar-check"></i> حضور اليوم</a>
+    {% if can_write %}
     <a href="{{ url_for('labor.create_worker') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة عامل</a>
+    {% endif %}
   </div>
 </div>
 
@@ -31,7 +33,9 @@
           <td dir="ltr" class="fw-bold {% if w.month_balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ w.month_balance }}</td>
           <td class="text-end">
             <a href="{{ url_for('labor.worker_detail', worker_id=w.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            {% if can_write %}
             <a href="{{ url_for('labor.edit_worker', worker_id=w.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -42,7 +46,9 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش عمال لسه.</p>
+    {% if can_write %}
     <a href="{{ url_for('labor.create_worker') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة عامل</a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

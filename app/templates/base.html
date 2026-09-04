@@ -364,6 +364,10 @@
         <h1 class="page-title">{% block page_title %}{{ self.title() }}{% endblock %}</h1>
       </div>
       <div class="topbar-end">
+        {# PHASE 27 (SEC-2): viewer chip — tells a read-only user why write buttons are missing. #}
+        {% if user_role == 'viewer' %}
+        <span class="viewer-chip" title="حسابك للعرض فقط — لا يمكنك التعديل"><i class="bi bi-eye"></i> مشاهد فقط</span>
+        {% endif %}
         <a href="{{ url_for('help.index') }}" class="icon-btn" title="مساعدة"><i class="bi bi-question-circle"></i></a>
         <div class="user-chip dropdown">
           <button type="button" class="btn p-0 border-0 bg-transparent d-flex align-items-center gap-2" data-bs-toggle="dropdown">

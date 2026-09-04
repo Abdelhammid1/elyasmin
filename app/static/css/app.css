@@ -247,6 +247,22 @@ a:hover { color: var(--brand); text-decoration: underline; }
 }
 .user-chip button { color: var(--ink-2); font-weight: 500; font-size: 0.9rem; }
 
+/* PHASE 27 (SEC-2): viewer-only chip in the topbar, so a read-only
+   account instantly sees why write buttons are missing. */
+.viewer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--ms-violet-soft, #efeaff);
+  color: #6a52c4;
+  white-space: nowrap;
+}
+.viewer-chip .bi { font-size: 0.85rem; }
+
 /* ---- Content region ---- */
 .app-content {
   padding: 1.5rem 1.75rem 2rem;

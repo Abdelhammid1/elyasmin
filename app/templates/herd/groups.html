@@ -3,7 +3,9 @@
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
   <h1><i class="bi bi-diagram-3"></i> مجموعات القطيع ({{ groups|length }})</h1>
+  {% if can_write %}
   <a href="{{ url_for('herd.create_group') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة مجموعة</a>
+  {% endif %}
 </div>
 
 <div class="alert alert-info small">
@@ -27,9 +29,12 @@
         </div>
       </div>
       <div class="d-flex gap-2 mt-3 pt-3 border-top">
+        {% if can_write %}
         <a href="{{ url_for('herd.edit_group', group_id=g.id) }}" class="btn btn-sm btn-outline-secondary flex-grow-1">
           <i class="bi bi-pencil"></i> تعديل
         </a>
+        {% endif %}
+        {% if can_write %}
         <form method="post" action="{{ url_for('herd.archive_group', group_id=g.id) }}" class="flex-grow-1"
               onsubmit="return confirm('متأكد من أرشفة المجموعة {{ g.name }}؟');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -38,6 +43,7 @@
             <i class="bi bi-archive"></i> أرشفة
           </button>
         </form>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -45,7 +51,9 @@
   <div class="col-12 text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش مجموعات لسه.</p>
+    {% if can_write %}
     <a href="{{ url_for('herd.create_group') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة مجموعة</a>
+    {% endif %}
   </div>
   {% endfor %}
 </div>

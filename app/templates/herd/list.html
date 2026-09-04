@@ -11,12 +11,16 @@
     <a href="{{ url_for('herd.groups') }}" class="btn btn-outline-secondary">
       <i class="bi bi-diagram-3"></i> المجموعات
     </a>
+    {% if can_write %}
     <a href="{{ url_for('herd.create_birth') }}" class="btn btn-outline-primary">
       <i class="bi bi-egg"></i> تسجيل ولادة
     </a>
+    {% endif %}
+    {% if can_write %}
     <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> إضافة بقرة
     </a>
+    {% endif %}
   </div>
 </div>
 
@@ -102,8 +106,10 @@
             <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"
                class="btn btn-sm btn-outline-primary" title="فتح"><i class="bi bi-eye"></i></a>
             {% if cow.status == "active" %}
+            {% if can_write %}
             <a href="{{ url_for('herd.move_cow', cow_id=cow.id) }}"
                class="btn btn-sm btn-outline-secondary" title="نقل"><i class="bi bi-arrow-left-right"></i></a>
+            {% endif %}
             {% endif %}
           </td>
         </tr>
@@ -115,9 +121,11 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش نتائج مطابقة — جرّب تشيل الفلاتر أو ابحث بكلمة تانية.</p>
+    {% if can_write %}
     <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> إضافة بقرة
     </a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

@@ -14,11 +14,15 @@
   </div>
   <div class="d-flex gap-2 flex-wrap">
     {% if cow.status == "active" %}
+    {% if can_write %}
     <a href="{{ url_for('herd.move_cow', cow_id=cow.id) }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left-right"></i> نقل مجموعة</a>
+    {% endif %}
     <a href="{{ url_for('herd.sell_cow', cow_id=cow.id) }}" class="btn btn-outline-warning"><i class="bi bi-cash-coin"></i> بيع</a>
     <a href="{{ url_for('herd.register_death', cow_id=cow.id) }}" class="btn btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> نفوق</a>
     {% endif %}
+    {% if can_write %}
     <a href="{{ url_for('herd.edit_cow', cow_id=cow.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> تعديل</a>
+    {% endif %}
   </div>
 </div>
 

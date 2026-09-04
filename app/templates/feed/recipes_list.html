@@ -12,10 +12,12 @@
     <div class="card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="mb-0">{{ row.group.name }}</h5>
+        {% if can_write %}
         <a href="{{ url_for('feed.edit_recipe', group_id=row.group.id) }}" class="btn btn-sm btn-outline-primary">
           <i class="bi bi-{{ 'pencil' if row.recipe else 'plus-lg' }}"></i>
           {{ 'تعديل' if row.recipe else 'إضافة وصفة' }}
         </a>
+        {% endif %}
       </div>
 
       {% if row.recipe %}
@@ -38,9 +40,11 @@
         <div>تكلفة الخلطة: <strong dir="ltr">{{ row.recipe.batch_cost }} جنيه</strong></div>
         <div>تكلفة الكيلو: <strong dir="ltr" class="text-primary">{{ row.recipe.cost_per_kg }} جنيه/kg</strong></div>
       </div>
+      {% if can_write %}
       <a href="{{ url_for('feed.create_run', group_id=row.group.id) }}" class="btn btn-primary btn-sm mt-3">
         <i class="bi bi-play-fill"></i> تشغيل علف
       </a>
+      {% endif %}
       {% else %}
       <p class="text-muted mb-0">مفيش وصفة لسه.</p>
       {% endif %}

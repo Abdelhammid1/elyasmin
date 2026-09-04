@@ -69,9 +69,11 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش حركة على الخزان ده لسه.</p>
+    {% if can_write %}
     <a href="{{ url_for('feed.create_run', group_id=group.id) }}" class="btn btn-primary">
       <i class="bi bi-play-circle"></i> تشغيل وصفة
     </a>
+    {% endif %}
   </div>
   {% endif %}
 </div>
