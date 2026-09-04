@@ -239,9 +239,45 @@ def list_runs():
     )
 
 
+def _recipes_preview_json():
+    """PHASE 20: build a single JSON blob describing every active recipe
+    per non-archived group — the run-form's live preview reads from this
+    at page-load, no AJAX. Shape:
+      { group_id: { recipe_name, tank_name, lines: [
+          { name, unit, kg_per_batch, stock, avg_cost }, ... ]}}
+    Groups with no active recipe appear with `recipe_name=null`.
+    """
+    out = {}
+    # One tank per group per model comment at feed.py:111 — no need to
+    # hit the DB, the tank label is just the group name.
+    for g in CattleGroup.query.filter_by(is_archived=False).all():
+        recipe = _current_recipe_for_group(g.id)
+        tank_label = f"خزان {g.name}"
+        if not recipe or not recipe.lines:
+            out[str(g.id)] = {
+                "recipe_name": None,
+                "tank_name": tank_label,
+                "lines": [],
+            }
+            continue
+        out[str(g.id)] = {
+            "recipe_name": recipe.name,
+            "tank_name": tank_label,
+            "lines": [{
+                "name": ln.ingredient.name,
+                "unit": ln.ingredient.unit_label,
+                "kg_per_batch": float(ln.kg_per_batch or 0),
+                "stock": float(ln.ingredient.current_qty or 0),
+                "avg_cost": float(ln.ingredient.avg_cost or 0),
+            } for ln in recipe.lines],
+        }
+    return out
+
+
 @bp.route("/runs/new", methods=["GET", "POST"])
 @login_required
 def create_run():
+    import json
     form = FeedRunForm()
     form.group_id.choices = _group_choices()
 
@@ -249,11 +285,13 @@ def create_run():
     if request.method == "GET" and prefill_group:
         form.group_id.data = prefill_group
 
+    recipes_json = json.dumps(_recipes_preview_json(), ensure_ascii=False)
+
     if form.validate_on_submit():
         group = db.session.get(CattleGroup, form.group_id.data)
         if not group or group.is_archived:
             flash("المجموعة غير صالحة.", "error")
-            return render_template("feed/run_form.html", form=form)
+            return render_template("feed/run_form.html", form=form, recipes_json=recipes_json)
 
         recipe = _current_recipe_for_group(group.id)
         if not recipe or not recipe.lines:
@@ -262,7 +300,7 @@ def create_run():
                 "من فضلك أضف الوصفة الأول.",
                 "error",
             )
-            return render_template("feed/run_form.html", form=form)
+            return render_template("feed/run_form.html", form=form, recipes_json=recipes_json)
 
         batches = form.batches_count.data
         # Check inventory sufficiency for every line
@@ -286,6 +324,7 @@ def create_run():
                 group=group,
                 batches=batches,
                 insufficient=insufficient,
+                recipes_json=recipes_json,
             )
 
         # Create the run + snapshot lines + deduct inventory
@@ -367,7 +406,7 @@ def create_run():
         )
         return redirect(url_for("feed.view_run", run_id=run.id))
 
-    return render_template("feed/run_form.html", form=form)
+    return render_template("feed/run_form.html", form=form, recipes_json=recipes_json)
 
 
 @bp.route("/runs/<int:run_id>")

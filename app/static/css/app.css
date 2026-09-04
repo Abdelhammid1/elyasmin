@@ -568,6 +568,157 @@ table th[dir="ltr"] {
 .invoice-footer-row.outstanding.due .amount { color: var(--ms-danger); }
 .invoice-footer-row.outstanding.settled .amount { color: var(--ms-success); }
 
+/* ============ PHASE 20: FORM-WITH-PREVIEW ============
+   Reusable 2-col shell for input forms that benefit from a live
+   preview of what's about to happen — feed run, invoice create,
+   recipe editor, allocation forms. Same 2fr|1fr rhythm as .inv-grid
+   so pages feel like one design language. */
+.form-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1200px) { .form-grid { grid-template-columns: 1fr; } }
+
+.form-main.card { padding: 0; overflow: hidden; border-radius: var(--ms-radius-lg); }
+
+/* Sky-blue hero — softer than the invoice's navy hero (invoice = gravity,
+   form = invitation). */
+.form-hero {
+  display: flex; align-items: center; gap: 18px;
+  padding: 22px 26px;
+  background: linear-gradient(135deg, var(--ms-brand-tint) 0%, var(--ms-brand-soft) 100%);
+  border-bottom: 1px solid #C8E4F4;
+}
+.form-hero .hero-ico {
+  width: 56px; height: 56px; border-radius: 14px;
+  background: #fff; color: var(--ms-brand-dark);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  box-shadow: var(--ms-shadow-sm);
+  flex-shrink: 0;
+}
+.form-hero .hero-text h1 {
+  font-size: 20px; font-weight: 800; color: var(--ms-ink-1); margin: 0 0 3px;
+}
+.form-hero .hero-text p {
+  margin: 0; color: var(--ms-ink-3); font-size: 13px;
+}
+
+.form-body { padding: 22px 26px; }
+
+/* Large stepper (used for batches, quantities, etc.) */
+.form-stepper {
+  display: flex; align-items: stretch; gap: 0;
+  border: 1px solid var(--ms-line);
+  border-radius: var(--ms-radius-md);
+  overflow: hidden;
+}
+.form-stepper .step-btn {
+  width: 52px;
+  background: var(--ms-surface-soft);
+  color: var(--ms-ink-2);
+  font-size: 20px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.form-stepper .step-btn:hover { background: var(--ms-brand-tint); color: var(--ms-brand-dark); }
+.form-stepper .step-input {
+  flex: 1; border: none; text-align: center;
+  font-size: 22px; font-weight: 800; color: var(--ms-ink-1);
+  padding: 12px 4px;
+}
+.form-stepper .step-input:focus { outline: none; background: var(--ms-brand-tint); }
+
+/* Right rail — live preview + info cards */
+.form-rail { display: flex; flex-direction: column; gap: 12px; }
+.form-rail .card { padding: 18px; }
+.form-rail .card h6 {
+  font-size: 13.5px; font-weight: 800; color: var(--ms-ink-1);
+  margin: 0 0 12px; display: flex; align-items: center; gap: 6px;
+}
+.form-rail .card h6 i { color: var(--ms-brand-dark); font-size: 15px; }
+
+/* Live preview card — 3-up hero metrics + materials table */
+.preview-hero {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  margin-bottom: 14px;
+}
+.preview-hero .hero-metric {
+  background: var(--ms-surface-soft);
+  border: 1px solid var(--ms-line);
+  border-radius: var(--ms-radius-md);
+  padding: 10px;
+  text-align: center;
+}
+.preview-hero .hero-metric .lbl {
+  font-size: 10.5px; color: var(--ms-ink-3); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+.preview-hero .hero-metric .val {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 16px; font-weight: 800; color: var(--ms-ink-1); line-height: 1.1;
+}
+.preview-hero .hero-metric.tone-cost .val { color: var(--ms-brand-dark); }
+.preview-hero .hero-metric.tone-warn .val { color: var(--ms-warning); }
+
+.preview-recipe {
+  padding: 10px 12px;
+  background: var(--ms-surface-soft);
+  border-radius: var(--ms-radius-md);
+  margin-bottom: 12px;
+  font-size: 12.5px; color: var(--ms-ink-2);
+}
+.preview-recipe strong { color: var(--ms-ink-1); }
+
+table.preview-materials { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.preview-materials th {
+  background: var(--ms-surface-soft); color: var(--ms-ink-3);
+  font-weight: 700; padding: 6px 8px; font-size: 11px;
+  text-align: right;
+}
+table.preview-materials td {
+  padding: 7px 8px; border-bottom: 1px solid var(--ms-line);
+  color: var(--ms-ink-2);
+}
+table.preview-materials tr:last-child td { border-bottom: none; }
+table.preview-materials .num { font-family: 'Courier New', ui-monospace, monospace; text-align: end; }
+table.preview-materials .empty td {
+  text-align: center; color: var(--ms-ink-3);
+  padding: 20px 8px; font-style: italic;
+  background: var(--ms-surface-soft);
+}
+table.preview-materials .row-ok td.status-cell { color: #16a34a; }
+table.preview-materials .row-short {
+  background: #FFF5F5;
+}
+table.preview-materials .row-short td { color: #991B1B; }
+table.preview-materials .row-short td.status-cell { color: #DC2626; font-weight: 800; }
+
+.preview-tank {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--ms-brand-tint);
+  color: var(--ms-brand-dark);
+  border-radius: var(--ms-radius-md);
+  font-size: 12.5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.preview-tank strong { color: var(--ms-brand-dark); }
+
+.preview-empty-recipe {
+  padding: 14px;
+  border: 1px dashed var(--ms-warning);
+  background: var(--ms-warning-soft);
+  border-radius: var(--ms-radius-md);
+  color: #78350F; font-size: 12.5px; text-align: center;
+}
+.preview-empty-recipe i { display: block; font-size: 26px; margin-bottom: 6px; }
+.preview-empty-recipe a { color: #78350F; text-decoration: underline; font-weight: 700; }
+
 /* ============ PHASE 19: ON-SCREEN INVOICE DETAIL ============
    2-col grid (main + right rail), navy hero at the top of the main
    card, slim action bar, parties row, items-with-trailing-totals

@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% block title %}تشغيل علف يومي{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1><i class="bi bi-play-circle"></i> تشغيل العلف اليومي</h1>
-  <p class="text-muted mb-0">اختر المجموعة وعدد الخلطات، والنظام يخصم من المخزون ويحسب التكلفة أوتوماتيك.</p>
-</div>
+
+{# PHASE 20 (STYLE): form-with-preview layout — form on the left, live
+   preview of what's about to happen on the right. The preview reads
+   from a JSON blob served at page-load (no AJAX) and updates on every
+   group/batches change so the user sees the exact materials and cost
+   before submitting. Reusable primitive; other form pages will pick
+   up the same shape. #}
 
 {% if insufficient %}
-<div class="alert alert-danger">
+<div class="alert alert-danger mb-3">
   <h5 class="alert-heading"><i class="bi bi-exclamation-octagon-fill"></i> مخزون غير كافي</h5>
   <p class="mb-2">الكميات المطلوبة لتشغيل {{ batches }} خلطة لمجموعة {{ group.name }} أكبر من المتاح:</p>
   <ul class="mb-0">
@@ -20,57 +23,223 @@
     {% endfor %}
   </ul>
   <hr>
-  <p class="mb-0 small">قلّل عدد الخلطات، أو <a href="{{ url_for('purchases.create_invoice') }}" class="alert-link">أضف فاتورة شراء</a> علشان تعبّي المخزون.</p>
+  <p class="mb-0 small">
+    قلّل عدد الخلطات، أو
+    <a href="{{ url_for('purchases.create_invoice') }}" class="alert-link">أضف فاتورة شراء</a>
+    علشان تعبّي المخزون.
+  </p>
 </div>
 {% endif %}
 
-<div class="row justify-content-center">
-  <div class="col-lg-6">
-    <div class="card p-4">
-      <form method="post" novalidate id="runForm">
-        {{ form.hidden_tag() }}
+<div class="form-grid">
 
-        <div class="mb-3">
-          {{ form.group_id.label(class="form-label fw-bold fs-5") }}
+  {# ============ MAIN FORM ============ #}
+  <div class="card form-main">
+    <div class="form-hero">
+      <div class="hero-ico"><i class="bi bi-play-circle-fill"></i></div>
+      <div class="hero-text">
+        <h1>تشغيل علف يومي</h1>
+        <p>اختر المجموعة وعدد الخلطات — النظام هيخصم من المخزون ويحسب التكلفة أوتوماتيك.</p>
+      </div>
+    </div>
+
+    <form method="post" novalidate class="form-body" id="runForm">
+      {{ form.hidden_tag() }}
+
+      <div class="row g-3">
+        <div class="col-md-8">
+          {{ form.group_id.label(class="form-label fw-bold") }}
           {{ form.group_id(class="form-select form-select-lg", id="groupSel") }}
         </div>
-
-        <div class="mb-3">
+        <div class="col-md-4">
           {{ form.run_date.label(class="form-label fw-bold") }}
           {{ form.run_date(class="form-control form-control-lg", dir="ltr", type="date") }}
         </div>
+      </div>
 
-        <div class="mb-3">
-          {{ form.batches_count.label(class="form-label fw-bold fs-5") }}
-          <div class="input-group input-group-lg">
-            <button type="button" class="btn btn-outline-secondary" onclick="stepBatches(-1)"><i class="bi bi-dash-lg"></i></button>
-            {{ form.batches_count(class="form-control text-center", dir="ltr", id="batchesInput", min="1", max="200") }}
-            <button type="button" class="btn btn-outline-secondary" onclick="stepBatches(1)"><i class="bi bi-plus-lg"></i></button>
-          </div>
-          {% for e in form.batches_count.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      <div class="mt-3">
+        {{ form.batches_count.label(class="form-label fw-bold") }}
+        <div class="form-stepper">
+          <button type="button" class="step-btn" onclick="stepBatches(-1)"
+                  aria-label="ناقص"><i class="bi bi-dash-lg"></i></button>
+          {{ form.batches_count(class="step-input", dir="ltr",
+                                id="batchesInput", min="1", max="200",
+                                oninput="renderPreview()") }}
+          <button type="button" class="step-btn" onclick="stepBatches(1)"
+                  aria-label="زايد"><i class="bi bi-plus-lg"></i></button>
         </div>
+        {% for e in form.batches_count.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      </div>
 
-        <div class="mb-3">
-          {{ form.notes.label(class="form-label fw-bold") }}
-          {{ form.notes(class="form-control", rows=2) }}
-        </div>
+      <div class="mt-3">
+        {{ form.notes.label(class="form-label fw-bold") }}
+        {{ form.notes(class="form-control", rows=2, placeholder="اختياري — أي ملاحظة عن التشغيل ده") }}
+      </div>
 
-        <div class="alert alert-info small">
-          <i class="bi bi-info-circle"></i>
-          هيتم خصم كميات المواد من المخزون بناءً على الوصفة المفعّلة للمجموعة، وحساب التكلفة بأسعار المخزون الحالية.
-        </div>
-
-        {{ form.submit(class="btn btn-primary btn-lg w-100") }}
-      </form>
-    </div>
+      <div class="mt-4 d-grid">
+        {{ form.submit(class="btn btn-primary btn-lg", id="runSubmit") }}
+      </div>
+    </form>
   </div>
+
+  {# ============ RIGHT RAIL ============ #}
+  <aside class="form-rail">
+
+    <div class="card preview-card">
+      <h6><i class="bi bi-eye"></i> معاينة قبل الحفظ</h6>
+
+      <div class="preview-hero">
+        <div class="hero-metric">
+          <div class="lbl">إجمالي الوزن</div>
+          <div class="val" id="prevWeight">—</div>
+        </div>
+        <div class="hero-metric tone-cost">
+          <div class="lbl">التكلفة</div>
+          <div class="val" id="prevCost">—</div>
+        </div>
+        <div class="hero-metric">
+          <div class="lbl">جنيه/كجم</div>
+          <div class="val" id="prevCostKg">—</div>
+        </div>
+      </div>
+
+      <div id="prevRecipeWrap" class="preview-recipe">
+        <span>الوصفة المفعّلة:</span>
+        <strong id="prevRecipe">—</strong>
+      </div>
+
+      <div id="prevEmpty" class="preview-empty-recipe d-none">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        مافيش وصفة مفعّلة للمجموعة دي —
+        <a id="prevRecipeLink" href="#">أضف الوصفة الأول</a>
+        قبل ما تشغّل.
+      </div>
+
+      <table class="preview-materials mt-2">
+        <thead>
+          <tr>
+            <th>المادة</th>
+            <th class="text-end">محتاج</th>
+            <th class="text-end">متاح</th>
+            <th class="text-end">✓</th>
+          </tr>
+        </thead>
+        <tbody id="prevRows">
+          <tr class="empty"><td colspan="4">اختار مجموعة عشان تشوف المواد اللي هتخصم</td></tr>
+        </tbody>
+      </table>
+
+      <div id="prevTankWrap" class="preview-tank d-none">
+        <i class="bi bi-database-fill"></i>
+        الإنتاج بيروح على خزان <strong id="prevTank">—</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <h6><i class="bi bi-info-circle"></i> ازاي بيشتغل؟</h6>
+      <ul class="small text-muted mb-0" style="padding-inline-start:1rem; line-height:1.9;">
+        <li>هيتم خصم المواد من المخزون بناءً على الوصفة المفعّلة.</li>
+        <li>التكلفة بتتحسب بمتوسط سعر التكلفة الحالي (weighted-average).</li>
+        <li>الإنتاج بيدخل خزان مخصص للمجموعة — التكلفة اللي هتخرج للمزرعة من هناك.</li>
+      </ul>
+    </div>
+  </aside>
 </div>
 
 <script>
+  const RECIPES = {{ recipes_json | safe }};
+
   function stepBatches(delta) {
     const inp = document.getElementById('batchesInput');
     const v = Math.max(1, Math.min(200, parseInt(inp.value || "1", 10) + delta));
     inp.value = v;
+    renderPreview();
   }
+
+  function fmt(n, digits) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toLocaleString('en-US', {
+      minimumFractionDigits: digits, maximumFractionDigits: digits
+    });
+  }
+
+  function renderPreview() {
+    const gid = document.getElementById('groupSel').value;
+    const batches = parseInt(document.getElementById('batchesInput').value || "1", 10);
+    const recipe = RECIPES[gid];
+    const rowsEl = document.getElementById('prevRows');
+    const emptyEl = document.getElementById('prevEmpty');
+    const recipeWrap = document.getElementById('prevRecipeWrap');
+    const tankWrap = document.getElementById('prevTankWrap');
+    const submit = document.getElementById('runSubmit');
+
+    // Group without recipe
+    if (!recipe || !recipe.recipe_name) {
+      recipeWrap.classList.add('d-none');
+      emptyEl.classList.remove('d-none');
+      rowsEl.innerHTML = '<tr class="empty"><td colspan="4">لا يمكن التشغيل — أضف الوصفة الأول</td></tr>';
+      tankWrap.classList.add('d-none');
+      document.getElementById('prevWeight').textContent = '—';
+      document.getElementById('prevCost').textContent = '—';
+      document.getElementById('prevCostKg').textContent = '—';
+      submit.disabled = true;
+      submit.classList.add('disabled');
+      // Wire the "add recipe" link to prefill this group
+      if (gid) {
+        document.getElementById('prevRecipeLink').href =
+          '/feed/recipes/new?group_id=' + encodeURIComponent(gid);
+      }
+      return;
+    }
+
+    // Group WITH recipe — render rows
+    recipeWrap.classList.remove('d-none');
+    emptyEl.classList.add('d-none');
+    document.getElementById('prevRecipe').textContent = recipe.recipe_name;
+
+    let totalWeight = 0, totalCost = 0, anyShort = false;
+    const rows = recipe.lines.map(function (ln) {
+      const need = ln.kg_per_batch * batches;
+      const short = need > ln.stock;
+      if (short) anyShort = true;
+      totalWeight += need;
+      totalCost += need * ln.avg_cost;
+      return (
+        '<tr class="' + (short ? 'row-short' : 'row-ok') + '">' +
+          '<td>' + ln.name + '</td>' +
+          '<td class="num">' + fmt(need, 2) + ' ' + ln.unit + '</td>' +
+          '<td class="num">' + fmt(ln.stock, 2) + '</td>' +
+          '<td class="num status-cell">' +
+             (short ? '<i class="bi bi-x-circle-fill"></i>'
+                    : '<i class="bi bi-check-circle-fill"></i>') +
+          '</td>' +
+        '</tr>'
+      );
+    }).join('');
+    rowsEl.innerHTML = rows || '<tr class="empty"><td colspan="4">الوصفة فاضية</td></tr>';
+
+    document.getElementById('prevWeight').textContent = fmt(totalWeight, 1) + ' كجم';
+    document.getElementById('prevCost').textContent = fmt(totalCost, 2) + ' جنيه';
+    document.getElementById('prevCostKg').textContent =
+        totalWeight > 0 ? fmt(totalCost / totalWeight, 3) : '—';
+
+    // Tank
+    if (recipe.tank_name) {
+      document.getElementById('prevTank').textContent = recipe.tank_name;
+      tankWrap.classList.remove('d-none');
+    } else {
+      tankWrap.classList.add('d-none');
+    }
+
+    // Submit disabled if any row is short
+    submit.disabled = anyShort;
+    submit.classList.toggle('disabled', anyShort);
+    submit.title = anyShort ? 'مخزون غير كافي — راجع الصفوف الحمرا' : '';
+  }
+
+  document.getElementById('groupSel').addEventListener('change', renderPreview);
+  document.getElementById('batchesInput').addEventListener('input', renderPreview);
+  // First render on page load
+  renderPreview();
 </script>
 {% endblock %}
