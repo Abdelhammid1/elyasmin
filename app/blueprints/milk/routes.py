@@ -753,7 +753,71 @@ def invoice_excel(invoice_id: int):
     )
 
 
-# PHASE 16: server-side PDF, mirrors purchases.invoice_pdf.
+# PHASE 18 (PDF): dedicated print-only view + rewired PDF route.
+@bp.route("/invoices/<int:invoice_id>/print")
+@login_required
+def print_invoice(invoice_id: int):
+    """Print-only view — normalises milk delivery days into line items
+    and hands off to the shared pdfs/invoice.html template."""
+    from datetime import date, timedelta
+    from app.blueprints.purchases.routes import _ar_date, _invoice_status
+    from app.models.finance import CompanyProfile
+
+    invoice = db.session.get(MilkInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        return render_template("errors/404.html"), 404
+
+    company = CompanyProfile.current()
+    today = date.today()
+
+    # One line per delivery day; description carries date + qty for
+    # traceability at the customer's end.
+    items = [{
+        "description": f"توريد لبن — {d.delivery_date} ({d.qty_kg} كجم)",
+        "qty": float(d.qty_kg or 0),
+        "unit": "كجم",
+        "unit_price": float(d.unit_price or 0),
+        "line_total": float(d.total_value or 0),
+    } for d in invoice.deliveries]
+
+    total = float(invoice.grand_total or 0)
+    paid = float(invoice.paid_amount or 0)
+    outstanding = float(invoice.outstanding_amount or 0)
+
+    invoice_number = (
+        company.format_invoice_number("sale", invoice.id) if company
+        else (invoice.invoice_number or f"#{invoice.id}")
+    )
+    # Customers on weekly contract get a 14-day payment window in the
+    # printed doc; cash-on-delivery is "due today" (no due_date shown).
+    due_date = (invoice.issue_date + timedelta(days=14)
+                if invoice.customer and invoice.customer.contract_type == "weekly"
+                and invoice.issue_date else None)
+
+    return render_template(
+        "pdfs/invoice.html",
+        kind="sale",
+        invoice_number=invoice_number,
+        issue_date=invoice.issue_date,
+        due_date=due_date,
+        party={
+            "name": invoice.customer.name,
+            "phone": invoice.customer.phone,
+            "address": None,
+            "tax_number": None,
+        },
+        company=company,
+        items=items,
+        totals={
+            "subtotal": total, "discount": 0, "subtotal_net": total,
+            "tax_rate": 0, "tax": 0,
+            "total": total, "paid": paid, "outstanding": outstanding,
+        },
+        status=_invoice_status(invoice, "sale", today),
+        ar_date=_ar_date,
+    )
+
+
 @bp.route("/invoices/<int:invoice_id>/pdf")
 @login_required
 def invoice_pdf(invoice_id: int):
@@ -761,7 +825,7 @@ def invoice_pdf(invoice_id: int):
     invoice = db.session.get(MilkInvoice, invoice_id)
     if not invoice or invoice.is_archived:
         return render_template("errors/404.html"), 404
-    target = url_for("milk.view_invoice",
+    target = url_for("milk.print_invoice",
                      invoice_id=invoice.id, _external=True)
     return pdf_from_current_page(target, f"milk_invoice_{invoice.id}.pdf")
 

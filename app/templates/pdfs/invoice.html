@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>{{ 'فاتورة شراء' if kind == 'purchase' else 'فاتورة بيع' }} — {{ invoice_number }}</title>
+{#
+  PHASE 18 (PDF): print-only invoice — one file used by both purchase
+  and milk invoices. Structure is ported from marsoud's WeasyPrint
+  invoice.html (a proven layout) but every accent is remapped to
+  elyasmin's sky-blue brand + adds farm-specific touches (cow icon,
+  "لبن نقي من مزرعتنا" thank-you line, Manasety footer credit).
+
+  Contract:
+    kind            : 'purchase' | 'sale'
+    invoice_number  : str  (e.g. 'PUR-2026-00001')
+    issue_date      : date
+    due_date        : date | None
+    party           : {'name', 'phone', 'address'?, 'tax_number'?}
+    company         : CompanyProfile
+    items           : list of {'description','qty','unit','unit_price','line_total'}
+    totals          : {'subtotal','discount','subtotal_net','tax_rate',
+                       'tax','total','paid','outstanding'}
+    status          : {'label','tone','color','bg'}  tone in
+                      paid/partial/overdue/unpaid/draft
+    ar_date         : callable(date) -> "5 أكتوبر 2026"
+#}
+<style>
+  @font-face {
+    font-family: 'Amiri';
+    font-weight: 400;
+    src: url('{{ url_for('static', filename='fonts/Amiri-Regular.ttf') }}') format('truetype');
+  }
+  @font-face {
+    font-family: 'Amiri';
+    font-weight: 700;
+    src: url('{{ url_for('static', filename='fonts/Amiri-Bold.ttf') }}') format('truetype');
+  }
+
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; }
+  body {
+    font-family: 'Amiri', 'Segoe UI', Tahoma, sans-serif;
+    direction: rtl; background: #fff; color: #0A2540;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page { width: 100%; min-height: 297mm; position: relative; overflow: hidden; }
+  .pad  { position: relative; z-index: 1; padding: 46px 56px 90px; }
+
+  /* ============ BRAND ROW ============ */
+  .brand-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 16px; margin-bottom: 14px;
+    background: linear-gradient(180deg, #EAF7FD 0%, #ffffff 100%);
+    border-radius: 14px;
+    border: 1px solid #D6EDF9;
+  }
+  .logo-box {
+    width: 56px; height: 56px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 22px;
+    overflow: hidden; flex-shrink: 0;
+    background: #43b9e9;
+  }
+  .logo-box img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .brand-block { flex: 1; }
+  .brand-name {
+    font-size: 24px; font-weight: 800; color: #0A2540;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .brand-cow {
+    display: inline-flex; width: 22px; height: 22px;
+    align-items: center; justify-content: center;
+    color: #2b95c2; font-size: 20px;
+  }
+  .brand-sub {
+    font-size: 12px; color: #64748B; margin-top: 2px;
+  }
+
+  /* ============ DOC TITLE + STATUS ============ */
+  .doc-title {
+    font-size: 26px; font-weight: 800; color: #2b95c2;
+    margin: 4px 0 8px; text-align: center; letter-spacing: -0.5px;
+  }
+  .status-badge-wrap { text-align: center; margin-bottom: 12px; }
+  .status-badge {
+    display: inline-block; padding: 4px 18px; border-radius: 20px;
+    font-size: 12px; font-weight: 700;
+  }
+  .rule { height: 2px; background: #0A2540; margin-bottom: 18px; }
+
+  /* ============ META KEY/VALUE ============ */
+  .kv { width: 100%; font-size: 12.5px; border-collapse: collapse; margin-bottom: 18px; }
+  .kv td { padding: 4px 0; }
+  .kv td.k { font-weight: 700; width: 140px; color: #0A2540; }
+  .kv td.c { width: 14px; color: #0A2540; }
+  .kv td.v { color: #0A2540; }
+  .kv td.v.mono { font-family: 'Courier New', ui-monospace, monospace; }
+
+  /* ============ PARTIES ============ */
+  .parties { display: flex; gap: 48px; margin-bottom: 22px; }
+  .party { flex: 1; }
+  .party .lbl {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #94A3B8; margin-bottom: 8px;
+  }
+  .party .name { font-size: 15px; font-weight: 800; color: #0A2540; margin-bottom: 4px; }
+  .party .brand-sub-in { font-size: 11px; color: #64748B; margin-bottom: 6px; }
+  .party .line { font-size: 12px; color: #475569; line-height: 1.85; }
+
+  /* ============ DUE HEADLINE ============ */
+  .due-headline {
+    font-size: 17px; font-weight: 800; color: #0A2540;
+    margin: 6px 0 18px;
+  }
+  .due-headline .amt { color: #2b95c2; font-family: 'Courier New', ui-monospace, monospace; }
+
+  /* ============ BANK ============ */
+  .pay-note {
+    font-size: 11px; color: #475569; line-height: 1.8;
+    margin: 4px 0 14px; padding-bottom: 14px;
+    border-bottom: 1px dashed #E2E8F0;
+  }
+  .pay-address { margin-bottom: 22px; }
+  .pay-address .lbl { font-size: 12px; color: #0A2540; font-weight: 700; margin-bottom: 6px; }
+  .pay-address .line { font-size: 12px; color: #475569; line-height: 1.85; }
+
+  /* ============ ITEMS ============ */
+  .section-title { font-size: 15px; font-weight: 800; color: #0A2540; margin-bottom: 10px; }
+  table.items {
+    width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;
+  }
+  table.items th {
+    background: #43b9e9; color: #fff;
+    padding: 10px 12px; font-weight: 700; font-size: 12px;
+    text-align: right;
+  }
+  table.items th.num { text-align: left; }
+  table.items td {
+    padding: 9px 12px; border-bottom: 1px solid #E2E8F0; vertical-align: top;
+  }
+  table.items td.num { text-align: left; font-family: 'Courier New', ui-monospace, monospace; }
+  table.items tr:last-child td { border-bottom: none; }
+
+  /* ============ TOTALS ============ */
+  .totals-kv {
+    width: 100%; font-size: 12.5px; border-collapse: collapse; margin-bottom: 8px;
+    max-width: 380px; margin-inline-start: auto;
+  }
+  .totals-kv td { padding: 5px 0; }
+  .totals-kv td.lbl { color: #475569; }
+  .totals-kv td.val { text-align: left; font-family: 'Courier New', ui-monospace, monospace; color: #0A2540; }
+  .totals-kv tr.grand td {
+    padding: 10px 0; font-weight: 800;
+    border-top: 2px solid #0A2540; color: #0A2540; font-size: 14px;
+  }
+
+  /* ============ BIG AMOUNT DUE ============ */
+  .due-block {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-right: 18px; border-right: 3px solid #43b9e9;
+    margin: 24px 0 28px;
+  }
+  .due-block .lbl { font-size: 13px; color: #64748B; }
+  .due-block .val {
+    font-size: 30px; font-weight: 800; color: #2b95c2;
+    font-family: 'Courier New', ui-monospace, monospace;
+  }
+  .due-block .val .cur { font-size: 13px; font-family: 'Amiri', sans-serif; margin-inline-start: 6px; }
+
+  /* ============ THANK-YOU + FOOTER ============ */
+  .thank-you {
+    text-align: center; font-size: 12px; color: #64748B; font-style: italic;
+    padding-top: 14px; margin-bottom: 8px;
+    border-top: 1px dashed #E2E8F0;
+  }
+  .thank-you strong { color: #2b95c2; font-weight: 700; font-style: normal; }
+
+  .footer {
+    position: absolute; bottom: 0; right: 0; left: 0;
+    padding: 12px 56px; border-top: 1px solid #E2E8F0;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10.5px; color: #94A3B8; background: #fff;
+  }
+  .footer strong { color: #2b95c2; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  {# Corner triangles — sky-blue instead of marsoud's green #}
+  <svg style="position:absolute;top:0;left:0" width="80" height="80" viewBox="0 0 80 80">
+    <polygon points="0,0 80,0 0,80" fill="#43b9e9"/>
+  </svg>
+  <svg style="position:absolute;bottom:0;right:0" width="80" height="80" viewBox="0 0 80 80">
+    <polygon points="80,80 0,80 80,0" fill="#43b9e9"/>
+  </svg>
+
+  <div class="pad">
+
+    {# ============ BRAND ROW ============ #}
+    <div class="brand-row">
+      <div class="logo-box">
+        {% if company and company.logo_path %}
+          <img src="{{ url_for('static', filename=company.logo_path) }}"
+               alt="{{ (company.name or app_name) }}">
+        {% else %}
+          <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}">
+        {% endif %}
+      </div>
+      <div class="brand-block">
+        <div class="brand-name">
+          {{ company.legal_name if company and company.legal_name else (company.name if company else app_name) }}
+          <span class="brand-cow" title="مزرعة الياسمين">🐄</span>
+        </div>
+        <div class="brand-sub">نظام إدارة المزرعة · لبن نقي طازج كل يوم</div>
+      </div>
+    </div>
+
+    {# ============ DOC TITLE + STATUS ============ #}
+    <div class="doc-title">
+      {% if kind == 'purchase' %}فاتورة شراء{% else %}فاتورة بيع{% endif %}
+    </div>
+    <div class="status-badge-wrap">
+      <span class="status-badge" style="color:{{ status.color }}; background:{{ status.bg }}">
+        {{ status.label }}
+      </span>
+    </div>
+    <div class="rule"></div>
+
+    {# ============ META KEY/VALUE ============ #}
+    <table class="kv">
+      <tr><td class="k">رقم الفاتورة</td><td class="c">:</td><td class="v mono">{{ invoice_number }}</td></tr>
+      <tr><td class="k">تاريخ الإصدار</td><td class="c">:</td><td class="v">{{ ar_date(issue_date) }}</td></tr>
+      {% if due_date %}
+      <tr><td class="k">تاريخ الاستحقاق</td><td class="c">:</td><td class="v">{{ ar_date(due_date) }}</td></tr>
+      {% endif %}
+      {% if company and company.tax_registration_no %}
+      <tr><td class="k">الرقم الضريبي</td><td class="c">:</td><td class="v mono">{{ company.tax_registration_no }}</td></tr>
+      {% endif %}
+      {% if company and company.commercial_register_no %}
+      <tr><td class="k">السجل التجاري</td><td class="c">:</td><td class="v mono">{{ company.commercial_register_no }}</td></tr>
+      {% endif %}
+    </table>
+
+    {# ============ PARTIES ============ #}
+    <div class="parties">
+      <div class="party">
+        <div class="lbl">من</div>
+        <div class="name">
+          {{ company.legal_name if company and company.legal_name else (company.name if company else app_name) }}
+        </div>
+        {% if company and company.name and company.legal_name and company.name != company.legal_name %}
+        <div class="brand-sub-in">{{ company.name }}</div>
+        {% endif %}
+        <div class="line">
+          {% if company and company.address %}{{ company.address }}{% endif %}
+        </div>
+      </div>
+      <div class="party">
+        <div class="lbl">إلى</div>
+        <div class="name">{{ party.name }}</div>
+        <div class="line">
+          {% if party.address %}{{ party.address }}<br>{% endif %}
+          {% if party.tax_number %}الرقم الضريبي: {{ party.tax_number }}<br>{% endif %}
+          {% if party.phone %}<span dir="ltr">{{ party.phone }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ============ DUE HEADLINE ============ #}
+    {% if totals.outstanding > 0 %}
+    <div class="due-headline">
+      <span class="amt">{{ "%.2f"|format(totals.outstanding) }} {{ 'EGP'|currency_ar }}</span>
+      {% if kind == 'purchase' %}مطلوبة الدفع{% else %}مستحقة التحصيل{% endif %}
+      {% if due_date %}بتاريخ {{ ar_date(due_date) }}{% endif %}
+    </div>
+    {% else %}
+    <div class="due-headline">
+      <span class="amt">{{ "%.2f"|format(totals.total) }} {{ 'EGP'|currency_ar }}</span>
+      —
+      {% if kind == 'purchase' %}تم دفع الفاتورة بالكامل{% else %}تم تحصيل الفاتورة بالكامل{% endif %}.
+    </div>
+    {% endif %}
+
+    {# ============ BANK STRIP ============ #}
+    {% if company and (company.bank_name or company.bank_account_no or company.bank_iban) %}
+    <div class="pay-note">
+      يُفضّل الدفع بتحويل بنكي إلى الحساب الموضّح أدناه. يُرجى ذكر رقم الفاتورة عند التحويل.
+    </div>
+    <div class="pay-address">
+      <div class="lbl">بيانات الحساب البنكي:</div>
+      <div class="line">
+        {% if company.bank_account_holder %}{{ company.bank_account_holder }}<br>{% endif %}
+        {% if company.bank_name %}{{ company.bank_name }}<br>{% endif %}
+        {% if company.bank_account_no %}رقم الحساب: <span dir="ltr">{{ company.bank_account_no }}</span><br>{% endif %}
+        {% if company.bank_iban %}IBAN: <span dir="ltr">{{ company.bank_iban }}</span>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# ============ ITEMS ============ #}
+    <div class="section-title">تفاصيل الفاتورة</div>
+    <table class="items">
+      <thead>
+        <tr>
+          <th class="num" style="width:2.5rem">#</th>
+          <th>الوصف</th>
+          <th class="num">الكمية</th>
+          <th class="num">الوحدة</th>
+          <th class="num">سعر الوحدة</th>
+          <th class="num">المبلغ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td class="num">{{ loop.index }}</td>
+          <td>{{ it.description }}</td>
+          <td class="num">{{ "%g"|format(it.qty) }}</td>
+          <td>{{ it.unit or '—' }}</td>
+          <td class="num">{{ "%.2f"|format(it.unit_price) }} {{ 'EGP'|currency_ar }}</td>
+          <td class="num">{{ "%.2f"|format(it.line_total) }} {{ 'EGP'|currency_ar }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {# ============ TOTALS ============ #}
+    <table class="totals-kv">
+      <tr><td class="lbl">المجموع الفرعي</td><td class="val">{{ "%.2f"|format(totals.subtotal) }} {{ 'EGP'|currency_ar }}</td></tr>
+      {% if totals.discount and totals.discount > 0 %}
+      <tr><td class="lbl">إجمالي الخصومات</td><td class="val">- {{ "%.2f"|format(totals.discount) }} {{ 'EGP'|currency_ar }}</td></tr>
+      <tr><td class="lbl">الإجمالي بدون ضريبة</td><td class="val">{{ "%.2f"|format(totals.subtotal_net) }} {{ 'EGP'|currency_ar }}</td></tr>
+      {% endif %}
+      {% if totals.tax and totals.tax > 0 %}
+      <tr><td class="lbl">ضريبة القيمة المضافة ({{ "%g"|format(totals.tax_rate) }}%)</td><td class="val">{{ "%.2f"|format(totals.tax) }} {{ 'EGP'|currency_ar }}</td></tr>
+      {% endif %}
+      <tr class="grand"><td>الإجمالي</td><td class="val">{{ "%.2f"|format(totals.total) }} {{ 'EGP'|currency_ar }}</td></tr>
+      {% if totals.paid and totals.paid > 0 %}
+      <tr><td class="lbl" style="color:#16a34a;font-weight:700">المدفوع</td><td class="val" style="color:#16a34a">{{ "%.2f"|format(totals.paid) }} {{ 'EGP'|currency_ar }}</td></tr>
+      {% if totals.outstanding > 0.005 %}
+      <tr><td class="lbl" style="color:#B45309;font-weight:700">المتبقّي</td><td class="val" style="color:#B45309">{{ "%.2f"|format(totals.outstanding) }} {{ 'EGP'|currency_ar }}</td></tr>
+      {% endif %}
+      {% endif %}
+    </table>
+
+    {# ============ BIG AMOUNT DUE ============ #}
+    <div class="due-block" style="border-right-color:{{ status.color }}">
+      <div class="lbl">
+        {% if totals.outstanding <= 0.005 %}
+          تم السداد بالكامل
+        {% else %}
+          {% if kind == 'purchase' %}المبلغ المطلوب دفعه{% else %}المبلغ المطلوب تحصيله{% endif %}
+        {% endif %}
+      </div>
+      <div class="val" style="color:{{ status.color }}">
+        {{ "%.2f"|format(totals.outstanding if totals.outstanding > 0.005 else totals.total) }}
+        <span class="cur">{{ 'EGP'|currency_ar }}</span>
+      </div>
+    </div>
+
+    {# Farm-specific thank-you line — the elyasmin touch #}
+    <div class="thank-you">
+      «لبن نقي من مزرعتنا كل يوم» — <strong>شكرًا لتعاملكم مع {{ company.legal_name if company and company.legal_name else (company.name if company else 'مزرعة الياسمين') }}.</strong>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>© {{ issue_date.year if issue_date else '' }}
+      <strong>{{ company.name if company and company.name else 'مزرعة الياسمين' }}</strong>
+      · Powered by <strong>{{ brand.name if brand and brand.show else 'Manasety' }}</strong>
+    </span>
+    <span>صفحة 1 من 1</span>
+  </div>
+</div>
+</body>
+</html>

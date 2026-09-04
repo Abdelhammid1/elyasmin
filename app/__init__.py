@@ -104,6 +104,16 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.services.accounting_links import find_journal_entry_for
     app.jinja_env.globals["find_journal_entry_for"] = find_journal_entry_for
 
+    # PHASE 18 (PDF): `currency_ar` filter — maps ISO currency codes to
+    # their Arabic name for the printed invoice ("EGP" → "جنيه مصري").
+    # Ported from marsoud's convention.
+    _CURRENCY_AR = {
+        "EGP": "جنيه مصري", "SAR": "ريال سعودي",
+        "USD": "دولار أمريكي", "EUR": "يورو",
+    }
+    app.jinja_env.filters["currency_ar"] = lambda c: _CURRENCY_AR.get(
+        (c or "").upper(), c or "")
+
     @app.context_processor
     def inject_company_profile():
         # PHASE 11 (YAS-SET-3): every logged-in page can read the current

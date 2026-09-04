@@ -512,9 +512,114 @@ def invoice_excel(invoice_id: int):
     )
 
 
-# PHASE 16: server-side PDF via headless Chromium — same pattern as
-# customers.customers_report_pdf. The route re-fetches its own HTML page
-# under an authenticated session and prints it to A4 with the print CSS.
+# PHASE 18 (PDF): dedicated print-only view using the shared
+# pdfs/invoice.html template (marsoud shape, elyasmin identity). The
+# PDF route below points Chromium at THIS view — the user can also
+# open /purchases/<id>/print in a browser to preview the printed
+# sheet before saving.
+_AR_MONTHS = {1: "يناير", 2: "فبراير", 3: "مارس", 4: "أبريل",
+              5: "مايو", 6: "يونيو", 7: "يوليو", 8: "أغسطس",
+              9: "سبتمبر", 10: "أكتوبر", 11: "نوفمبر", 12: "ديسمبر"}
+
+
+def _ar_date(d):
+    if not d:
+        return "—"
+    return f"{d.day} {_AR_MONTHS[d.month]} {d.year}"
+
+
+def _invoice_status(invoice, kind, today):
+    """One dict with label + tone + swatch colors, computed the same
+    way the on-screen hero chip does. Kind drives the wording."""
+    outstanding = float(invoice.outstanding_amount or 0)
+    inv_date = invoice.invoice_date if kind == "purchase" else invoice.issue_date
+    days_late = (today - inv_date).days if today and inv_date else 0
+
+    if hasattr(invoice, "status") and invoice.status == "draft":
+        return {"label": "مسوّدة", "tone": "draft",
+                "color": "#64748B", "bg": "#F1F5F9"}
+    if outstanding <= 0.005:
+        return {"label": "مسدّدة بالكامل" if kind == "purchase" else "محصّلة بالكامل",
+                "tone": "paid", "color": "#16a34a", "bg": "#dcfce7"}
+    if days_late > 15:
+        return {"label": f"متأخرة {days_late} يوم", "tone": "overdue",
+                "color": "#dc2626", "bg": "#fee2e2"}
+    paid = float(getattr(invoice, "paid_amount", 0) or 0) + \
+           float(getattr(invoice, "allocated_amount", 0) or 0)
+    if paid > 0:
+        return {"label": "جزئية", "tone": "partial",
+                "color": "#B45309", "bg": "#fef3c7"}
+    return {"label": "في انتظار السداد" if kind == "purchase" else "في انتظار التحصيل",
+            "tone": "unpaid", "color": "#334155", "bg": "#F1F5F9"}
+
+
+@bp.route("/<int:invoice_id>/print")
+@login_required
+def print_invoice(invoice_id: int):
+    """Print-only view: renders the shared pdfs/invoice.html with the
+    purchase invoice's data normalised into the template contract."""
+    from datetime import date, timedelta
+    from app.models.finance import CompanyProfile
+
+    invoice = db.session.get(PurchaseInvoice, invoice_id)
+    if not invoice or invoice.is_archived:
+        abort(404)
+
+    company = CompanyProfile.current()
+    today = date.today()
+
+    # Line items — one row per invoice line.
+    items = [{
+        "description": line.ingredient.name,
+        "qty": float(line.qty or 0),
+        "unit": line.ingredient.unit_label,
+        "unit_price": float(line.unit_price or 0),
+        "line_total": float(line.line_total or 0),
+    } for line in invoice.lines]
+
+    # Totals: mirror the on-screen invoice-footer-block shape.
+    subtotal = float(invoice.subtotal or 0)
+    discount = sum(float(c.amount_egp or 0) for c in invoice.discount_rows)
+    tax = sum(float(c.amount_egp or 0) for c in invoice.tax_rows)
+    total = float(invoice.total or 0)
+    paid = float((invoice.paid_amount or 0) + (invoice.allocated_amount or 0))
+    outstanding = float(invoice.outstanding_amount or 0)
+    tax_rate = (tax / (subtotal - discount) * 100) if (subtotal - discount) > 0 and tax > 0 else 0
+
+    invoice_number = (
+        company.format_invoice_number("purchase", invoice.id)
+        if company else f"#{invoice.id}"
+    )
+    # Purchase invoices are "due" 30 days after invoice_date by convention.
+    due_date = invoice.invoice_date + timedelta(days=30) if invoice.invoice_date else None
+
+    return render_template(
+        "pdfs/invoice.html",
+        kind="purchase",
+        invoice_number=invoice_number,
+        issue_date=invoice.invoice_date,
+        due_date=due_date,
+        party={
+            "name": invoice.supplier.name,
+            "phone": invoice.supplier.phone,
+            "address": None,
+            "tax_number": None,
+        },
+        company=company,
+        items=items,
+        totals={
+            "subtotal": subtotal, "discount": discount,
+            "subtotal_net": subtotal - discount,
+            "tax_rate": tax_rate, "tax": tax,
+            "total": total, "paid": paid, "outstanding": outstanding,
+        },
+        status=_invoice_status(invoice, "purchase", today),
+        ar_date=_ar_date,
+    )
+
+
+# PHASE 18: PDF route now points at the print view (marsoud-style
+# layout), not the on-screen view.
 @bp.route("/<int:invoice_id>/pdf")
 @login_required
 def invoice_pdf(invoice_id: int):
@@ -522,7 +627,7 @@ def invoice_pdf(invoice_id: int):
     invoice = db.session.get(PurchaseInvoice, invoice_id)
     if not invoice or invoice.is_archived:
         abort(404)
-    target = url_for("purchases.view_invoice",
+    target = url_for("purchases.print_invoice",
                      invoice_id=invoice.id, _external=True)
     return pdf_from_current_page(
         target, f"purchase_invoice_{invoice.id}.pdf",
