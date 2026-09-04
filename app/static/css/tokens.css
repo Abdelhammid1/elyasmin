@@ -63,7 +63,11 @@
   --ms-shadow-lg:      0 10px 30px rgba(15, 23, 42, 0.09);
 
   /* ---- Typography ---- */
-  --ms-font-sans:      "Tajawal", "Cairo", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Site-wide M3 rollout: Plus Jakarta Sans (Latin) + Noto Sans Arabic
+     (Arabic) are now the base font everywhere, matching the dashboard
+     pilot. Tajawal/Cairo kept as fallback in case either Google Font
+     fails to load (same defense as the Material Symbols lesson). */
+  --ms-font-sans:      "Plus Jakarta Sans", "Noto Sans Arabic", "Tajawal", "Cairo", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --ms-font-mono:      ui-monospace, "SF Mono", Menlo, monospace;
   --ms-fs-xs:          11.5px;
   --ms-fs-sm:          12.5px;
