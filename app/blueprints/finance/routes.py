@@ -115,31 +115,39 @@ def settings():
             profile.reminder_days_before_due = int(company_form.reminder_days_before_due.data or 3)
             profile.updated_by_id = current_user.id
 
-            # ---- logo upload handling ----
+            # ---- logo upload handling (SEC-3 hardening) ----
             uploaded = request.files.get("logo") if request.files else None
             if uploaded and uploaded.filename:
                 import os
                 from werkzeug.utils import secure_filename
                 from flask import current_app
 
-                target_dir = os.path.join(
-                    current_app.root_path, "static", "img", "company",
-                )
-                os.makedirs(target_dir, exist_ok=True)
-                # Delete the old file if it was ours (best-effort)
-                if profile.logo_path:
-                    old = os.path.join(current_app.root_path, "static",
-                                       profile.logo_path.lstrip("/"))
-                    try:
-                        if os.path.isfile(old):
-                            os.remove(old)
-                    except OSError:
-                        pass
-                ext = uploaded.filename.rsplit(".", 1)[-1].lower()
-                fname = f"logo_{profile.id}.{ext}"
-                path_abs = os.path.join(target_dir, secure_filename(fname))
-                uploaded.save(path_abs)
-                profile.logo_path = f"img/company/{secure_filename(fname)}"
+                from app.utils.uploads import validate_logo
+
+                ok, ext, err = validate_logo(uploaded)
+                if not ok:
+                    # Reject the upload but keep the rest of the form
+                    # (name, tax, bank, …) committing. Flash the exact
+                    # Arabic reason so the user sees which check failed.
+                    flash(err, "error")
+                else:
+                    target_dir = os.path.join(
+                        current_app.root_path, "static", "img", "company",
+                    )
+                    os.makedirs(target_dir, exist_ok=True)
+                    # Delete the old file if it was ours (best-effort)
+                    if profile.logo_path:
+                        old = os.path.join(current_app.root_path, "static",
+                                           profile.logo_path.lstrip("/"))
+                        try:
+                            if os.path.isfile(old):
+                                os.remove(old)
+                        except OSError:
+                            pass
+                    fname = f"logo_{profile.id}.{ext}"
+                    path_abs = os.path.join(target_dir, secure_filename(fname))
+                    uploaded.save(path_abs)
+                    profile.logo_path = f"img/company/{secure_filename(fname)}"
 
             log_action("company_profile_updated", "CompanyProfile", profile.id)
             db.session.commit()

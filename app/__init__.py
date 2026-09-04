@@ -98,6 +98,18 @@ def create_app(config_name: str | None = None) -> Flask:
     def server_error(_):
         return render_template("errors/500.html"), 500
 
+    @app.errorhandler(413)
+    def payload_too_large(_):
+        # SEC-3 (PHASE 29): Werkzeug fires this before the view when
+        # the request body exceeds MAX_CONTENT_LENGTH.
+        return render_template("errors/413.html"), 413
+
+    @app.errorhandler(429)
+    def too_many_requests(_):
+        # SEC-4 (PHASE 29): Flask-Limiter's default 429; also fired
+        # from /auth/login when the per-email lockout kicks in.
+        return render_template("errors/429.html"), 429
+
     # PHASE 10 (YAS-ACC-1): expose the invoice→JE reverse-lookup helper
     # as a jinja global so any invoice-like template can pull the JE
     # without route glue.
