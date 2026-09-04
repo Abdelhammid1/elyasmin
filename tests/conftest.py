@@ -77,6 +77,15 @@ def app():
     # auth decorator's behavior. CSRF is still enforced in dev/prod
     # via the same config flag defaulting to True.
     a.config["WTF_CSRF_ENABLED"] = False
+    # PHASE 29 (SEC-4): disable rate-limiting by default in tests —
+    # admin_client and viewer_client hammer /auth/login in tight
+    # fixture loops. `RATELIMIT_ENABLED` alone isn't enough (Flask-
+    # Limiter 3.x still records the hit before consulting it), so
+    # also flip the instance property. `test_rate_limit` re-enables
+    # both locally.
+    a.config["RATELIMIT_ENABLED"] = False
+    from app.extensions import limiter as _limiter
+    _limiter.enabled = False
     _seed_missing_entities(a)
     return a
 

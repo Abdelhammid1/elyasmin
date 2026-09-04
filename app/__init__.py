@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template
 
 from config import configs
-from app.extensions import csrf, db, login_manager, migrate
+from app.extensions import csrf, db, limiter, login_manager, migrate
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -18,6 +18,7 @@ def create_app(config_name: str | None = None) -> Flask:
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)  # SEC-4 (PHASE 29)
 
     from app.models import auth as _auth_models  # noqa: F401
     from app.models import herd as _herd_models  # noqa: F401
