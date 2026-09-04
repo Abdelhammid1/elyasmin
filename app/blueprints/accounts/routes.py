@@ -10,6 +10,7 @@ from app.forms.finance import AccountForm, AccountTransferForm
 from app.models.finance import TreasuryAccount
 from app.utils import accounts as acc
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("accounts", __name__, template_folder="../../templates/accounts")
 
@@ -39,6 +40,7 @@ def list_accounts():
 
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_account():
     form = AccountForm()
     if form.validate_on_submit():
@@ -97,6 +99,7 @@ def create_account():
 
 @bp.route("/<int:account_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_account(account_id: int):
     account = db.session.get(TreasuryAccount, account_id)
     if not account or account.is_archived:
@@ -137,6 +140,7 @@ def edit_account(account_id: int):
 
 @bp.route("/<int:account_id>/archive", methods=["POST"])
 @login_required
+@write_required
 def archive_account(account_id: int):
     account = db.session.get(TreasuryAccount, account_id)
     if not account or account.is_archived:
@@ -179,6 +183,7 @@ def statement(account_id: int):
 
 @bp.route("/transfer", methods=["GET", "POST"])
 @login_required
+@write_required
 def transfer():
     form = AccountTransferForm()
     choices = _account_choices()

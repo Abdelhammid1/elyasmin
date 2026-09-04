@@ -11,6 +11,7 @@ from app.models.suppliers import PurchaseInvoice, PurchaseInvoiceCharge, Purchas
 from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.units import per_base_price, to_base
+from app.utils.decorators import write_required
 
 bp = Blueprint("purchases", __name__, template_folder="../../templates/purchases")
 
@@ -109,6 +110,7 @@ def list_invoices():
 
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_invoice():
     form = PurchaseInvoiceForm()
     form.account_id.choices = [(0, "— اختار الحساب —")] + acc.active_choices()
@@ -641,6 +643,7 @@ def invoice_pdf(invoice_id: int):
 
 @bp.route("/<int:invoice_id>/pay", methods=["POST"])
 @login_required
+@write_required
 def pay_invoice(invoice_id: int):
     """YAS-UX-4: pay this specific invoice from a modal on its own
     page. Creates a SupplierPayment + one Allocation for this invoice,
@@ -743,6 +746,7 @@ def pay_invoice(invoice_id: int):
 
 @bp.route("/<int:invoice_id>/delete", methods=["POST"])
 @login_required
+@write_required
 def delete_invoice(invoice_id: int):
     """YAS-UX-2: soft-delete a purchase invoice.
 

@@ -11,6 +11,7 @@ from app.models.finance import Setting
 from app.models.sales import Customer, DailyProduction, MilkDelivery, MilkInvoice
 from app.utils.reports import excel_response
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("milk", __name__, template_folder="../../templates/milk")
 
@@ -198,6 +199,7 @@ def _apply_form(delivery, form, customer, *, unpriced: bool) -> bool:
 
 @bp.route("/deliveries/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_delivery():
     form = MilkDeliveryForm()
     customers = (
@@ -248,6 +250,7 @@ def create_delivery():
 
 @bp.route("/deliveries/<int:delivery_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_delivery(delivery_id: int):
     """TICKET-4: add or correct a delivery's price after the fact."""
     delivery = db.session.get(MilkDelivery, delivery_id)
@@ -332,6 +335,7 @@ def edit_delivery(delivery_id: int):
 # ---------- US-4.4 Daily production ----------
 @bp.route("/production", methods=["GET", "POST"])
 @login_required
+@write_required
 def daily_production():
     day_str = request.args.get("day")
     day = date.fromisoformat(day_str) if day_str else date.today()
@@ -469,6 +473,7 @@ def list_invoices():
 
 @bp.route("/invoices/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_invoice():
     """Consolidator: pick customer + period, generate an invoice linking all
     matching deliveries. Existing invoiced deliveries are excluded."""
@@ -571,6 +576,7 @@ def view_invoice(invoice_id: int):
 
 @bp.route("/invoices/<int:invoice_id>/collect", methods=["POST"])
 @login_required
+@write_required
 def collect_invoice(invoice_id: int):
     """YAS-UX-4: collect payment for a specific milk invoice from a modal
     on its own page. Mirror of `purchases.pay_invoice`."""
@@ -660,6 +666,7 @@ def collect_invoice(invoice_id: int):
 
 @bp.route("/invoices/<int:invoice_id>/delete", methods=["POST"])
 @login_required
+@write_required
 def delete_invoice(invoice_id: int):
     """YAS-UX-2: soft-delete a milk invoice. Reverses the JE, unlinks
     the deliveries (they stop being invoice-bound), archives the row.
@@ -847,6 +854,7 @@ def invoice_pdf(invoice_id: int):
 
 @bp.route("/invoices/<int:invoice_id>/issue", methods=["POST"])
 @login_required
+@write_required
 def issue_invoice(invoice_id: int):
     invoice = db.session.get(MilkInvoice, invoice_id)
     if not invoice or invoice.is_archived:

@@ -13,6 +13,7 @@ from app.models.suppliers import PurchaseInvoice, Supplier, SupplierPayment
 from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.reports import excel_response
+from app.utils.decorators import write_required
 
 bp = Blueprint("suppliers", __name__, template_folder="../../templates/suppliers")
 
@@ -74,6 +75,7 @@ def _customer_link_choices():
 
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_supplier():
     form = SupplierForm()
     form.linked_customer_id.choices = _customer_link_choices()
@@ -177,6 +179,7 @@ def supplier_detail(supplier_id: int):
 
 @bp.route("/<int:supplier_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_supplier(supplier_id: int):
     supplier = db.session.get(Supplier, supplier_id)
     if not supplier or supplier.is_archived:
@@ -230,6 +233,7 @@ def edit_supplier(supplier_id: int):
 # ---------- US-3.3 Supplier payment ----------
 @bp.route("/<int:supplier_id>/pay", methods=["POST"])
 @login_required
+@write_required
 def record_payment(supplier_id: int):
     supplier = db.session.get(Supplier, supplier_id)
     if not supplier or supplier.is_archived:

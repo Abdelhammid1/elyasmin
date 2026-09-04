@@ -27,6 +27,7 @@ from app.services.statements import (
     balance_sheet, cash_flow, income_statement, milk_cost_by_group,
 )
 from app.utils.reports import excel_response, pdf_from_current_page
+from app.utils.decorators import write_required
 
 bp = Blueprint("accounting", __name__, template_folder="../../templates/accounting")
 
@@ -351,6 +352,7 @@ def _admin_only():
 
 @bp.route("/journal/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def journal_new():
     _admin_only()
     from decimal import Decimal, InvalidOperation
@@ -439,6 +441,7 @@ def journal_new():
 
 @bp.route("/journal/<int:entry_id>/reverse", methods=["POST"])
 @login_required
+@write_required
 def journal_reverse(entry_id):
     _admin_only()
     from flask import flash
@@ -484,6 +487,7 @@ def journal_reverse(entry_id):
 
 @bp.route("/journal/<int:entry_id>/pause", methods=["POST"])
 @login_required
+@write_required
 def journal_pause(entry_id):
     _admin_only()
     from datetime import datetime
@@ -508,6 +512,7 @@ def journal_pause(entry_id):
 
 @bp.route("/journal/<int:entry_id>/reactivate", methods=["POST"])
 @login_required
+@write_required
 def journal_reactivate(entry_id):
     _admin_only()
     from datetime import datetime

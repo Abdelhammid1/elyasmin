@@ -18,6 +18,7 @@ from app.services import autoposting
 from app.services.ledger import LedgerError
 from app.utils import accounts as acc
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("returns", __name__, template_folder="../../templates/returns")
 
@@ -85,6 +86,7 @@ def sales_list():
 
 @bp.route("/sales/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def sales_new():
     form = SalesReturnForm()
     form.customer_id.choices = [
@@ -144,6 +146,7 @@ def sales_detail(ret_id):
 
 @bp.route("/sales/<int:ret_id>/archive", methods=["POST"])
 @login_required
+@write_required
 def sales_archive(ret_id):
     if not current_user.is_admin:
         abort(403)
@@ -193,6 +196,7 @@ def purchases_list():
 
 @bp.route("/purchases/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def purchases_new():
     form = PurchaseReturnForm()
     form.supplier_id.choices = [
@@ -281,6 +285,7 @@ def purchases_detail(ret_id):
 
 @bp.route("/purchases/<int:ret_id>/archive", methods=["POST"])
 @login_required
+@write_required
 def purchases_archive(ret_id):
     if not current_user.is_admin:
         abort(403)

@@ -15,7 +15,7 @@ from app.models.finance import TreasuryAccount, Expense
 from app.models.labor import Attendance, LeaveRequest, Worker, WorkerPayment
 from app.utils import accounts as acc
 from app.utils.audit import log_action
-from app.utils.decorators import admin_required
+from app.utils.decorators import admin_required, write_required
 from app.utils.reports import excel_response
 
 bp = Blueprint("labor", __name__, template_folder="../../templates/labor")
@@ -30,6 +30,7 @@ def list_workers():
 
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_worker():
     form = WorkerForm()
     if form.validate_on_submit():
@@ -113,6 +114,7 @@ def worker_detail(worker_id: int):
 
 @bp.route("/<int:worker_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_worker(worker_id: int):
     worker = db.session.get(Worker, worker_id)
     if not worker or worker.is_archived:
@@ -134,6 +136,7 @@ def edit_worker(worker_id: int):
 # ---------- Daily attendance grid ----------
 @bp.route("/attendance", methods=["GET", "POST"])
 @login_required
+@write_required
 def daily_attendance():
     day_str = request.args.get("day")
     day = date.fromisoformat(day_str) if day_str else date.today()
@@ -260,6 +263,7 @@ def report_excel():
 
 @bp.route("/<int:worker_id>/pay", methods=["POST"])
 @login_required
+@write_required
 def record_payment(worker_id: int):
     worker = db.session.get(Worker, worker_id)
     if not worker or worker.is_archived:
@@ -332,6 +336,7 @@ def _leave_or_404(leave_id: int) -> LeaveRequest:
 
 @bp.route("/<int:worker_id>/leaves/new", methods=["POST"])
 @login_required
+@write_required
 def submit_leave(worker_id: int):
     """Any logged-in user can submit a leave request on behalf of a worker.
     Approvals are admin-only (see below)."""

@@ -24,6 +24,7 @@ from app.services import checks as checks_service
 from app.services.ledger import LedgerError
 from app.utils import accounts as acc
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("checks", __name__, template_folder="../../templates/checks")
 
@@ -82,6 +83,7 @@ def received_list():
 
 @bp.route("/received/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def received_new():
     form = ReceivedCheckForm()
     form.customer_id.choices = [
@@ -148,6 +150,7 @@ def received_detail(check_id):
 
 @bp.route("/received/<int:check_id>/clear", methods=["POST"])
 @login_required
+@write_required
 def received_clear(check_id):
     chk = db.session.get(Check, check_id)
     if chk is None or chk.direction != Check.DIRECTION_RECEIVED:
@@ -182,6 +185,7 @@ def received_clear(check_id):
 
 @bp.route("/received/<int:check_id>/bounce", methods=["POST"])
 @login_required
+@write_required
 def received_bounce(check_id):
     chk = db.session.get(Check, check_id)
     if chk is None or chk.direction != Check.DIRECTION_RECEIVED:
@@ -222,6 +226,7 @@ def issued_list():
 
 @bp.route("/issued/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def issued_new():
     form = IssuedCheckForm()
     form.supplier_id.choices = [
@@ -287,6 +292,7 @@ def issued_detail(check_id):
 
 @bp.route("/issued/<int:check_id>/settle", methods=["POST"])
 @login_required
+@write_required
 def issued_settle(check_id):
     chk = db.session.get(Check, check_id)
     if chk is None or chk.direction != Check.DIRECTION_ISSUED:
@@ -321,6 +327,7 @@ def issued_settle(check_id):
 
 @bp.route("/issued/<int:check_id>/bounce", methods=["POST"])
 @login_required
+@write_required
 def issued_bounce(check_id):
     chk = db.session.get(Check, check_id)
     if chk is None or chk.direction != Check.DIRECTION_ISSUED:
@@ -351,6 +358,7 @@ def issued_bounce(check_id):
 
 @bp.route("/<int:check_id>/void", methods=["POST"])
 @login_required
+@write_required
 def void(check_id):
     if not current_user.is_admin:
         abort(403)

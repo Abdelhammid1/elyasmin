@@ -13,6 +13,7 @@ from app.models.suppliers import Supplier
 from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.reports import excel_response, pdf_from_current_page
+from app.utils.decorators import write_required
 
 bp = Blueprint("customers", __name__, template_folder="../../templates/customers")
 
@@ -82,6 +83,7 @@ def _supplier_link_choices():
 
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_customer():
     form = CustomerForm()
     form.linked_supplier_id.choices = _supplier_link_choices()
@@ -208,6 +210,7 @@ def customer_detail(customer_id: int):
 
 @bp.route("/<int:customer_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_customer(customer_id: int):
     customer = db.session.get(Customer, customer_id)
     if not customer or customer.is_archived:
@@ -252,6 +255,7 @@ def edit_customer(customer_id: int):
 # ---------- US-4.3 Weekly settlement / payments ----------
 @bp.route("/<int:customer_id>/pay", methods=["POST"])
 @login_required
+@write_required
 def record_payment(customer_id: int):
     customer = db.session.get(Customer, customer_id)
     if not customer or customer.is_archived:
@@ -524,6 +528,7 @@ def customers_report_pdf():
 
 @bp.route("/generate-weekly-invoices", methods=["POST"])
 @login_required
+@write_required
 def generate_weekly_invoices():
     """Admin action — for every weekly-contract customer, gather every
     priced un-invoiced delivery from the past 7 days into ONE draft

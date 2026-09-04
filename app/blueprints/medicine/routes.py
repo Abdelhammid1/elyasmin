@@ -9,6 +9,7 @@ from app.models.feed import MedicineDispense
 from app.models.herd import CattleGroup, Cow
 from app.models.inventory import Ingredient, StockMovement
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("medicine", __name__, template_folder="../../templates/medicine")
 
@@ -68,6 +69,7 @@ def list_dispenses():
 
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_dispense():
     form = MedicineDispenseForm()
     med_choices, _meds = _medicine_choices()

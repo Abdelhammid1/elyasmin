@@ -20,6 +20,7 @@ from app.models.herd import CattleGroup
 from app.models.inventory import Ingredient, StockMovement
 from app.utils import feed_tank
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("feed", __name__, template_folder="../../templates/feed")
 
@@ -62,6 +63,7 @@ def list_recipes():
 
 @bp.route("/recipes/<int:group_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_recipe(group_id: int):
     group = db.session.get(CattleGroup, group_id)
     if not group or group.is_archived:
@@ -276,6 +278,7 @@ def _recipes_preview_json():
 
 @bp.route("/runs/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_run():
     import json
     form = FeedRunForm()
@@ -529,6 +532,7 @@ def list_feedings():
 @bp.route("/feeding/new", methods=["GET", "POST"])
 @bp.route("/feeding/new/<int:group_id>", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_feeding(group_id=None):
     """Record one meal: feed drawn from the group tank + additions from stores.
 
@@ -675,6 +679,7 @@ def create_feeding(group_id=None):
 
 @bp.route("/feeding/allowances/<int:group_id>", methods=["GET", "POST"])
 @login_required
+@write_required
 def group_allowances(group_id: int):
     """TICKET-3: pick which raw materials may be added to this group."""
     group = db.session.get(CattleGroup, group_id)
@@ -736,6 +741,7 @@ def tank_statement(group_id: int):
 # ---------- US-2.2 BR1+BR2: edit feed run ----------
 @bp.route("/runs/<int:run_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_run(run_id: int):
     from datetime import date as _date
 
