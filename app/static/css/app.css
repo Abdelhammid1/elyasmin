@@ -8,7 +8,7 @@ body {
   font-family: var(--ms-font-sans);
   background: var(--neutral-bg);
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: 12.5px;
   line-height: 1.55;
 }
 
@@ -1292,3 +1292,64 @@ table.inv-items tbody tr.outstanding-row td {
   color: #71787e;
   font-size: 10.5px;
 }
+
+/* ══════════════════════════════════════════════════════════
+   SIDEBAR COLLAPSE — full-width toggle (not the per-section
+   <details> collapse, which stays independent).
+   ══════════════════════════════════════════════════════════ */
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sidebar-brand-row .sidebar-brand { flex: 1; min-width: 0; }
+.sidebar-toggle-btn {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  margin-inline-end: 0.6rem;
+  border: none;
+  border-radius: 8px;
+  background: #eff4ff;
+  color: #40484d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar-toggle-btn:hover { background: #dce9ff; color: #004863; }
+
+/* Collapsed state, toggled by JS adding this class to <body> */
+body.sidebar-collapsed .app-sidebar {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-inline-end: none;
+}
+body.sidebar-collapsed .app-main {
+  margin-inline-start: 0;
+}
+/* A small floating re-open button appears when collapsed, fixed to
+   the edge, so the user isn't stuck once the sidebar disappears. */
+.sidebar-reopen-btn {
+  display: none;
+  position: fixed;
+  /* Moved from top-right (collided with every page's own header/title)
+     to a small tab hugging the middle of the right screen edge — a
+     position no page content ever occupies. */
+  top: 50%;
+  transform: translateY(-50%);
+  inset-inline-start: 0;
+  z-index: 50;
+  width: 22px; height: 56px;
+  border: none;
+  border-radius: 10px 0 0 10px;
+  background: #ffffff;
+  box-shadow: -1px 1px 8px rgba(0,0,0,0.1);
+  color: #40484d;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.sidebar-reopen-btn:hover { background: #eff4ff; color: #004863; }
+body.sidebar-collapsed .sidebar-reopen-btn { display: flex; }

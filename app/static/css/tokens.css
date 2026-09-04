@@ -44,10 +44,11 @@
   /* ---- Surfaces ---- */
   --ms-surface:        #ffffff;
   --ms-surface-soft:   #f8fafc;
-  --ms-bg:             #f4f5f7;
-  /* Flattened — almustashar-style calm, uniform light-grey ground.
-     No gradient, no brand tint bleeding into the page background. */
-  --ms-app-bg:         #f4f5f7;
+  /* Matched exactly to the dashboard pilot's #f8f9ff (M3 "surface")
+     so the whole app sits on the same background, not just the
+     dashboard's #dash-root scope. */
+  --ms-bg:             #f8f9ff;
+  --ms-app-bg:         #f8f9ff;
 
   /* ---- Lines ---- */
   --ms-line:           #e5e7eb;
@@ -69,12 +70,14 @@
      fails to load (same defense as the Material Symbols lesson). */
   --ms-font-sans:      "Plus Jakarta Sans", "Noto Sans Arabic", "Tajawal", "Cairo", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --ms-font-mono:      ui-monospace, "SF Mono", Menlo, monospace;
-  --ms-fs-xs:          11.5px;
-  --ms-fs-sm:          12.5px;
-  --ms-fs-base:        13.5px;
-  --ms-fs-lg:          15px;
-  --ms-fs-xl:          18px;
-  --ms-fs-h1:          22px;
+  /* Site-wide ~90% scale-down (matches the dashboard's zoomed-out
+     feel) — same reasoning as Tailwind's fontSize pass in base.html. */
+  --ms-fs-xs:          10px;
+  --ms-fs-sm:          11px;
+  --ms-fs-base:        12px;
+  --ms-fs-lg:          13px;
+  --ms-fs-xl:          16px;
+  --ms-fs-h1:          19px;
 
   /* ---- Shell measurements ---- */
   --sidebar-w:         264px;

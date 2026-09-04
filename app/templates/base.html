@@ -132,14 +132,25 @@
        herd → violet     feed → teal        sales → info
        inventory → amber daily → ink-2      finance → brand
        accounting → ink-3 reports → success admin → danger #}
+  <button type="button" id="sidebarReopenBtn" class="sidebar-reopen-btn"
+          title="فتح القائمة الجانبية" aria-label="فتح القائمة الجانبية">
+    <i class="bi bi-layout-sidebar-inset-reverse"></i>
+  </button>
+
   <aside class="app-sidebar" id="appSidebar">
-    <a href="{{ url_for('dashboard.index') }}" class="sidebar-brand">
-      <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}">
-      <div>
-        <div class="brand-title">{{ app_name }}</div>
-        <div class="brand-sub">نظام إدارة المزرعة</div>
-      </div>
-    </a>
+    <div class="sidebar-brand-row">
+      <a href="{{ url_for('dashboard.index') }}" class="sidebar-brand">
+        <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}">
+        <div>
+          <div class="brand-title">{{ app_name }}</div>
+          <div class="brand-sub">نظام إدارة المزرعة</div>
+        </div>
+      </a>
+      <button type="button" id="sidebarToggleBtn" class="sidebar-toggle-btn"
+              title="طي/فتح القائمة الجانبية" aria-label="طي القائمة الجانبية">
+        <i class="bi bi-layout-sidebar-inset"></i>
+      </button>
+    </div>
 
     {# M3 REWRITE: operational-site chip — a fixed label since this farm
        has a single site (no multi-branch concept in the data model),
@@ -425,6 +436,35 @@
     var side = document.getElementById('appSidebar');
     if (btn && side) {
       btn.addEventListener('click', function () { side.classList.toggle('is-open'); });
+    }
+  })();
+
+  // Full sidebar collapse (desktop) — toggles body.sidebar-collapsed,
+  // remembered in localStorage so it survives navigation/refresh.
+  (function () {
+    var STORAGE_KEY = 'ms-sidebar-collapsed';
+    var toggleBtn = document.getElementById('sidebarToggleBtn');
+    var reopenBtn = document.getElementById('sidebarReopenBtn');
+
+    function setCollapsed(collapsed) {
+      document.body.classList.toggle('sidebar-collapsed', collapsed);
+      try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch (e) {}
+    }
+
+    // Restore saved state on load.
+    try {
+      if (localStorage.getItem(STORAGE_KEY) === '1') {
+        document.body.classList.add('sidebar-collapsed');
+      }
+    } catch (e) {}
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        setCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+      });
+    }
+    if (reopenBtn) {
+      reopenBtn.addEventListener('click', function () { setCollapsed(false); });
     }
   })();
 </script>
