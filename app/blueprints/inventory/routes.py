@@ -8,6 +8,7 @@ from app.extensions import db
 from app.forms.inventory import CATEGORY_CHOICES, IngredientForm, StockAdjustForm
 from app.models.inventory import Ingredient, IngredientUnit, StockMovement
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 
 def _parse_alt_units(form_data):
@@ -135,6 +136,7 @@ def list_ingredients():
 
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_ingredient():
     form = IngredientForm()
     form.category.choices = _category_choices()  # TICKET-2
@@ -240,6 +242,7 @@ def ingredient_detail(ingredient_id: int):
 
 @bp.route("/<int:ingredient_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_ingredient(ingredient_id: int):
     ing = db.session.get(Ingredient, ingredient_id)
     if not ing or ing.is_archived:
@@ -302,6 +305,7 @@ def edit_ingredient(ingredient_id: int):
 
 @bp.route("/<int:ingredient_id>/adjust", methods=["POST"])
 @login_required
+@write_required
 def adjust_stock(ingredient_id: int):
     ing = db.session.get(Ingredient, ingredient_id)
     if not ing or ing.is_archived:
@@ -414,6 +418,7 @@ def valuation():
 
 @bp.route("/valuation/post-openings", methods=["POST"])
 @login_required
+@write_required
 def post_missing_openings():
     """Admin-only bulk-post opening JEs for every ingredient with stock
     on hand and no existing opening entry. Idempotent — clicking twice

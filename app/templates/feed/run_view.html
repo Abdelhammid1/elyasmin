@@ -11,7 +11,9 @@
     </p>
   </div>
   <div class="d-flex gap-2">
+    {% if can_write %}
     <a href="{{ url_for('feed.edit_run', run_id=run.id) }}" class="btn btn-outline-warning"><i class="bi bi-pencil"></i> تعديل</a>
+    {% endif %}
     <a href="{{ url_for('feed.list_runs') }}" class="btn btn-outline-secondary"><i class="bi bi-list-ul"></i> كل التشغيلات</a>
   </div>
 </div>

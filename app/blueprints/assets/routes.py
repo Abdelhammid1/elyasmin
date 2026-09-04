@@ -15,6 +15,7 @@ from app.services import assets as svc
 from app.services.ledger import LedgerError
 from app.utils import accounts as acc
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("assets", __name__, template_folder="../../templates/assets")
 
@@ -72,6 +73,7 @@ def list_assets():
 # ---------- new (purchase) ----------
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def new_asset():
     form = FixedAssetForm()
     _load_choices(form)
@@ -145,6 +147,7 @@ def asset_detail(asset_id):
 # ---------- post monthly depreciation (one asset) ----------
 @bp.route("/<int:asset_id>/post-depreciation", methods=["POST"])
 @login_required
+@write_required
 def post_depreciation(asset_id):
     asset = db.session.get(FixedAsset, asset_id)
     if asset is None:
@@ -179,6 +182,7 @@ def post_depreciation(asset_id):
 # ---------- bulk-post depreciation for a month ----------
 @bp.route("/post-monthly", methods=["POST"])
 @login_required
+@write_required
 def post_monthly_all():
     if not current_user.is_admin:
         abort(403)
@@ -220,6 +224,7 @@ def post_monthly_all():
 # ---------- dispose (admin only) ----------
 @bp.route("/<int:asset_id>/dispose", methods=["POST"])
 @login_required
+@write_required
 def dispose(asset_id):
     if not current_user.is_admin:
         abort(403)

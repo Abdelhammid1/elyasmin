@@ -89,6 +89,7 @@
     {% if asset.status == 'active' and not asset.is_fully_depreciated %}
     <div class="card p-3 mb-3">
       <h5 class="mb-3"><i class="bi bi-journal-plus text-primary"></i> ترحيل إهلاك شهر</h5>
+      {% if can_write %}
       <form method="post" action="{{ url_for('assets.post_depreciation', asset_id=asset.id) }}">
         {{ dispose_form.hidden_tag() }}
         <div class="mb-3">
@@ -100,6 +101,7 @@
           <i class="bi bi-check-lg"></i> ترحيل الإهلاك
         </button>
       </form>
+      {% endif %}
     </div>
     {% endif %}
 

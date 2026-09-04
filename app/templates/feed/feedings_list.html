@@ -14,9 +14,11 @@
       <input type="date" name="day" value="{{ day.isoformat() }}" class="form-control form-control-sm" dir="ltr">
       <button class="btn btn-sm btn-outline-secondary">عرض</button>
     </form>
+    {% if can_write %}
     <a href="{{ url_for('feed.create_feeding') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> تسجيل تغذية
     </a>
+    {% endif %}
   </div>
 </div>
 
@@ -59,9 +61,11 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش تغذية مسجّلة لليوم ده.</p>
+    {% if can_write %}
     <a href="{{ url_for('feed.create_feeding') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> تسجيل تغذية
     </a>
+    {% endif %}
   </div>
 </div>
 {% endif %}

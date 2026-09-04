@@ -10,7 +10,9 @@
       إجمالي الوزن: <span dir="ltr">{{ total_weight }}</span> kg
     </p>
   </div>
+  {% if can_write %}
   <a href="{{ url_for('feed.create_run') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> تشغيل جديد</a>
+  {% endif %}
 </div>
 
 <div class="card p-3 mb-3">
@@ -76,7 +78,9 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش تشغيلات في الفترة دي.</p>
+    {% if can_write %}
     <a href="{{ url_for('feed.create_run') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> تشغيل جديد</a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

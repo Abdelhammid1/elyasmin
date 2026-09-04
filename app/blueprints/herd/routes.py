@@ -24,6 +24,7 @@ from app.models.herd import (
     Death,
 )
 from app.utils.audit import log_action
+from app.utils.decorators import write_required
 
 bp = Blueprint("herd", __name__, template_folder="../../templates/herd")
 
@@ -79,6 +80,7 @@ def groups():
 
 @bp.route("/groups/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_group():
     form = GroupForm()
     if form.validate_on_submit():
@@ -105,6 +107,7 @@ def create_group():
 
 @bp.route("/groups/<int:group_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_group(group_id: int):
     group = db.session.get(CattleGroup, group_id)
     if not group or group.is_archived:
@@ -133,6 +136,7 @@ def edit_group(group_id: int):
 
 @bp.route("/groups/<int:group_id>/archive", methods=["POST"])
 @login_required
+@write_required
 def archive_group(group_id: int):
     group = db.session.get(CattleGroup, group_id)
     if not group or group.is_archived:
@@ -245,6 +249,7 @@ def cow_detail(cow_id: int):
 # ---------- US-1.3 Add cow ----------
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_cow():
     form = CowForm()
     form.group_id.choices = _group_choices()
@@ -300,6 +305,7 @@ def create_cow():
 # ---------- Edit cow (limited fields) ----------
 @bp.route("/<int:cow_id>/edit", methods=["GET", "POST"])
 @login_required
+@write_required
 def edit_cow(cow_id: int):
     cow = db.session.get(Cow, cow_id)
     if not cow or cow.is_archived:
@@ -363,6 +369,7 @@ def edit_cow(cow_id: int):
 # ---------- US-1.4 Move cow between groups ----------
 @bp.route("/<int:cow_id>/move", methods=["GET", "POST"])
 @login_required
+@write_required
 def move_cow(cow_id: int):
     cow = db.session.get(Cow, cow_id)
     if not cow or cow.is_archived or cow.status != Cow.STATUS_ACTIVE:
@@ -403,6 +410,7 @@ def births():
 
 @bp.route("/births/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_birth():
     form = BirthForm()
     # Mothers = active female cows
@@ -544,6 +552,7 @@ def create_birth():
 # ---------- US-1.6 Death ----------
 @bp.route("/<int:cow_id>/death", methods=["GET", "POST"])
 @login_required
+@write_required
 def register_death(cow_id: int):
     cow = db.session.get(Cow, cow_id)
     if not cow or cow.status != Cow.STATUS_ACTIVE:
@@ -571,6 +580,7 @@ def register_death(cow_id: int):
 # ---------- US-1.7 Sale ----------
 @bp.route("/<int:cow_id>/sell", methods=["GET", "POST"])
 @login_required
+@write_required
 def sell_cow(cow_id: int):
     cow = db.session.get(Cow, cow_id)
     if not cow or cow.status != Cow.STATUS_ACTIVE:

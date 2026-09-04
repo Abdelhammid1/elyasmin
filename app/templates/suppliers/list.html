@@ -14,9 +14,11 @@
     <a href="{{ url_for('suppliers.dues') }}" class="btn btn-outline-warning">
       <i class="bi bi-alarm"></i> أعمار الديون
     </a>
+    {% if can_write %}
     <a href="{{ url_for('suppliers.create_supplier') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> إضافة مورد
     </a>
+    {% endif %}
   </div>
 </div>
 
@@ -113,8 +115,10 @@
             {% endif %}
             <a href="{{ url_for('suppliers.supplier_detail', supplier_id=s.id) }}"
                class="btn btn-sm btn-outline-primary" title="فتح"><i class="bi bi-eye"></i></a>
+            {% if can_write %}
             <a href="{{ url_for('suppliers.edit_supplier', supplier_id=s.id) }}"
                class="btn btn-sm btn-outline-secondary" title="تعديل"><i class="bi bi-pencil"></i></a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -125,9 +129,11 @@
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
     <p class="mt-3">مفيش نتائج — جرّب تشيل الفلاتر أو ابحث بكلمة تانية.</p>
+    {% if can_write %}
     <a href="{{ url_for('suppliers.create_supplier') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> إضافة أول مورد
     </a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

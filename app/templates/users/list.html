@@ -3,7 +3,9 @@
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
   <h1><i class="bi bi-people"></i> المستخدمون</h1>
+  {% if can_write %}
   <a href="{{ url_for('users.create_user') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> إضافة مستخدم</a>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -33,13 +35,17 @@
           </td>
           <td>{{ user.last_login_at.strftime("%Y-%m-%d %H:%M") if user.last_login_at else "—" }}</td>
           <td class="text-end">
+            {% if can_write %}
             <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+            {% endif %}
             {% if not user.is_first_admin and user.id != current_user.id %}
+            {% if can_write %}
             <form method="post" action="{{ url_for('users.delete_user', user_id=user.id) }}" class="d-inline"
                   onsubmit="return confirm('متأكد إنك عايز تأرشف المستخدم ده؟')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-archive"></i></button>
             </form>
+            {% endif %}
             {% endif %}
           </td>
         </tr>

@@ -6,9 +6,11 @@
     <h1><i class="bi bi-arrow-down-circle text-success"></i> شيكات واردة</h1>
     <p class="text-muted mb-0">من <span dir="ltr">{{ date_from }}</span> إلى <span dir="ltr">{{ date_to }}</span> — استحقاق الشيك</p>
   </div>
+  {% if can_write %}
   <a href="{{ url_for('checks.received_new') }}" class="btn btn-primary">
     <i class="bi bi-plus-lg"></i> شيك وارد جديد
   </a>
+  {% endif %}
 </div>
 
 <div class="card p-3 mb-3">

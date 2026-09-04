@@ -20,7 +20,7 @@ from flask_login import current_user, login_required
 from app.extensions import db
 from app.models.assistant import AIUsageLog
 from app.services.ai_client import get_deepseek_client
-from app.utils.decorators import admin_required
+from app.utils.decorators import admin_required, write_required
 
 bp = Blueprint("assistant", __name__, template_folder="../../templates/assistant")
 
@@ -98,6 +98,7 @@ def _log(success: bool, *, tokens_in=0, tokens_out=0, cost=Decimal("0"), error=N
 
 @bp.route("/ask", methods=["POST"])
 @login_required
+@write_required
 def ask():
     data = request.get_json(silent=True) or {}
     message = (data.get("message") or "").strip()

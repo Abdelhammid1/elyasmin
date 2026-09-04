@@ -18,7 +18,7 @@ from app.models.herd import AnimalSale, CattleGroup
 from app.models.sales import MilkDelivery
 from app.utils import accounts as acc
 from app.utils.audit import log_action
-from app.utils.decorators import admin_required
+from app.utils.decorators import admin_required, write_required
 from app.utils.reports import excel_response, pdf_from_current_page
 
 bp = Blueprint("finance", __name__, template_folder="../../templates/finance")
@@ -194,6 +194,7 @@ def list_expenses():
 
 @bp.route("/expenses/new", methods=["GET", "POST"])
 @login_required
+@write_required
 def create_expense():
     form = ExpenseForm()
     form.account_id.choices = acc.active_choices()
