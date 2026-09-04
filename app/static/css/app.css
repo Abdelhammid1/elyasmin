@@ -1215,3 +1215,80 @@ table.inv-items tbody tr.outstanding-row td {
    chev has order:1 already (see earlier rule); badge sits order:2,
    so both land after dot+label, chevron innermost-left, badge just
    before it. */
+
+/* ══════════════════════════════════════════════════════════
+   M3 GLOBAL LIST-PAGE PRIMITIVES — applies to every list/detail
+   page in the app (page-header, card, stat-card, chip, filter-row,
+   table) since they all share these classes already. Same approach
+   as the sidebar: one edit here, every page picks it up.
+   ══════════════════════════════════════════════════════════ */
+.page-header {
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #eff4ff;
+}
+.page-header h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0b1c30;
+  font-family: "Plus Jakarta Sans", "Noto Sans Arabic", var(--ms-font-sans);
+}
+.page-header p {
+  color: #40484d;
+  font-size: 0.78rem;
+}
+
+.card {
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  background: #ffffff;
+}
+
+.stat-card {
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  transition: box-shadow 0.15s ease;
+}
+.stat-card:hover {
+  border-color: transparent;
+  transform: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.stat-card .stat-label {
+  color: #40484d;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.stat-card .stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0b1c30;
+  font-family: "Plus Jakarta Sans", "Noto Sans Arabic", var(--ms-font-sans);
+}
+
+.table thead {
+  background: #eff4ff;
+  color: #40484d;
+}
+.table {
+  --bs-table-hover-bg: #eff4ff;
+}
+
+.chip {
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 9px;
+}
+
+.filter-row {
+  background: #eff4ff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.filter-row label {
+  color: #71787e;
+  font-size: 10.5px;
+}
