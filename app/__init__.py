@@ -160,6 +160,24 @@ def create_app(config_name: str | None = None) -> Flask:
             status=LeaveRequest.STATUS_PENDING).count()
         return {"pending_leaves_total": n}
 
+    @app.context_processor
+    def inject_sidebar_badges():
+        """M3 sidebar redesign: small real-count badges next to a couple
+        of nav sections (herd size, active suppliers), matching the
+        reference design's badge pattern. Same cheap-COUNT-per-request
+        style as inject_pending_leaves above — no new query pattern."""
+        from flask_login import current_user
+        if not getattr(current_user, "is_authenticated", False):
+            return {"herd_badge_count": 0, "suppliers_badge_count": 0}
+        from app.models.herd import Cow
+        from app.models.suppliers import Supplier
+        herd_count = Cow.query.filter_by(is_archived=False).count()
+        suppliers_count = Supplier.query.filter_by(is_archived=False).count()
+        return {
+            "herd_badge_count": herd_count,
+            "suppliers_badge_count": suppliers_count,
+        }
+
     @app.before_request
     def track_activity_and_timeout():
         """Enforce rolling inactivity timeout regardless of remember_me cookie.

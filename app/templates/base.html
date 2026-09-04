@@ -141,6 +141,17 @@
       </div>
     </a>
 
+    {# M3 REWRITE: operational-site chip — a fixed label since this farm
+       has a single site (no multi-branch concept in the data model),
+       unlike the M3 reference mockup's branch-picker. #}
+    <div class="sidebar-branch-chip">
+      <i class="bi bi-house-door"></i>
+      <div>
+        <div class="sidebar-branch-label">المقر</div>
+        <div class="sidebar-branch-name">مزرعة الياسمين — المقر الرئيسي</div>
+      </div>
+    </div>
+
     <nav class="sidebar-nav">
       <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('dashboard') %}active{% endif %}"
          data-section="overview"
@@ -162,6 +173,7 @@
       <details class="sidebar-section" data-section="herd">
         <summary class="sidebar-section-title" data-section="herd">
           <i class="bi bi-chevron-down chev"></i><span>القطيع</span>
+          {% if herd_badge_count %}<span class="sidebar-badge">{{ herd_badge_count }}</span>{% endif %}
         </summary>
         <div class="sidebar-section-body">
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('herd') and 'group' not in (request.endpoint or '') and 'birth' not in (request.endpoint or '') %}active{% endif %}"
@@ -225,6 +237,7 @@
       <details class="sidebar-section" data-section="inventory">
         <summary class="sidebar-section-title" data-section="inventory">
           <i class="bi bi-chevron-down chev"></i><span>المخزون والموردون</span>
+          {% if suppliers_badge_count %}<span class="sidebar-badge">{{ suppliers_badge_count }}</span>{% endif %}
         </summary>
         <div class="sidebar-section-body">
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('inventory') and 'valuation' not in request.endpoint %}active{% endif %}"

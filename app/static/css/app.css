@@ -1174,3 +1174,43 @@ table.inv-items tbody tr.outstanding-row td {
   color: #71787e;
 }
 .app-sidebar .site-footer .brand-link { color: #004863; }
+
+/* ══════════════════════════════════════════════════════════
+   M3 SIDEBAR — operational-site chip + section badges
+   ══════════════════════════════════════════════════════════ */
+.sidebar-branch-chip {
+  margin: 0.6rem 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  background: #eff4ff;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.sidebar-branch-chip i { color: #004863; font-size: 1rem; flex-shrink: 0; }
+.sidebar-branch-label {
+  font-size: 0.68rem;
+  color: #71787e;
+  font-weight: 600;
+}
+.sidebar-branch-name {
+  font-size: 0.78rem;
+  color: #0b1c30;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.sidebar-badge {
+  order: 2;
+  margin-inline-start: 4px;
+  background: #dae2fd;
+  color: #565e74;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+/* Keep the chevron pinned far-left even with the badge present:
+   chev has order:1 already (see earlier rule); badge sits order:2,
+   so both land after dot+label, chevron innermost-left, badge just
+   before it. */
