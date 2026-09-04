@@ -1,15 +1,11 @@
 """Public landing page — the front door for anyone who does not have an account.
 
-PHASE 26: replaced the old Jinja template with the React SPA from the
-`Abdelhammid1/landing-yasmin` repo. The Vite production bundle is
-checked into `app/static/landing/` with `base=/static/landing/` so all
-asset URLs already point where Flask will serve them.
-
+The `app/static/landing/index.html` file IS the page — a self-contained
+RTL Arabic static HTML (Tailwind via CDN, external fonts + images).
 Not `@login_required`: first-time visitors see what the system does
 before being asked to sign in.
 
-To update: re-run `scripts/rebuild_landing.sh` (documented) after the
-source repo is pushed to.
+To update the landing: replace `app/static/landing/index.html`.
 """
 from pathlib import Path
 
