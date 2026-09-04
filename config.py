@@ -59,6 +59,18 @@ class Config:
     # answering until someone raises it deliberately.
     AI_MONTHLY_BUDGET_USD = float(os.getenv("AI_MONTHLY_BUDGET_USD", "5.00"))
 
+    # ---------- SMTP (SEC-1) ----------
+    # Leave SMTP_HOST blank to log emails to the Flask console only —
+    # dev-friendly default. For Resend: smtp.resend.com : 587, user
+    # "resend", password = Resend API key.
+    SMTP_HOST     = os.getenv("SMTP_HOST", "")
+    SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER     = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM     = os.getenv("SMTP_FROM", "no-reply@elyasmin.manasety.ai")
+    SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "مزرعة الياسمين")
+    SMTP_USE_TLS  = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+
 
 class DevConfig(Config):
     DEBUG = True
