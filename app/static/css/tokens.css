@@ -55,7 +55,7 @@
   --ms-shadow-lg:      0 10px 30px rgba(15, 23, 42, 0.09);
 
   /* ---- Typography ---- */
-  --ms-font-sans:      "Cairo", "Tajawal", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ms-font-sans:      "Cairo", "Inter", "Tajawal", system-ui, -apple-system, "Segoe UI", sans-serif;
   --ms-font-mono:      ui-monospace, "SF Mono", Menlo, monospace;
   --ms-fs-xs:          11.5px;
   --ms-fs-sm:          12.5px;

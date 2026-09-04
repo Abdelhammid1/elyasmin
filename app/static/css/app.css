@@ -2,8 +2,10 @@
    tokens from tokens.css — hardcoded colours are avoided so a rebrand is
    one edit at the source, not fifty across the file. */
 
+/* PHASE 23: body inherits the token so Cairo is primary (matches marsoud).
+   Was: hard-coded "Tajawal","Cairo" (Tajawal first — the visual drift). */
 body {
-  font-family: "Tajawal", "Cairo", system-ui, sans-serif;
+  font-family: var(--ms-font-sans);
   background: var(--neutral-bg);
   color: var(--ink-2);
   font-size: 14px;
@@ -64,8 +66,30 @@ a:hover { color: var(--brand); text-decoration: underline; }
   padding: 0.5rem 0 1.5rem;
 }
 
-/* PHASE 17: section title carries a small colored dot before the label
-   (color picked from the [data-section] token map below). */
+/* PHASE 17 + 23: section title carries a small colored dot before the
+   label (color from [data-section]). PHASE 23 wraps every section in a
+   <details> so this title is now a <summary>; keep the same look but
+   add a chevron on the trailing side that rotates when open. */
+.sidebar-section { margin-bottom: 2px; }
+.sidebar-section > summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+.sidebar-section > summary::-webkit-details-marker { display: none; }
+.sidebar-section > summary:hover { background: var(--brand-tint); }
+.sidebar-section .chev {
+  margin-inline-start: auto;
+  font-size: 0.9rem !important;
+  color: var(--ms-ink-4) !important;
+  transition: transform 0.2s ease;
+  opacity: 0.7 !important;
+  width: auto !important;
+}
+.sidebar-section[open] .chev { transform: rotate(180deg); }
+.sidebar-section-body { padding-bottom: 4px; }
+
 .sidebar-section-title {
   position: relative;
   padding: 1rem 1.25rem 0.4rem 1.25rem;
