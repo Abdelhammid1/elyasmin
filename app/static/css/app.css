@@ -568,6 +568,177 @@ table th[dir="ltr"] {
 .invoice-footer-row.outstanding.due .amount { color: var(--ms-danger); }
 .invoice-footer-row.outstanding.settled .amount { color: var(--ms-success); }
 
+/* ============ PHASE 19: ON-SCREEN INVOICE DETAIL ============
+   2-col grid (main + right rail), navy hero at the top of the main
+   card, slim action bar, parties row, items-with-trailing-totals
+   table. Mirrors marsoud's invoices/view.html composition. */
+.inv-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1200px) {
+  .inv-grid { grid-template-columns: 1fr; }
+}
+
+.inv-main.card {
+  padding: 0;              /* the hero bleeds; everything else uses .inv-body padding */
+  overflow: hidden;
+  border-radius: var(--ms-radius-lg);
+}
+.inv-body { padding: 22px 26px; }
+
+/* -- Hero: dark navy gradient, bleeds to the card's top edge -- */
+.inv-hero {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+  padding: 22px 26px;
+  background: linear-gradient(135deg, #0A2540 0%, #143458 100%);
+  color: #fff;
+}
+.inv-hero .hero-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.inv-hero .hero-logo {
+  width: 56px; height: 56px; border-radius: 12px;
+  background: rgba(67, 185, 233, 0.16);
+  border: 1px solid rgba(67, 185, 233, 0.35);
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden;
+}
+.inv-hero .hero-logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.inv-hero .hero-name { font-size: 18px; font-weight: 800; color: #fff; margin: 0 0 3px; }
+.inv-hero .hero-meta { font-size: 12px; color: #B7C6D6; }
+.inv-hero .hero-r { text-align: end; }
+.inv-hero .hero-kind {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; color: #7FC5EA;
+}
+.inv-hero .hero-num {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 24px; font-weight: 800; color: #fff;
+  margin-top: 4px;
+}
+
+/* -- Action bar: slim, right-aligned, low-key -- */
+.inv-actions {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 8px; flex-wrap: wrap;
+  padding: 12px 26px;
+  border-bottom: 1px solid var(--ms-line);
+  background: var(--ms-surface-soft);
+}
+
+/* -- Parties: 2-col, no card walls -- */
+.inv-parties {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--ms-line);
+}
+.inv-parties .party-block { min-width: 0; }
+.inv-parties .party-block + .party-block {
+  padding-inline-start: 24px;
+  border-inline-start: 1px solid var(--ms-line);
+}
+.inv-parties .lbl {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ms-ink-4);
+  margin-bottom: 6px;
+}
+.inv-parties .party-block .name {
+  font-size: 15px; font-weight: 700; color: var(--ms-ink-1); margin-bottom: 4px;
+}
+.inv-parties .party-block .meta {
+  font-size: 12.5px; color: var(--ms-ink-3); line-height: 1.8;
+}
+.inv-parties .facts-list { list-style: none; padding: 0; margin: 0; }
+.inv-parties .facts-list li {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 3px 0; font-size: 12.5px; color: var(--ms-ink-2);
+}
+.inv-parties .facts-list li .k { color: var(--ms-ink-3); }
+
+/* -- Items table with trailing totals rows in the same tbody -- */
+.inv-items-wrap { padding: 22px 26px; }
+.inv-items-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.inv-items-head h5 { margin: 0; font-size: 14px; font-weight: 800; color: var(--ms-ink-1); }
+table.inv-items { width: 100%; border-collapse: collapse; }
+table.inv-items thead th {
+  background: var(--ms-surface-soft); color: var(--ms-ink-3);
+  font-weight: 700; font-size: 12px; text-align: right;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--ms-line);
+}
+table.inv-items thead th.text-end { text-align: end; }
+table.inv-items tbody td {
+  padding: 10px 12px; font-size: 13px; color: var(--ms-ink-2);
+  border-bottom: 1px solid var(--ms-line);
+}
+table.inv-items tbody tr:hover { background: var(--ms-surface-soft); }
+table.inv-items tbody .empty-row td {
+  text-align: center; color: var(--ms-ink-3); padding: 32px 12px;
+  background: var(--ms-surface-soft);
+}
+table.inv-items tbody .empty-row i { display: block; font-size: 32px; margin-bottom: 8px; opacity: 0.6; }
+table.inv-items .num { font-family: 'Courier New', ui-monospace, monospace; text-align: end; }
+/* Trailing totals rows */
+table.inv-items tbody tr.total-row td {
+  border-top: 2px solid var(--ms-ink-1); border-bottom: none;
+  font-weight: 800; color: var(--ms-ink-1); font-size: 15px; padding-top: 14px;
+}
+table.inv-items tbody tr.subtotal-row td,
+table.inv-items tbody tr.discount-row td,
+table.inv-items tbody tr.tax-row td {
+  border-bottom: none; color: var(--ms-ink-3); font-size: 12.5px;
+  padding-top: 8px; padding-bottom: 4px;
+}
+table.inv-items tbody tr.paid-row td   { color: #16a34a; font-weight: 700; border-bottom: none; }
+table.inv-items tbody tr.outstanding-row td {
+  color: #B45309; font-weight: 800; border-bottom: none;
+  font-size: 14px;
+}
+
+/* -- Notes / bank strip under the items -- */
+.inv-notes {
+  margin: 0 26px 22px;
+  padding: 12px 14px;
+  background: var(--ms-warning-soft); border: 1px solid #FDE68A;
+  border-radius: var(--ms-radius-md);
+  font-size: 13px; color: #78350F;
+}
+.inv-bank-strip {
+  padding: 16px 26px 22px;
+  border-top: 1px dashed var(--ms-line);
+  font-size: 12.5px; color: var(--ms-ink-3);
+}
+.inv-bank-strip .lbl { color: var(--ms-ink-1); font-weight: 700; margin-bottom: 4px; }
+.inv-bank-strip .line { line-height: 1.9; }
+
+/* -- Right rail cards -- */
+.inv-rail { display: flex; flex-direction: column; gap: 12px; }
+.inv-rail .card { padding: 16px 18px; }
+.inv-rail .card h6 {
+  font-size: 13.5px; font-weight: 800; color: var(--ms-ink-1);
+  margin: 0 0 10px; display: flex; align-items: center; gap: 6px;
+}
+.inv-rail .card h6 i { color: var(--ms-brand-dark); font-size: 15px; }
+.inv-rail .rail-payments { list-style: none; padding: 0; margin: 0; }
+.inv-rail .rail-payments li {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; font-size: 12.5px;
+  border-bottom: 1px solid var(--ms-line);
+}
+.inv-rail .rail-payments li:last-child { border-bottom: none; }
+.inv-rail .rail-payments .pay-amt {
+  font-family: 'Courier New', ui-monospace, monospace;
+  color: #16a34a; font-weight: 700;
+}
+.inv-rail .rail-danger { background: #FEF2F2; border-color: #FECACA; }
+.inv-rail .rail-danger h6 { color: #991B1B; }
+.inv-rail .rail-danger h6 i { color: #991B1B; }
+
 /* ============ PHASE 17-3: INVOICE STATUS HERO CHIP ============
    Large status pill that sits under the invoice header — tells the
    viewer at a glance whether the invoice is paid, partial, overdue,
