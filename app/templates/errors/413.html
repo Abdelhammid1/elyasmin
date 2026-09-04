@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}الملف كبير جدًا{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-1 text-muted">413</h1>
+  <h3>الملف اللي حاولت ترفعه كبير جدًا</h3>
+  <p class="text-muted">الحد الأقصى للرفع 2 ميجابايت. جرّب صورة أصغر.</p>
+  <a class="btn btn-primary" href="{{ url_for('dashboard.index') }}">العودة للوحة التحكم</a>
+</div>
+{% endblock %}

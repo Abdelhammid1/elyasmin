@@ -59,6 +59,13 @@ class Config:
     # answering until someone raises it deliberately.
     AI_MONTHLY_BUDGET_USD = float(os.getenv("AI_MONTHLY_BUDGET_USD", "5.00"))
 
+    # ---------- Upload size cap (SEC-3) ----------
+    # Global request-body ceiling — any POST larger than this gets a
+    # 413 from Werkzeug before ever reaching a view. Only one upload
+    # site exists today (the company logo, 2 MB max); every other
+    # POST is a small form. 3 MB leaves 1 MB of headroom.
+    MAX_CONTENT_LENGTH = 3 * 1024 * 1024
+
     # ---------- SMTP (SEC-1) ----------
     # Leave SMTP_HOST blank to log emails to the Flask console only —
     # dev-friendly default. For Resend: smtp.resend.com : 587, user

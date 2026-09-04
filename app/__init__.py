@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template
 
 from config import configs
-from app.extensions import csrf, db, login_manager, migrate
+from app.extensions import csrf, db, limiter, login_manager, migrate
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -18,6 +18,7 @@ def create_app(config_name: str | None = None) -> Flask:
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)  # SEC-4 (PHASE 29)
 
     from app.models import auth as _auth_models  # noqa: F401
     from app.models import herd as _herd_models  # noqa: F401
@@ -97,6 +98,18 @@ def create_app(config_name: str | None = None) -> Flask:
     @app.errorhandler(500)
     def server_error(_):
         return render_template("errors/500.html"), 500
+
+    @app.errorhandler(413)
+    def payload_too_large(_):
+        # SEC-3 (PHASE 29): Werkzeug fires this before the view when
+        # the request body exceeds MAX_CONTENT_LENGTH.
+        return render_template("errors/413.html"), 413
+
+    @app.errorhandler(429)
+    def too_many_requests(_):
+        # SEC-4 (PHASE 29): Flask-Limiter's default 429; also fired
+        # from /auth/login when the per-email lockout kicks in.
+        return render_template("errors/429.html"), 429
 
     # PHASE 10 (YAS-ACC-1): expose the invoice→JE reverse-lookup helper
     # as a jinja global so any invoice-like template can pull the JE

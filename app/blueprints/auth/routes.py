@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.forms.auth import ChangePasswordForm, ForgotPasswordForm, LoginForm, ResetPasswordForm
 from app.models.auth import LoginAttempt, User
 from app.services.mail import send_password_reset_email
@@ -28,6 +28,9 @@ def _recent_failed_attempts(email: str) -> int:
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per hour")  # SEC-4: per-IP ceiling (email-based
+                                # lockout in `_recent_failed_attempts`
+                                # still runs on top of this)
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard.index"))
@@ -76,6 +79,7 @@ def logout():
 
 
 @bp.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("10 per hour")  # SEC-4
 def forgot_password():
     form = ForgotPasswordForm()
     if form.validate_on_submit():
@@ -117,6 +121,7 @@ def forgot_password():
 
 
 @bp.route("/reset-password/<token>", methods=["GET", "POST"])
+@limiter.limit("10 per hour")  # SEC-4
 def reset_password(token: str):
     user = User.query.filter_by(reset_token=token).first()
 

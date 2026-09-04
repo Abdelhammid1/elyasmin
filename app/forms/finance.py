@@ -140,11 +140,15 @@ class CompanyProfileForm(FlaskForm):
     name = StringField("اسم الشركة (الاسم التجاري)",
                         validators=[DataRequired(), Length(max=150)])
     logo = FileField(
-        "شعار الشركة (PNG/JPG/SVG، ≤ 2 ميجا)",
+        "شعار الشركة (PNG/JPG/WEBP، ≤ 2 ميجا)",
         validators=[
             Optional(),
-            FileAllowed(["png", "jpg", "jpeg", "svg"],
-                        "امتداد الملف لازم يكون PNG أو JPG أو SVG."),
+            # SEC-3 (PHASE 29): dropped SVG (inline-script vector),
+            # added WEBP. The route-level `validate_logo` in
+            # app/utils/uploads.py is the real gate (magic-number
+            # sniff too); these form validators are defence-in-depth.
+            FileAllowed(["png", "jpg", "jpeg", "webp"],
+                        "امتداد الملف لازم يكون PNG أو JPG أو WEBP."),
             FileSize(max_size=2 * 1024 * 1024, message="الملف أكبر من 2 ميجا."),
         ],
     )

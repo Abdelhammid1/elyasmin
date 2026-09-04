@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}محاولات كتير{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-1 text-muted">429</h1>
+  <h3>محاولات كتير من نفس الجهاز</h3>
+  <p class="text-muted">من فضلك جرّب تاني بعد شويّة.</p>
+  <a class="btn btn-primary" href="{{ url_for('auth.login') }}">العودة لصفحة الدخول</a>
+</div>
+{% endblock %}
