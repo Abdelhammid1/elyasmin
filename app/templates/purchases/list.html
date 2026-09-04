@@ -61,7 +61,8 @@
     <label>الحالة</label>
     <select name="status" class="form-select form-select-sm">
       {% for slug, label in [('all','الكل'), ('paid','مسدّدة'), ('partial','جزئية'),
-                             ('overdue','متأخرة'), ('unpaid','غير مسدّدة')] %}
+                             ('overdue','متأخرة'), ('unpaid','غير مسدّدة'),
+                             ('returned','مرتجعة')] %}
       <option value="{{ slug }}" {% if f_status == slug %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
@@ -109,7 +110,9 @@
             {% endif %}
           </td>
           <td>
-            {% if inv._status_slug == 'paid' %}
+            {% if inv._status_slug == 'returned' %}
+              <span class="chip chip-returned"><i class="bi bi-arrow-return-left"></i> مرتجعة</span>
+            {% elif inv._status_slug == 'paid' %}
               <span class="chip chip-paid"><i class="bi bi-check-circle"></i> مسدّدة</span>
             {% elif inv._status_slug == 'partial' %}
               <span class="chip chip-partial"><i class="bi bi-pie-chart"></i> جزئية</span>

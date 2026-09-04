@@ -1018,6 +1018,7 @@ table.inv-items tbody tr.outstanding-row td {
 .chip.chip-draft   { color: var(--ms-ink-3);      background: var(--ms-surface-soft); }
 .chip.chip-cash    { color: var(--ms-brand-dark); background: var(--ms-info-soft);    }
 .chip.chip-credit  { color: #92400e;              background: var(--ms-warning-soft); }
+.chip.chip-returned{ color: #6a52c4;              background: var(--ms-violet-soft); }
 
 /* Filter row on list pages — small form controls that don't dominate */
 .filter-row {

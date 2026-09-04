@@ -66,6 +66,11 @@ def list_invoices():
     today = _date.today()
 
     def _row_status(inv):
+        # PHASE 25: fully-returned wins over 'paid' so the chip reads
+        # 'مرتجعة' instead of misleading 'مسدّدة' (happens for a cash
+        # invoice with a same-amount cash refund).
+        if inv.is_fully_returned:
+            return "returned"
         if inv.outstanding_amount <= Decimal("0.01"):
             return "paid"
         # Anything older than 15 days that's still outstanding = overdue.

@@ -159,19 +159,57 @@ class PurchaseInvoice(db.Model):
         ).quantize(Decimal("0.01"))
 
     @property
+    def is_fully_returned(self) -> bool:
+        """PHASE 25: True when a return (or a series of them) has given
+        back the whole invoice amount — a cash refund on a cash invoice,
+        or a credit note on a credit invoice. Distinguishes 'مسدّدة'
+        (successful payment) from 'مرتجعة' (nullified by return)."""
+        total = Decimal(str(self.total or 0))
+        if total <= 0:
+            return False
+        return self.returned_amount >= total - Decimal("0.005")
+
+    @property
     def outstanding_amount(self) -> Decimal:
-        settled = (Decimal(str(self.paid_amount or 0))
-                   + self.allocated_amount + self.returned_amount)
-        return (Decimal(str(self.total or 0)) - settled).quantize(Decimal("0.01"))
+        """PHASE 25: split by payment_type.
+
+        - CASH invoice: `paid_amount` is set to `total` at creation
+          (auto-settled). A cash-refund return sends money back
+          separately — it does NOT reduce this invoice's outstanding
+          again. Was double-counting: total − paid − return went
+          negative when a full return was issued on a cash invoice.
+        - CREDIT invoice: allocations (from supplier payments) and
+          returns (credit notes) both reduce what we owe.
+
+        Clamped at 0 in either branch so a partial-return-on-cash or
+        an over-return-on-credit never renders as a negative outstanding.
+        """
+        total = Decimal(str(self.total or 0))
+        if self.payment_type == self.PAY_CASH:
+            settled = Decimal(str(self.paid_amount or 0))
+        else:
+            settled = self.allocated_amount + self.returned_amount
+        result = total - settled
+        if result < 0:
+            result = Decimal("0")
+        return result.quantize(Decimal("0.01"))
 
     @property
     def payment_status(self) -> str:
-        """'paid' | 'partial' | 'unpaid'."""
+        """'paid' | 'partial' | 'unpaid' | 'returned'.
+
+        PHASE 25: 'returned' is new — wins over 'paid' when a return
+        gave back the whole invoice amount, so the row chip reads
+        'مرتجعة' instead of the misleading 'مسدّدة'."""
         total = Decimal(str(self.total or 0))
         if total <= 0:
             return "paid"
-        settled = (Decimal(str(self.paid_amount or 0))
-                   + self.allocated_amount + self.returned_amount)
+        if self.is_fully_returned:
+            return "returned"
+        if self.payment_type == self.PAY_CASH:
+            settled = Decimal(str(self.paid_amount or 0))
+        else:
+            settled = self.allocated_amount + self.returned_amount
         if settled >= total - Decimal("0.005"):
             return "paid"
         if settled > 0:
