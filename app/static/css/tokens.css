@@ -80,7 +80,7 @@
   --ms-fs-h1:          19px;
 
   /* ---- Shell measurements ---- */
-  --sidebar-w:         264px;
+  --sidebar-w:         240px;
   --topbar-h:          64px;
 
   /* ---- Back-compat aliases — the rest of the app still reads these.
