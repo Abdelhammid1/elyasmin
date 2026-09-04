@@ -34,7 +34,7 @@
         <dt class="col-4">العميل</dt>
         <dd class="col-8"><a href="{{ url_for('customers.customer_detail', customer_id=ret.customer.id) }}">{{ ret.customer.name }}</a></dd>
         <dt class="col-4">التاريخ</dt><dd class="col-8" dir="ltr">{{ ret.return_date }}</dd>
-        <dt class="col-4">المبلغ</dt><dd class="col-8" dir="ltr" class="num fw-bold">{{ ret.amount }} جنيه</dd>
+        <dt class="col-4">المبلغ</dt><dd class="col-8 num fw-bold" dir="ltr">{{ ret.amount }} جنيه</dd>
         <dt class="col-4">النوع</dt>
         <dd class="col-8"><span class="badge {% if ret.mode == 'cash' %}badge-info{% else %}badge-brand{% endif %}">{{ ret.mode_label }}</span></dd>
         {% if ret.invoice %}
