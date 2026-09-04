@@ -8,6 +8,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.forms.auth import ChangePasswordForm, ForgotPasswordForm, LoginForm, ResetPasswordForm
 from app.models.auth import LoginAttempt, User
+from app.services.mail import send_password_reset_email
 from app.utils.audit import log_action
 
 bp = Blueprint("auth", __name__, template_folder="../../templates/auth")
@@ -86,7 +87,25 @@ def forgot_password():
             user.reset_token_expires = datetime.utcnow() + timedelta(hours=2)
             db.session.commit()
             reset_url = url_for("auth.reset_password", token=user.reset_token, _external=True)
-            current_app.logger.info("Password reset link for %s: %s", email, reset_url)
+            # SEC-1 (PHASE 28): send the reset link over SMTP. Falls
+            # back to logger-only when SMTP_HOST is blank (dev mode).
+            sent = send_password_reset_email(user, reset_url)
+            if not sent:
+                # Never break the enumeration-safe flow — record the
+                # SMTP failure in the audit log so ops can see it,
+                # then keep going. `details=` on log_action was
+                # unused elsewhere; this is its first caller.
+                log_action(
+                    "password_reset_email_failed", "User", user.id,
+                    details=f"reset_url={reset_url}",
+                )
+                db.session.commit()
+            # Fallback breadcrumb — cheap, and useful when SMTP is
+            # blank AND a dev is watching the log.
+            current_app.logger.info(
+                "Password reset link for %s: %s (sent=%s)",
+                email, reset_url, sent,
+            )
 
         flash(
             "لو الإيميل مسجّل عندنا، هيتبعت رابط استرجاع كلمة المرور خلال دقيقة.",
