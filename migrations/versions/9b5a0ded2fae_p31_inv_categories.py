@@ -45,7 +45,7 @@ def upgrade():
     # CURRENT_TIMESTAMP so downgrade → upgrade cycles stay stable.
     op.execute("""
         INSERT INTO ingredient_categories (name, is_active, created_at)
-        SELECT DISTINCT category, 1, CURRENT_TIMESTAMP
+        SELECT DISTINCT category, true, CURRENT_TIMESTAMP
         FROM ingredients
         WHERE category IS NOT NULL
     """)
