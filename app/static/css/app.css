@@ -807,12 +807,13 @@ table.preview-materials .num { font-family: 'Courier New', ui-monospace, monospa
    up pinned to the RIGHT (=RTL start), which is where an Arabic
    reader looks first and where numeric columns visually belong.
 
-   The `td[dir="ltr"]` selector limits the data-cell override to
-   numeric cells (marked with dir=ltr so digits render in LTR
-   BiDi order); action columns (`<td class="text-end">` with no
-   dir override) keep the Bootstrap RTL mapping. */
+   Applies to EVERY table cell (`<th>` and `<td>`) carrying
+   `.text-end`. Widened from the earlier `td[dir="ltr"]`-only
+   version after `/inventory/categories` showed that non-numeric
+   cells (status chips, action-button clusters) also need the same
+   physical-right pin to line up with their header. */
 [dir="rtl"] table th.text-end,
-[dir="rtl"] table td[dir="ltr"].text-end {
+[dir="rtl"] table td.text-end {
   text-align: right !important;
 }
 table.preview-materials .empty td {
