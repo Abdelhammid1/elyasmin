@@ -192,6 +192,10 @@
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('accounting.journal') %}active{% endif %}"
              data-section="finance" href="{{ url_for('accounting.journal_list') }}">
             <i class="bi bi-journal-text"></i> دفتر اليومية</a>
+          {# PHASE 32 (FIN-7): quick-entry templates. #}
+          <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('accounting.quick_entry') %}active{% endif %}"
+             data-section="finance" href="{{ url_for('accounting.quick_entry_index') }}">
+            <i class="bi bi-lightning-charge"></i> قيود سريعة</a>
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('accounts') %}active{% endif %}"
              data-section="finance" href="{{ url_for('accounts.list_accounts') }}">
             <i class="bi bi-safe"></i> الخزينة والحسابات</a>

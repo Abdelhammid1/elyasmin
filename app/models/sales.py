@@ -242,21 +242,45 @@ class MilkInvoice(db.Model):
         ).quantize(Decimal("0.01"))
 
     @property
+    def is_fully_returned(self) -> bool:
+        """FIN-8 (PHASE 32): mirror of PurchaseInvoice.is_fully_returned.
+        True when returns give back the whole invoice amount — a fully
+        collected invoice + a full sales return, or a straight full
+        credit note before any collection. Distinguishes 'مسدّدة'
+        (real collection) from 'مرتجعة' (nullified by return)."""
+        total = Decimal(str(self.grand_total or 0))
+        if total <= 0:
+            return False
+        return self.returned_amount >= total - Decimal("0.005")
+
+    @property
     def outstanding_amount(self) -> Decimal:
+        """FIN-8: clamped at 0. Pre-fix, a fully-collected invoice + a
+        full return read as -total (600 - 1200 = -600) — the row
+        rendered "-600 المتبقي" in the milk list. Settled = paid +
+        returned; the clamp also catches any drift from over-returns
+        or over-allocations."""
+        total = Decimal(str(self.grand_total or 0))
         settled = self.paid_amount + self.returned_amount
-        return (Decimal(str(self.grand_total or 0)) - settled).quantize(Decimal("0.01"))
+        result = total - settled
+        if result < 0:
+            result = Decimal("0")
+        return result.quantize(Decimal("0.01"))
 
     @property
     def payment_status(self) -> str:
-        """'paid' | 'partial' | 'unpaid' — matches what the aging + status
-        chips render. Draft invoices are always 'unpaid' regardless."""
+        """'paid' | 'partial' | 'unpaid' | 'returned' (new — wins over
+        'paid' when returns nullified the invoice). Draft invoices are
+        always 'unpaid'."""
         if self.status != self.STATUS_ISSUED:
             return "unpaid"
-        settled = self.paid_amount + self.returned_amount
-        grand = Decimal(str(self.grand_total or 0))
-        if grand <= 0:
+        total = Decimal(str(self.grand_total or 0))
+        if total <= 0:
             return "paid"
-        if settled >= grand - Decimal("0.005"):
+        if self.is_fully_returned:
+            return "returned"
+        settled = self.paid_amount + self.returned_amount
+        if settled >= total - Decimal("0.005"):
             return "paid"
         if settled > 0:
             return "partial"

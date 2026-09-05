@@ -1,8 +1,10 @@
-from datetime import date, datetime
+from calendar import monthrange
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import and_, or_
 
 from app.extensions import db
 from app.forms.labor import (
@@ -16,7 +18,59 @@ from app.models.labor import Attendance, LeaveRequest, Worker, WorkerPayment
 from app.utils import accounts as acc
 from app.utils.audit import log_action
 from app.utils.decorators import admin_required, write_required
-from app.utils.reports import excel_response
+from app.utils.reports import excel_response, pdf_from_current_page
+
+
+# ---------- HR-1 (PHASE 32) helpers ----------
+
+def _first_of_month(d: date) -> date:
+    return date(d.year, d.month, 1)
+
+
+def _next_month(d: date) -> date:
+    if d.month == 12:
+        return date(d.year + 1, 1, 1)
+    return date(d.year, d.month + 1, 1)
+
+
+def _prev_month(d: date) -> date:
+    if d.month == 1:
+        return date(d.year - 1, 12, 1)
+    return date(d.year, d.month - 1, 1)
+
+
+def _parse_target_month(raw: str | None) -> date:
+    """Parse ?month=YYYY-MM (from the dropdown or the payment form) into
+    the 1st of that month. Falls back to the current month."""
+    if raw:
+        try:
+            y, m = raw.split("-")
+            return date(int(y), int(m), 1)
+        except (ValueError, TypeError):
+            pass
+    return _first_of_month(date.today())
+
+
+_AR_MONTHS = [
+    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+]
+
+
+def _month_label(d: date) -> str:
+    return f"{_AR_MONTHS[d.month - 1]} {d.year}"
+
+
+def _month_options(back: int = 24) -> list[dict]:
+    """The last `back` calendar months + this one, newest first."""
+    today = _first_of_month(date.today())
+    out = []
+    for i in range(back + 1):
+        m = today
+        for _ in range(i):
+            m = _prev_month(m)
+        out.append({"value": m.strftime("%Y-%m"), "label": _month_label(m)})
+    return out
 
 bp = Blueprint("labor", __name__, template_folder="../../templates/labor")
 
@@ -39,6 +93,7 @@ def create_worker():
             phone=(form.phone.data or "").strip() or None,
             wage_type=form.wage_type.data,
             rate=Decimal(str(form.rate.data)),
+            closing_day=int(form.closing_day.data or 1),
             notes=form.notes.data,
             created_by_id=current_user.id,
         )
@@ -93,6 +148,53 @@ def worker_detail(worker_id: int):
         Decimal("0"),
     )
 
+    # ---------- HR-1 (PHASE 32): monthly statement ----------
+    selected_month = _parse_target_month(request.args.get("month"))
+    period_start, period_end = worker.month_window(selected_month)
+    # Payments in this month bucket. `target_month == selected_month`
+    # covers explicitly-tagged rows; the OR-NULL branch is a belt for
+    # legacy rows without a backfill (also see the migration).
+    period_payments = (
+        WorkerPayment.query
+        .filter(WorkerPayment.worker_id == worker.id,
+                WorkerPayment.is_archived.is_(False))
+        .filter(or_(
+            WorkerPayment.target_month == selected_month,
+            and_(WorkerPayment.target_month.is_(None),
+                 WorkerPayment.payment_date >= selected_month,
+                 WorkerPayment.payment_date < _next_month(selected_month)),
+        ))
+        .order_by(WorkerPayment.payment_date, WorkerPayment.id)
+        .all()
+    )
+    period_earned = worker.earned_for_month(selected_month)
+    period_paid = sum(
+        (Decimal(str(p.amount)) for p in period_payments), Decimal("0"),
+    )
+    period_balance = (period_earned - period_paid).quantize(Decimal("0.01"))
+
+    # Carry-forward: if the prior month's balance is negative
+    # (over-paid), surface that as a note on this month.
+    prior_month = _prev_month(selected_month)
+    prior_earned = worker.earned_for_month(prior_month)
+    prior_start, prior_end = worker.month_window(prior_month)
+    prior_paid = sum(
+        (Decimal(str(p.amount)) for p in
+            WorkerPayment.query
+            .filter(WorkerPayment.worker_id == worker.id,
+                    WorkerPayment.is_archived.is_(False))
+            .filter(or_(
+                WorkerPayment.target_month == prior_month,
+                and_(WorkerPayment.target_month.is_(None),
+                     WorkerPayment.payment_date >= prior_month,
+                     WorkerPayment.payment_date < _next_month(prior_month)),
+            )).all()
+        ),
+        Decimal("0"),
+    )
+    prior_balance = prior_earned - prior_paid
+    prior_carry = prior_balance if prior_balance < 0 else Decimal("0")
+
     payment_form = WorkerPaymentForm()
     payment_form.account_id.choices = acc.active_choices()
 
@@ -109,6 +211,18 @@ def worker_detail(worker_id: int):
         payment_form=payment_form,
         leaves=leaves,
         leave_form=leave_form,
+        # HR-1 monthly-statement context
+        selected_month=selected_month.strftime("%Y-%m"),
+        selected_month_label=_month_label(selected_month),
+        month_options=_month_options(),
+        period_start=period_start, period_end=period_end,
+        period_payments=period_payments,
+        period_earned=period_earned,
+        period_paid=period_paid,
+        period_balance=period_balance,
+        prior_carry=prior_carry,
+        prior_month_label=_month_label(prior_month),
+        print_mode=bool(request.args.get("print")),
     )
 
 
@@ -125,6 +239,7 @@ def edit_worker(worker_id: int):
         worker.phone = (form.phone.data or "").strip() or None
         worker.wage_type = form.wage_type.data
         worker.rate = Decimal(str(form.rate.data))
+        worker.closing_day = int(form.closing_day.data or 1)
         worker.notes = form.notes.data
         log_action("worker_updated", "Worker", worker.id)
         db.session.commit()
@@ -281,10 +396,16 @@ def record_payment(worker_id: int):
         flash("الحساب غير صالح.", "error")
         return redirect(url_for("labor.worker_detail", worker_id=worker.id))
 
+    # HR-1 (PHASE 32): the month bucket. Form ships 'YYYY-MM' string
+    # (default = current month); parse to a first-of-month date. On
+    # a bad/blank string the parser falls back to today's month.
+    target_month = _parse_target_month(form.target_month.data)
+
     payment = WorkerPayment(
         worker_id=worker.id,
         amount=Decimal(str(form.amount.data)),
         payment_date=form.payment_date.data,
+        target_month=target_month,
         reason=form.reason.data,
         account_id=account.id,
         notes=form.notes.data,
@@ -423,3 +544,23 @@ def leaves_queue():
     return render_template("labor/leaves_queue.html",
                            pending=pending, decided=decided,
                            reject_form=LeaveRejectForm())
+
+
+# ---------- HR-1 (PHASE 32): monthly-statement PDF ----------
+@bp.route("/<int:worker_id>/statement.pdf")
+@login_required
+def worker_statement_pdf(worker_id: int):
+    """Render the same worker_detail page in print mode and hand it
+    to the shared Chromium PDF pipeline."""
+    worker = db.session.get(Worker, worker_id)
+    if not worker or worker.is_archived:
+        abort(404)
+    month = request.args.get("month") or date.today().strftime("%Y-%m")
+    target_url = url_for(
+        "labor.worker_detail",
+        worker_id=worker.id, month=month, **{"print": 1},
+        _external=True,
+    )
+    return pdf_from_current_page(
+        target_url, f"worker_{worker.id}_{month}.pdf",
+    )

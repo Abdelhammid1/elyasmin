@@ -51,6 +51,91 @@
   </div>
 </div>
 
+{# ---- HR-1 (PHASE 32): monthly-statement section ---- #}
+<div class="card p-3 mb-3">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h5 class="mb-0">
+      <i class="bi bi-calendar3"></i> كشف الحساب الشهري —
+      <span class="text-muted">{{ selected_month_label }}</span>
+    </h5>
+    <form method="get" class="d-flex gap-2 align-items-center no-print">
+      <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for m in month_options %}
+          <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>{{ m.label }}</option>
+        {% endfor %}
+      </select>
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for('labor.worker_statement_pdf', worker_id=worker.id, month=selected_month) }}">
+        <i class="bi bi-file-pdf"></i> طباعة
+      </a>
+    </form>
+  </div>
+
+  <div class="text-muted small mb-2" dir="ltr">
+    فترة الاحتساب: {{ period_start }} → {{ period_end }}
+    (يوم إقفال العامل: {{ worker.closing_day }})
+  </div>
+
+  {% if prior_carry != 0 %}
+  <div class="alert alert-warning small py-2 mb-3">
+    <i class="bi bi-arrow-return-left"></i>
+    مرحّل من شهر {{ prior_month_label }}: <span dir="ltr">{{ prior_carry }}</span> جنيه —
+    مصروف زيادة، يُخصم من رصيد الشهر ده.
+  </div>
+  {% endif %}
+
+  <div class="row g-2 mb-3">
+    <div class="col-md-4 col-6"><div class="card stat-card">
+      <div class="stat-label">المستحق للشهر</div>
+      <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(period_earned) }}</div>
+    </div></div>
+    <div class="col-md-4 col-6"><div class="card stat-card">
+      <div class="stat-label">المدفوع في الشهر</div>
+      <div class="stat-value text-success" dir="ltr">{{ "{:,.2f}".format(period_paid) }}</div>
+    </div></div>
+    <div class="col-md-4 col-6"><div class="card stat-card {% if period_balance < 0 %}tone-danger{% elif period_balance > 0 %}tone-warning{% else %}tone-success{% endif %}">
+      <div class="stat-label">رصيد الشهر</div>
+      <div class="stat-value {% if period_balance < 0 %}text-danger{% elif period_balance > 0 %}text-warning{% else %}text-success{% endif %}" dir="ltr">
+        {{ "{:,.2f}".format(period_balance) }}
+      </div>
+      <small class="text-muted">
+        {% if period_balance < 0 %}اتصرفله زيادة{% elif period_balance > 0 %}لسه مستحق{% else %}متوازن{% endif %}
+      </small>
+    </div></div>
+  </div>
+
+  <table class="table table-sm align-middle mb-0">
+    <thead>
+      <tr>
+        <th>تاريخ الصرف</th>
+        <th>السبب</th>
+        <th class="text-end">المبلغ</th>
+        <th>ملاحظات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in period_payments %}
+      <tr>
+        <td dir="ltr">{{ p.payment_date }}</td>
+        <td>
+          {% if p.reason == 'advance' %}
+            <span class="chip chip-overdue">سلفة</span>
+          {% else %}
+            <span class="chip chip-paid">دفعة راتب</span>
+          {% endif %}
+        </td>
+        <td dir="ltr" class="text-end fw-bold">{{ "{:,.2f}".format(p.amount) }}</td>
+        <td class="text-muted small">{{ p.notes or '' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="text-center text-muted py-3">
+        مفيش دفعات في {{ selected_month_label }}.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 <div class="row g-3">
   <div class="col-lg-7">
     <div class="card p-3 mb-3">
@@ -231,6 +316,14 @@
         <div class="mb-3">
           {{ payment_form.payment_date.label(class="form-label fw-bold") }}
           {{ payment_form.payment_date(class="form-control", dir="ltr", type="date") }}
+        </div>
+        <div class="mb-3">
+          {{ payment_form.target_month.label(class="form-label fw-bold") }}
+          {{ payment_form.target_month(class="form-control", dir="ltr", type="month",
+              placeholder="YYYY-MM") }}
+          <div class="form-text small">
+            دي من حساب شهر إيه؟ (افتراضيًا الشهر الحالي — غيّره لو الدفعة من حساب شهر تاني.)
+          </div>
         </div>
         <div class="mb-3">
           {{ payment_form.reason.label(class="form-label fw-bold") }}

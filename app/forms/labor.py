@@ -4,6 +4,7 @@ from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
     DecimalField,
+    IntegerField,
     SelectField,
     StringField,
     SubmitField,
@@ -34,6 +35,16 @@ class WorkerForm(FlaskForm):
         places=2,
         validators=[DataRequired(message="السعر مطلوب."), NumberRange(min=0)],
     )
+    # HR-1 (PHASE 32): the day-of-month where the pay cycle closes.
+    # 1 = calendar month. 10 = 11 of prior month → 10 of current
+    # month. Capped at 28 so every month has the day.
+    closing_day = IntegerField(
+        "يوم إقفال الراتب (1-28)",
+        default=1,
+        validators=[Optional(),
+                    NumberRange(min=1, max=28,
+                                message="اليوم لازم يكون بين 1 و 28.")],
+    )
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     submit = SubmitField("حفظ")
 
@@ -45,6 +56,15 @@ class WorkerPaymentForm(FlaskForm):
         validators=[DataRequired(message="المبلغ مطلوب."), NumberRange(min=0.01)],
     )
     payment_date = DateField("التاريخ", validators=[DataRequired()], default=date.today)
+    # HR-1 (PHASE 32): which month bucket this payment belongs to.
+    # Stored as 'YYYY-MM' in the form and translated to a date
+    # (1st of that month) in the route.
+    target_month = StringField(
+        "الشهر المستهدف (YYYY-MM)",
+        default=lambda: date.today().strftime("%Y-%m"),
+        validators=[Optional(), Length(min=7, max=7,
+            message="لازم يكون بالشكل YYYY-MM.")],
+    )
     reason = SelectField("السبب", choices=REASON_CHOICES, validators=[DataRequired()])
     # TREASURY: every payment names the account the money left
     account_id = SelectField("من حساب", coerce=int, validators=[DataRequired(message="اختار الحساب اللي الفلوس هتطلع منه.")])

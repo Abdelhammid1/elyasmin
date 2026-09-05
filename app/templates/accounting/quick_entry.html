@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}قيود سريعة{% endblock %}
+{% block content %}
+{# PHASE 32 (FIN-7): landing page for the 7 quick-entry templates.
+   Each card links to /accounting/quick-entry/<kind> — the form there
+   collects a small human-friendly form and posts a real JournalEntry
+   via post_journal, just like journal_new does. #}
+
+{% set kind_meta = {
+  "opening":       ("bi-hourglass-top", "info-soft",    "info",       "قيّد الرصيد الافتتاحي لأي حساب أصل أو خصم."),
+  "capital":       ("bi-cash-coin",     "success-soft", "brand-dark", "زيادة رأس المال — دخول فلوس جديدة من المالك."),
+  "deposit_in":    ("bi-arrow-down-circle","warning-soft", "#92400e", "أمانة نستلمها من طرف ثالث — نبقى مطالبين بردّها."),
+  "deposit_out":   ("bi-arrow-up-circle",  "warning-soft", "#92400e", "رد أمانة سبق استلامها من طرف ثالث."),
+  "drawings":      ("bi-wallet2",       "danger-soft",  "#991b1b",   "مسحوبات صاحب العمل — خروج فلوس للمالك شخصيًا."),
+  "loan_received": ("bi-bank",          "info-soft",    "info",       "استلام قرض قصير أو طويل الأجل من بنك أو جهة إقراض."),
+  "loan_repaid":   ("bi-arrow-return-left","success-soft","brand-dark","سداد قسط من قرض سبق استلامه."),
+} %}
+
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-lightning-charge"></i> قيود محاسبية سريعة</h1>
+    <p class="text-muted mb-0">
+      اختار العملية اللي عايز تسجّلها — النظام هيبني القيد المحاسبي الصحيح خلف الكواليس.
+      كل قيد بيظهر في دفتر اليومية عادي وبيدخل في ميزان المراجعة زي أي قيد يدوي.
+    </p>
+  </div>
+  <a href="{{ url_for('accounting.journal_new') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-pencil-square"></i> قيد يدوي (متقدّم)
+  </a>
+</div>
+
+<div class="row g-3 mt-2">
+  {% for kind, label in kinds %}
+    {% set icon, bg, color, desc = kind_meta[kind] %}
+    <div class="col-md-6 col-lg-4">
+      <a class="card p-3 h-100 text-decoration-none" style="color: inherit;"
+         href="{{ url_for('accounting.quick_entry', kind=kind) }}">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle d-flex align-items-center justify-content-center"
+               style="width:48px;height:48px;background:var(--ms-{{ bg }});
+                      color:{{ 'var(--ms-'~color~')' if 'brand' in color or color in ('info','warning','danger') else color }};">
+            <i class="bi {{ icon }}" style="font-size:1.4rem;"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-bold" style="font-size:1.05rem;">{{ label }}</div>
+            <div class="text-muted small" style="line-height:1.5;">{{ desc }}</div>
+          </div>
+          <i class="bi bi-chevron-left text-muted"></i>
+        </div>
+      </a>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
