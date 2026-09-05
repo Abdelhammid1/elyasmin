@@ -30,6 +30,10 @@ DEFAULT_COA = [
     ("1210", "مخزون العلف",                "Feed Inventory",      AccountType.ASSET,     True,  "1000"),
     ("1220", "مخزون الأدوية",              "Medicine Inventory",  AccountType.ASSET,     True,  "1000"),
     ("1400", "حيوانات المزرعة",            "Livestock",           AccountType.ASSET,     True,  "1000"),
+    # FIN-7 (PHASE 32): deposits the farm has paid to a third party
+    # (rare, but ticket asks for it). Sibling of the treasury/inventory
+    # leaves under the general "current assets" umbrella 1000.
+    ("1090", "أمانات مدفوعة لأطراف أخرى",   "Deposits Paid",       AccountType.ASSET,     True,  "1000"),
     ("1300", "الأصول الثابتة",             "Fixed Assets",        AccountType.ASSET,     False, "1"),
     ("1310", "معدات وآلات",                "Equipment",           AccountType.ASSET,     True,  "1300"),
     # 1320 is a contra-asset (accumulated depreciation) — sits under
@@ -43,6 +47,14 @@ DEFAULT_COA = [
     ("2020", "شيكات تحت الدفع",              "Checks Payable",      AccountType.LIABILITY, True,  "2"),
     ("2030", "رواتب مستحقة",                "Wages Payable",       AccountType.LIABILITY, True,  "2"),
     ("2040", "قروض",                        "Loans",               AccountType.LIABILITY, True,  "2"),
+    # FIN-7 (PHASE 32): short/long-term loan split (siblings of 2040 —
+    # 2040 stays as a leaf on existing DBs that may already have
+    # postings on it; new loans go into 2041/2042).
+    ("2041", "قروض قصيرة الأجل",             "Short-term Loans",    AccountType.LIABILITY, True,  "2"),
+    ("2042", "قروض طويلة الأجل",             "Long-term Loans",     AccountType.LIABILITY, True,  "2"),
+    # FIN-7 (PHASE 32): deposits held for third parties (money owed
+    # back to whoever left it with us).
+    ("2050", "أمانات مستلمة من الغير",       "Deposits Received",   AccountType.LIABILITY, True,  "2"),
     ("2090", "خصوم أخرى",                   "Other Liabilities",   AccountType.LIABILITY, True,  "2"),
 
     # ---- EQUITY ----

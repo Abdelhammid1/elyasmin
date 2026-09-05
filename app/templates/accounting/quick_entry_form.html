@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ label }}{% endblock %}
+{% block content %}
+{# PHASE 32 (FIN-7): per-kind form. Only the fields this kind uses
+   render; the others stay on the form object (with Optional
+   validators) so wtforms doesn't complain, but they're not shown. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-lightning-charge"></i> {{ label }}</h1>
+  </div>
+  <a href="{{ url_for('accounting.quick_entry_index') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للقيود السريعة
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        {{ form.kind(value=kind) }}
+
+        <div class="row g-3">
+          {# ---- Common: amount + date ---- #}
+          <div class="col-md-4">
+            <label class="form-label">{{ form.amount.label.text }}</label>
+            {{ form.amount(class="form-control", dir="ltr") }}
+            {% for e in form.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ form.entry_date.label.text }}</label>
+            {{ form.entry_date(class="form-control", dir="ltr") }}
+          </div>
+
+          {# ---- Opening balance: pick the A/L account ---- #}
+          {% if kind == "opening" %}
+          <div class="col-md-8">
+            <label class="form-label">الحساب الأصل / الخصم</label>
+            {{ form.account_id(class="form-select") }}
+            <div class="form-text">القيد المقابل يترحّل تلقائي على "3090 أرصدة افتتاحية".</div>
+          </div>
+          {% endif %}
+
+          {# ---- Every kind except opening: treasury dropdown ---- #}
+          {% if kind != "opening" %}
+          <div class="col-md-8">
+            <label class="form-label">{{ form.treasury_account_id.label.text }}</label>
+            {{ form.treasury_account_id(class="form-select") }}
+            {% if not treasuries %}
+              <div class="text-warning small">
+                <i class="bi bi-exclamation-triangle"></i>
+                مفيش خزائن مسجّلة —
+                <a href="{{ url_for('accounts.list_accounts') }}">أضف واحدة الأول</a>.
+              </div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {# ---- Deposits: party name ---- #}
+          {% if kind in ("deposit_in", "deposit_out") %}
+          <div class="col-md-8">
+            <label class="form-label">{{ form.party_name.label.text }}</label>
+            {{ form.party_name(class="form-control", placeholder="مثلاً: أحمد محمد / شركة كذا") }}
+            <div class="form-text">هيتحفظ في وصف القيد عشان نعرف الأمانة بتاعة مين.</div>
+          </div>
+          {% endif %}
+
+          {# ---- Loan received: short vs long ---- #}
+          {% if kind == "loan_received" %}
+          <div class="col-md-8">
+            <label class="form-label">{{ form.loan_kind.label.text }}</label>
+            {{ form.loan_kind(class="form-select") }}
+          </div>
+          {% endif %}
+
+          {# ---- Loan repaid: pick loan ---- #}
+          {% if kind == "loan_repaid" %}
+          <div class="col-md-8">
+            <label class="form-label">{{ form.loan_account_id.label.text }}</label>
+            {{ form.loan_account_id(class="form-select") }}
+            {% if not loan_accts %}
+              <div class="text-warning small">
+                <i class="bi bi-exclamation-triangle"></i>
+                مفيش قروض في دليل الحسابات — سجّل استلام قرض الأول.
+              </div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <div class="col-12">
+            <label class="form-label">{{ form.memo.label.text }}</label>
+            {{ form.memo(class="form-control") }}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('accounting.quick_entry_index') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

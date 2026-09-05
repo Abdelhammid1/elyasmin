@@ -198,7 +198,7 @@ class JournalLine(db.Model):
 
     # Party tagging — a line posted against a supplier or customer carries the
     # party info so the party ledger is one filter, not a scan.
-    party_type = db.Column(db.String(20), nullable=True, index=True)   # 'customer' | 'supplier'
+    party_type = db.Column(db.String(20), nullable=True, index=True)   # 'customer' | 'supplier' | 'other' (FIN-7, PHASE 32 — for parties without a first-class model; the party name lives in memo)
     party_id = db.Column(db.Integer, nullable=True, index=True)
 
     # PHASE 2 — cost centre. Points at a herd group (cattle_groups.id) so

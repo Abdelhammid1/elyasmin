@@ -776,3 +776,259 @@ def journal_reactivate(entry_id):
     db.session.commit()
     flash("تم إعادة تنشيط القيد.", "success")
     return redirect(url_for("accounting.journal_detail", entry_id=entry_id))
+
+
+# ==================== FIN-7 (PHASE 32): quick-entry templates ====================
+
+def _treasury_leaf(treasury_id: int):
+    """Look up the CoA leaf wired to this TreasuryAccount."""
+    from app.services.ledger import LedgerError
+    leaf = LedgerAccount.query.filter_by(
+        treasury_account_id=treasury_id, is_active=True,
+    ).first()
+    if leaf is None:
+        raise LedgerError(
+            f"الخزنة #{treasury_id} مش مربوطة بحساب في دليل الحسابات."
+        )
+    return leaf
+
+
+def _coa_by_code(code: str):
+    """Fetch a required CoA leaf by code."""
+    from app.services.ledger import LedgerError
+    acc = LedgerAccount.query.filter_by(code=code, is_active=True).first()
+    if acc is None:
+        raise LedgerError(f"حساب {code} مش موجود في دليل الحسابات.")
+    return acc
+
+
+# ---- Per-kind lines builders — each returns (description, lines_list) ----
+
+def _lines_opening(form):
+    """DR <picked account> / CR 3090 opening balances."""
+    from decimal import Decimal
+    amt = Decimal(str(form.amount.data))
+    picked = db.session.get(LedgerAccount, form.account_id.data)
+    if picked is None or not picked.is_active or not picked.is_postable:
+        from app.services.ledger import LedgerError
+        raise LedgerError("اختار حساب أصل/خصم من القائمة.")
+    opening = _coa_by_code("3090")
+    memo = form.memo.data or f"رصيد افتتاحي لحساب {picked.display_name}"
+    return (
+        f"رصيد افتتاحي — {picked.display_name}",
+        [
+            {"account_id": picked.id,  "debit": amt, "credit": 0, "memo": memo},
+            {"account_id": opening.id, "debit": 0,   "credit": amt, "memo": memo},
+        ],
+    )
+
+
+def _lines_capital(form):
+    """DR <treasury leaf> / CR 3010 owner's capital."""
+    from decimal import Decimal
+    amt = Decimal(str(form.amount.data))
+    t_leaf = _treasury_leaf(form.treasury_account_id.data)
+    capital = _coa_by_code("3010")
+    memo = form.memo.data or "إضافة رأس مال"
+    return (
+        f"إضافة رأس مال — {t_leaf.name}",
+        [
+            {"account_id": t_leaf.id,  "debit": amt, "credit": 0, "memo": memo},
+            {"account_id": capital.id, "debit": 0,   "credit": amt, "memo": memo},
+        ],
+    )
+
+
+def _lines_deposit_in(form):
+    """DR <treasury leaf> / CR 2050 deposits received. Party name in memo."""
+    from decimal import Decimal
+    amt = Decimal(str(form.amount.data))
+    t_leaf = _treasury_leaf(form.treasury_account_id.data)
+    dep = _coa_by_code("2050")
+    party = (form.party_name.data or "").strip()
+    if not party:
+        from app.services.ledger import LedgerError
+        raise LedgerError("اسم الطرف مطلوب لأمانة مستلمة.")
+    memo = form.memo.data or f"أمانة من {party}"
+    return (
+        f"استلام أمانة من {party}",
+        [
+            {"account_id": t_leaf.id, "debit": amt, "credit": 0, "memo": memo,
+             "party_type": "other"},
+            {"account_id": dep.id,    "debit": 0,   "credit": amt, "memo": memo,
+             "party_type": "other"},
+        ],
+    )
+
+
+def _lines_deposit_out(form):
+    """DR 2050 deposits received / CR <treasury leaf>. Party in memo."""
+    from decimal import Decimal
+    amt = Decimal(str(form.amount.data))
+    t_leaf = _treasury_leaf(form.treasury_account_id.data)
+    dep = _coa_by_code("2050")
+    party = (form.party_name.data or "").strip()
+    if not party:
+        from app.services.ledger import LedgerError
+        raise LedgerError("اسم الطرف مطلوب لرد الأمانة.")
+    memo = form.memo.data or f"رد أمانة إلى {party}"
+    return (
+        f"رد أمانة إلى {party}",
+        [
+            {"account_id": dep.id,    "debit": amt, "credit": 0, "memo": memo,
+             "party_type": "other"},
+            {"account_id": t_leaf.id, "debit": 0,   "credit": amt, "memo": memo,
+             "party_type": "other"},
+        ],
+    )
+
+
+def _lines_drawings(form):
+    """DR 3030 owner draws / CR <treasury leaf>."""
+    from decimal import Decimal
+    amt = Decimal(str(form.amount.data))
+    t_leaf = _treasury_leaf(form.treasury_account_id.data)
+    draws = _coa_by_code("3030")
+    memo = form.memo.data or "مسحوبات المالك"
+    return (
+        f"مسحوبات المالك — {t_leaf.name}",
+        [
+            {"account_id": draws.id,  "debit": amt, "credit": 0, "memo": memo},
+            {"account_id": t_leaf.id, "debit": 0,   "credit": amt, "memo": memo},
+        ],
+    )
+
+
+def _lines_loan_received(form):
+    """DR <treasury leaf> / CR 2041 short-term OR 2042 long-term."""
+    from decimal import Decimal
+    amt = Decimal(str(form.amount.data))
+    t_leaf = _treasury_leaf(form.treasury_account_id.data)
+    code = "2041" if form.loan_kind.data == "short" else "2042"
+    loan = _coa_by_code(code)
+    memo = form.memo.data or f"استلام {loan.name}"
+    return (
+        f"استلام {loan.name}",
+        [
+            {"account_id": t_leaf.id, "debit": amt, "credit": 0, "memo": memo},
+            {"account_id": loan.id,   "debit": 0,   "credit": amt, "memo": memo},
+        ],
+    )
+
+
+def _lines_loan_repaid(form):
+    """DR <picked loan account> / CR <treasury leaf>."""
+    from decimal import Decimal
+    amt = Decimal(str(form.amount.data))
+    t_leaf = _treasury_leaf(form.treasury_account_id.data)
+    loan = db.session.get(LedgerAccount, form.loan_account_id.data)
+    if loan is None or loan.code not in ("2041", "2042"):
+        from app.services.ledger import LedgerError
+        raise LedgerError("اختار قرض من القائمة.")
+    memo = form.memo.data or f"سداد قسط من {loan.name}"
+    return (
+        f"سداد قسط قرض — {loan.name}",
+        [
+            {"account_id": loan.id,   "debit": amt, "credit": 0, "memo": memo},
+            {"account_id": t_leaf.id, "debit": 0,   "credit": amt, "memo": memo},
+        ],
+    )
+
+
+_QUICK_KINDS = {
+    "opening":       _lines_opening,
+    "capital":       _lines_capital,
+    "deposit_in":    _lines_deposit_in,
+    "deposit_out":   _lines_deposit_out,
+    "drawings":      _lines_drawings,
+    "loan_received": _lines_loan_received,
+    "loan_repaid":   _lines_loan_repaid,
+}
+
+
+@bp.route("/quick-entry")
+@login_required
+def quick_entry_index():
+    """FIN-7 landing page: 7 cards, one per template."""
+    _admin_only()
+    from app.forms.accounting import QUICK_ENTRY_KINDS
+    return render_template(
+        "accounting/quick_entry.html", kinds=QUICK_ENTRY_KINDS,
+    )
+
+
+@bp.route("/quick-entry/<kind>", methods=["GET", "POST"])
+@login_required
+@write_required
+def quick_entry(kind: str):
+    """FIN-7 per-kind form. On POST builds JE lines + calls post_journal."""
+    _admin_only()
+    from flask import flash
+    from flask_login import current_user
+    from app.forms.accounting import QUICK_ENTRY_KINDS, QuickEntryForm
+    from app.models.finance import TreasuryAccount
+    from app.services.ledger import LedgerError, post_journal
+
+    if kind not in _QUICK_KINDS:
+        abort(404)
+    label = dict(QUICK_ENTRY_KINDS)[kind]
+
+    form = QuickEntryForm()
+    form.kind.data = kind
+
+    treasuries = (
+        TreasuryAccount.query
+        .filter_by(is_archived=False).order_by(TreasuryAccount.name).all()
+    )
+    form.treasury_account_id.choices = [
+        (t.id, t.display_name) for t in treasuries
+    ]
+    postable_accts = (
+        LedgerAccount.query
+        .filter(LedgerAccount.is_active.is_(True),
+                LedgerAccount.is_postable.is_(True))
+        .order_by(LedgerAccount.code).all()
+    )
+    form.account_id.choices = [(a.id, a.display_name) for a in postable_accts]
+    loan_accts = [a for a in postable_accts if a.code in ("2041", "2042")]
+    form.loan_account_id.choices = [
+        (a.id, a.display_name) for a in loan_accts
+    ]
+
+    if request.method == "POST":
+        if not form.validate_on_submit():
+            for _, errors in form.errors.items():
+                for e in errors:
+                    flash(e, "error")
+            return render_template(
+                "accounting/quick_entry_form.html",
+                form=form, kind=kind, label=label,
+                treasuries=treasuries, loan_accts=loan_accts,
+            )
+        try:
+            desc, lines = _QUICK_KINDS[kind](form)
+            je = post_journal(
+                description=desc,
+                lines=lines,
+                entry_date=form.entry_date.data,
+                created_by=current_user.id,
+                source_type="QuickEntry",
+                source_id=0,
+            )
+            db.session.commit()
+            flash(
+                f"تم حفظ القيد {je.number} — {label} — "
+                f"إجمالي {je.total_debit} جنيه.",
+                "success",
+            )
+            return redirect(url_for("accounting.journal_detail",
+                                    entry_id=je.id))
+        except LedgerError as e:
+            db.session.rollback()
+            flash(str(e), "error")
+
+    return render_template(
+        "accounting/quick_entry_form.html",
+        form=form, kind=kind, label=label,
+        treasuries=treasuries, loan_accts=loan_accts,
+    )
