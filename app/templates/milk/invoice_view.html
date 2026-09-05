@@ -52,9 +52,12 @@
 
     {# ---- Action bar ---- #}
     <div class="inv-actions no-print">
-      {# Status chip #}
+      {# Status chip — FIN-8: 'returned' wins over 'paid' so a fully-
+         returned invoice reads 'مرتجعة' instead of misleading 'محصّلة'. #}
       {% if invoice.status == 'draft' %}
         <span class="chip chip-draft"><i class="bi bi-pencil-square"></i> مسوّدة</span>
+      {% elif invoice.is_fully_returned %}
+        <span class="chip chip-returned"><i class="bi bi-arrow-return-left"></i> مرتجعة</span>
       {% elif invoice.outstanding_amount <= 0 %}
         <span class="chip chip-paid"><i class="bi bi-check-circle"></i> محصّلة بالكامل</span>
       {% elif days_late > 15 %}

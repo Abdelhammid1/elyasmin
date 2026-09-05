@@ -437,16 +437,18 @@ def list_invoices():
     today = _date.today()
 
     def _row_status(inv):
+        """FIN-8: delegate to the model's `payment_status` so the list
+        and the detail never drift. `payment_status` already returns
+        'returned' when a return nullified the invoice; here we split
+        the 'unpaid' bucket into `overdue` vs plain `unpaid` based on
+        issue-date age, and mark draft rows explicitly."""
         if inv.status == "draft":
             return "draft"
-        if inv.outstanding_amount <= Decimal("0.01"):
-            return "paid"
+        st = inv.payment_status
+        if st != "unpaid":       # 'paid' / 'partial' / 'returned'
+            return st
         days = (today - inv.issue_date).days if inv.issue_date else 0
-        if days > 15:
-            return "overdue"
-        if inv.paid_amount > 0:
-            return "partial"
-        return "unpaid"
+        return "overdue" if days > 15 else "unpaid"
 
     for inv in invoices:
         inv._status_slug = _row_status(inv)
