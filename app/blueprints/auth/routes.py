@@ -14,6 +14,29 @@ from app.utils.audit import log_action
 bp = Blueprint("auth", __name__, template_folder="../../templates/auth")
 
 
+def _safe_next(raw: str | None) -> str | None:
+    """PHASE 33: only accept a ``next`` that is a SAME-ORIGIN, in-app
+    path that is NOT the landing page. Otherwise the caller falls
+    back to /dashboard.
+
+    Two problems this closes:
+      1. Open-redirect: `?next=https://evil.example` used to send
+         the user to an outside URL after login.
+      2. UX bug (Zakaria): landing on `/` after login instead of
+         the dashboard, because Flask-Login had stamped `next=/`
+         when the visitor first hit the landing page.
+    """
+    if not raw:
+        return None
+    if raw.startswith(("http://", "https://", "//")):
+        return None            # open-redirect defence
+    if not raw.startswith("/"):
+        return None            # relative-only
+    if raw == "/" or raw.startswith("/?") or raw.startswith("/#"):
+        return None            # landing itself is never post-login target
+    return raw
+
+
 def _recent_failed_attempts(email: str) -> int:
     window_start = datetime.utcnow() - timedelta(hours=1)
     return (
@@ -58,7 +81,9 @@ def login():
             db.session.commit()
             login_user(user, remember=form.remember_me.data)
             flash(f"أهلاً بيك يا {user.full_name}", "success")
-            next_page = request.args.get("next")
+            # PHASE 33: guard `next` against open-redirect AND against
+            # the observed "lands on /" UX bug.
+            next_page = _safe_next(request.args.get("next"))
             return redirect(next_page or url_for("dashboard.index"))
 
         db.session.add(attempt)
