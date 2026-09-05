@@ -778,6 +778,20 @@ table.preview-materials td {
 }
 table.preview-materials tr:last-child td { border-bottom: none; }
 table.preview-materials .num { font-family: 'Courier New', ui-monospace, monospace; text-align: end; }
+
+/* P34 (PHASE 34): general .num class — monospace digits + nowrap
+   for any numeric table cell outside table.inv-items (which has its
+   own scoped rule below). Does NOT set text-align: on a mixed-
+   direction table (RTL cell wrapping an LTR number), text-align
+   value maps differently in each direction and stacking header+data
+   on the same edge requires the two to agree on direction. Instead,
+   we let the cell's own dir attribute drive alignment, and rely on
+   the caller to pair `.num` with matching text-end/text-start on
+   both `<th>` and `<td>` when needed. */
+.num {
+  font-family: 'Courier New', ui-monospace, monospace;
+  white-space: nowrap;
+}
 table.preview-materials .empty td {
   text-align: center; color: var(--ms-ink-3);
   padding: 20px 8px; font-style: italic;
