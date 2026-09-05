@@ -367,12 +367,31 @@ def valuation():
     vs the sum of stock-movement values (Σ delta × unit_price_at_move).
     Diff = drift the accountant needs to explain — rounding, unpriced
     movements, a manual adjust with no price, or (before this migration)
-    a missing opening JE."""
-    ings = (
-        Ingredient.query.filter_by(is_archived=False)
-        .order_by(Ingredient.category, Ingredient.name)
-        .all()
-    )
+    a missing opening JE.
+
+    PHASE 31: `q` (search by name) and `category` (exact match) query
+    args narrow the report so the accountant can zoom in on one item
+    or one category at a time.
+    """
+    q = (request.args.get("q") or "").strip()
+    f_category = (request.args.get("category") or "").strip()
+
+    query = Ingredient.query.filter_by(is_archived=False)
+    if q:
+        query = query.filter(Ingredient.name.ilike(f"%{q}%"))
+    if f_category:
+        query = query.filter(Ingredient.category == f_category)
+    ings = query.order_by(Ingredient.category, Ingredient.name).all()
+
+    # Distinct categories for the filter dropdown — always the full
+    # set, not just those shown after the current filter.
+    all_categories = [
+        r[0] for r in
+        db.session.query(Ingredient.category)
+        .filter(Ingredient.is_archived.is_(False))
+        .distinct().order_by(Ingredient.category).all()
+    ]
+
     rows = []
     total_op = Decimal("0")
     total_mv = Decimal("0")
@@ -413,6 +432,9 @@ def valuation():
         total_mv=total_mv.quantize(Decimal("0.01")),
         total_diff=(total_op - total_mv).quantize(Decimal("0.01")),
         missing_openings=missing_openings,
+        f_q=q,
+        f_category=f_category,
+        all_categories=all_categories,
     )
 
 
