@@ -1,4 +1,5 @@
-from datetime import date, datetime
+from calendar import monthrange
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func
@@ -17,6 +18,13 @@ class Worker(db.Model):
     phone = db.Column(db.String(30), nullable=True)
     wage_type = db.Column(db.String(20), nullable=False, default=WAGE_PER_BATCH)
     rate = db.Column(db.Numeric(10, 2), nullable=False, default=Decimal("0"))
+    # HR-1 (PHASE 32): the day-of-month where this worker's pay cycle
+    # closes. 1 = calendar month (1st → last day). 10 = 11th of prior
+    # month → 10th of current month. Capped at 28 so every month has
+    # the day.
+    closing_day = db.Column(
+        db.Integer, nullable=False, default=1, server_default="1",
+    )
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -77,6 +85,38 @@ class Worker(db.Model):
     def month_balance(self) -> Decimal:
         return self.month_earned - self.month_paid
 
+    # ---------- HR-1 (PHASE 32): custom monthly cycles ----------
+
+    def month_window(self, target_month: date) -> tuple[date, date]:
+        """Earning window for a month bucket, respecting `closing_day`.
+
+        `target_month` is the 1st of the month the pay is booked
+        against (e.g. `2026-08-01` means "شهر أغسطس"). Returns
+        (start, end) inclusive.
+
+          closing_day = 1  → [target_month, last day of target_month]
+          closing_day = 10 → [prior_month.day(11), target_month.day(10)]
+
+        The prior-month math is safe even for January (goes back to
+        December of the previous year).
+        """
+        cd = int(self.closing_day or 1)
+        cd = max(1, min(28, cd))   # defensive clamp
+        y, m = target_month.year, target_month.month
+        if cd == 1:
+            last_day = monthrange(y, m)[1]
+            return date(y, m, 1), date(y, m, last_day)
+        # Non-default closing_day: [prior_month.day(cd+1), target.day(cd)]
+        end = date(y, m, cd)
+        prior = end - timedelta(days=cd)   # somewhere in the prior month
+        start = date(prior.year, prior.month, cd + 1)
+        return start, end
+
+    def earned_for_month(self, target_month: date) -> Decimal:
+        """Sum of earnings across the target month's payroll window."""
+        s, e = self.month_window(target_month)
+        return self.earned_between(s, e)
+
 
 class Attendance(db.Model):
     __tablename__ = "attendances"
@@ -108,6 +148,11 @@ class WorkerPayment(db.Model):
     amount = db.Column(db.Numeric(14, 2), nullable=False)
     payment_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
     reason = db.Column(db.String(20), nullable=False, default=REASON_ADVANCE)
+    # HR-1 (PHASE 32): the month this payment belongs to. Stored as
+    # the 1st of the target month (e.g. `2026-08-01` means شهر أغسطس).
+    # Nullable: legacy rows fall back to `payment_date`'s calendar
+    # month, and the worker_detail query has an `IS NULL` branch.
+    target_month = db.Column(db.Date, nullable=True, index=True)
     # TREASURY: which account the money left (nullable for pre-accounts rows)
     account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True, index=True)
     notes = db.Column(db.Text, nullable=True)

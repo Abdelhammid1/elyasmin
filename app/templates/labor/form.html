@@ -29,6 +29,14 @@
           </div>
         </div>
         <div class="mb-3 mt-3">
+          {{ form.closing_day.label(class="form-label fw-bold") }}
+          {{ form.closing_day(class="form-control", dir="ltr", type="number", min=1, max=28) }}
+          <small class="text-muted">
+            يوم إقفال الراتب الخاص بالعامل ده (1 = شهر تقويمي طبيعي، 10 = يقفل يوم 10 من كل شهر).
+          </small>
+          {% for e in form.closing_day.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3 mt-3">
           {{ form.notes.label(class="form-label fw-bold") }}
           {{ form.notes(class="form-control", rows=2) }}
         </div>
