@@ -6,7 +6,9 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.forms.inventory import CATEGORY_CHOICES, IngredientForm, StockAdjustForm
-from app.models.inventory import Ingredient, IngredientUnit, StockMovement
+from app.models.inventory import (
+    Ingredient, IngredientCategory, IngredientUnit, StockMovement,
+)
 from app.utils.audit import log_action
 from app.utils.decorators import write_required
 
@@ -460,3 +462,133 @@ def post_missing_openings():
     else:
         flash("مفيش قيود افتتاحية ناقصة — كل حاجة مترحّلة بالفعل.", "info")
     return redirect(url_for("inventory.valuation"))
+
+
+# ---------- PHASE 31 (INV categories): manage /inventory/categories ----------
+
+@bp.route("/categories")
+@login_required
+def categories_list():
+    """Report of every IngredientCategory + item count. Search + filter
+    (empty / filled / all) narrow the report; each row links to
+    /inventory/?category=<name> for the item list already filterable
+    by the existing route."""
+    q = (request.args.get("q") or "").strip()
+    f_filled = (request.args.get("filter") or "all").strip()
+
+    query = IngredientCategory.query
+    if q:
+        query = query.filter(IngredientCategory.name.ilike(f"%{q}%"))
+    cats = query.order_by(IngredientCategory.name).all()
+
+    # Enrich with counts + apply the filled/empty filter after count.
+    rows = []
+    for c in cats:
+        n = c.ingredient_count
+        if f_filled == "filled" and n == 0:
+            continue
+        if f_filled == "empty" and n > 0:
+            continue
+        rows.append({"cat": c, "count": n})
+
+    total = len(rows)
+    empty_count = sum(1 for r in rows if r["count"] == 0)
+    return render_template(
+        "inventory/categories.html",
+        rows=rows,
+        f_q=q, f_filled=f_filled,
+        total=total, empty_count=empty_count,
+    )
+
+
+@bp.route("/categories/new", methods=["GET", "POST"])
+@login_required
+@write_required
+def create_category():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash("اسم التصنيف مطلوب.", "error")
+            return render_template(
+                "inventory/category_form.html", mode="new", cat=None, name_val=name,
+            )
+        if IngredientCategory.query.filter_by(name=name).first():
+            flash(f"التصنيف \"{name}\" موجود فعلاً.", "error")
+            return render_template(
+                "inventory/category_form.html", mode="new", cat=None, name_val=name,
+            )
+        cat = IngredientCategory(name=name, is_active=True)
+        db.session.add(cat)
+        log_action("ingredient_category_created", "IngredientCategory", 0,
+                   details=f"name={name}")
+        db.session.commit()
+        flash(f"تم إضافة التصنيف \"{name}\".", "success")
+        return redirect(url_for("inventory.categories_list"))
+    return render_template(
+        "inventory/category_form.html", mode="new", cat=None, name_val="",
+    )
+
+
+@bp.route("/categories/<int:cat_id>/rename", methods=["GET", "POST"])
+@login_required
+@write_required
+def rename_category(cat_id: int):
+    cat = db.session.get(IngredientCategory, cat_id)
+    if cat is None:
+        abort(404)
+    if request.method == "POST":
+        new_name = (request.form.get("name") or "").strip()
+        if not new_name:
+            flash("اسم التصنيف مطلوب.", "error")
+            return render_template(
+                "inventory/category_form.html",
+                mode="edit", cat=cat, name_val=new_name,
+            )
+        if new_name != cat.name:
+            existing = IngredientCategory.query.filter_by(name=new_name).first()
+            if existing and existing.id != cat.id:
+                flash(f"التصنيف \"{new_name}\" موجود فعلاً.", "error")
+                return render_template(
+                    "inventory/category_form.html",
+                    mode="edit", cat=cat, name_val=new_name,
+                )
+            # Cascade the rename to every Ingredient row currently
+            # pointing at the old name.
+            old = cat.name
+            Ingredient.query.filter_by(category=old).update(
+                {"category": new_name}, synchronize_session=False,
+            )
+            cat.name = new_name
+            log_action("ingredient_category_renamed", "IngredientCategory", cat.id,
+                       details=f"{old} → {new_name}")
+            db.session.commit()
+            flash(f"تم تعديل التصنيف إلى \"{new_name}\".", "success")
+        return redirect(url_for("inventory.categories_list"))
+    return render_template(
+        "inventory/category_form.html", mode="edit", cat=cat, name_val=cat.name,
+    )
+
+
+@bp.route("/categories/<int:cat_id>/delete", methods=["POST"])
+@login_required
+@write_required
+def delete_category(cat_id: int):
+    cat = db.session.get(IngredientCategory, cat_id)
+    if cat is None:
+        abort(404)
+    # Refuse if any ingredient still points at this category by name.
+    linked = Ingredient.query.filter_by(category=cat.name).count()
+    if linked > 0:
+        flash(
+            f"مينفعش تحذف \"{cat.name}\" — فيه {linked} مادة مرتبطة به. "
+            "انقل المواد لتصنيف تاني أو غيّر تصنيفهم الأول.",
+            "error",
+        )
+        return redirect(url_for("inventory.categories_list"))
+    name = cat.name
+    db.session.delete(cat)
+    log_action("ingredient_category_deleted", "IngredientCategory", cat_id,
+               details=f"name={name}")
+    db.session.commit()
+    flash(f"تم حذف التصنيف \"{name}\".", "info")
+    return redirect(url_for("inventory.categories_list"))

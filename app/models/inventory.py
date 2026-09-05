@@ -4,6 +4,40 @@ from decimal import Decimal
 from app.extensions import db
 
 
+class IngredientCategory(db.Model):
+    """PHASE 31: first-class inventory category, so admins can add /
+    rename / delete categories from the UI without a seed script.
+
+    Loosely coupled to `Ingredient.category` — the FK link is by
+    NAME match (not id), which keeps the migration trivial and lets
+    the two built-in categories ("feed", "medicine") keep working
+    everywhere they're referenced by string literal.
+
+    Rename cascades: the route updates every matching
+    Ingredient.category in the same transaction. Delete refuses
+    when any Ingredient still points at this category's name.
+    """
+    __tablename__ = "ingredient_categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(60), unique=True, nullable=False, index=True)
+    is_active = db.Column(
+        db.Boolean, nullable=False, default=True, server_default="1",
+    )
+    created_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<IngredientCategory {self.id} {self.name}>"
+
+    @property
+    def ingredient_count(self) -> int:
+        return Ingredient.query.filter_by(
+            category=self.name, is_archived=False
+        ).count()
+
+
 class Ingredient(db.Model):
     __tablename__ = "ingredients"
 

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ 'تعديل' if mode == 'edit' else 'إضافة' }} تصنيف{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-tag"></i>
+      {{ 'تعديل تصنيف — ' ~ cat.name if mode == 'edit' else 'إضافة تصنيف جديد' }}
+    </h1>
+    {% if mode == 'edit' and cat.ingredient_count > 0 %}
+    <p class="text-warning small mb-0">
+      <i class="bi bi-info-circle"></i>
+      التصنيف فيه {{ cat.ingredient_count }} مادة — تغيير الاسم هيتحدّث على كل المواد تلقائيًا.
+    </p>
+    {% endif %}
+  </div>
+  <a href="{{ url_for('inventory.categories_list') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للتصنيفات
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mb-3">
+          <label class="form-label">اسم التصنيف</label>
+          <input type="text" name="name" class="form-control"
+                 value="{{ name_val or '' }}" required maxlength="60">
+          <div class="form-text">لازم يكون فريد — مش مسموح تكرار الاسم.</div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {{ 'حفظ التعديل' if mode == 'edit' else 'إضافة' }}
+          </button>
+          <a href="{{ url_for('inventory.categories_list') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

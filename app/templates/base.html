@@ -297,9 +297,13 @@
           {% if suppliers_badge_count %}<span class="sidebar-badge">{{ suppliers_badge_count }}</span>{% endif %}
         </summary>
         <div class="sidebar-section-body">
-          <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('inventory') and 'valuation' not in request.endpoint %}active{% endif %}"
+          <a class="sidebar-item {% if request.endpoint == 'inventory.list_ingredients' %}active{% endif %}"
              data-section="inventory" href="{{ url_for('inventory.list_ingredients') }}">
             <i class="bi bi-boxes"></i> المخزن</a>
+          {# PHASE 31: categories management. #}
+          <a class="sidebar-item {% if request.endpoint and 'categor' in request.endpoint %}active{% endif %}"
+             data-section="inventory" href="{{ url_for('inventory.categories_list') }}">
+            <i class="bi bi-tags"></i> التصنيفات</a>
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('medicine') %}active{% endif %}"
              data-section="inventory" href="{{ url_for('medicine.list_dispenses') }}">
             <i class="bi bi-capsule"></i> الأدوية</a>
