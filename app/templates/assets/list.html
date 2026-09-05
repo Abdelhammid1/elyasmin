@@ -57,10 +57,10 @@
           <th>اسم الأصل</th>
           <th>النوع</th>
           <th>تاريخ الشراء</th>
-          <th class="text-end">التكلفة</th>
-          <th class="text-end">مجمع الإهلاك</th>
-          <th class="text-end">القيمة الدفترية</th>
-          <th class="text-end">إهلاك شهري</th>
+          <th>التكلفة</th>
+          <th>مجمع الإهلاك</th>
+          <th>القيمة الدفترية</th>
+          <th>إهلاك شهري</th>
         </tr>
       </thead>
       <tbody>
@@ -73,10 +73,10 @@
           </td>
           <td><span class="badge bg-secondary">{{ a.category_label }}</span></td>
           <td dir="ltr">{{ a.purchase_date }}</td>
-          <td dir="ltr" class="num text-end">{{ a.purchase_cost }}</td>
-          <td dir="ltr" class="num text-end text-muted">{{ a.accumulated_depreciation }}</td>
-          <td dir="ltr" class="num text-end fw-bold">{{ a.book_value }}</td>
-          <td dir="ltr" class="num text-end">{{ a.monthly_depreciation }}</td>
+          <td class="num">{{ a.purchase_cost }}</td>
+          <td class="num text-muted">{{ a.accumulated_depreciation }}</td>
+          <td class="num fw-bold">{{ a.book_value }}</td>
+          <td class="num">{{ a.monthly_depreciation }}</td>
         </tr>
         {% else %}
         <tr><td colspan="8" class="text-center text-muted py-4">مفيش أصول ثابتة لسه.</td></tr>
@@ -91,14 +91,14 @@
   <div class="p-3 border-bottom"><h5 class="mb-0 text-muted"><i class="bi bi-archive"></i> أصول مخرّدة (آخر 20)</h5></div>
   <div class="table-responsive">
     <table class="table table-sm mb-0">
-      <thead><tr><th>#</th><th>الأصل</th><th>تاريخ التخريد</th><th class="text-end">التكلفة الأصلية</th></tr></thead>
+      <thead><tr><th>#</th><th>الأصل</th><th>تاريخ التخريد</th><th>التكلفة الأصلية</th></tr></thead>
       <tbody>
         {% for a in disposed %}
         <tr class="text-muted">
           <td><a href="{{ url_for('assets.asset_detail', asset_id=a.id) }}">#{{ a.id }}</a></td>
           <td>{{ a.name }}</td>
           <td dir="ltr">{{ a.disposed_on }}</td>
-          <td dir="ltr" class="num text-end">{{ a.purchase_cost }}</td>
+          <td class="num">{{ a.purchase_cost }}</td>
         </tr>
         {% endfor %}
       </tbody>

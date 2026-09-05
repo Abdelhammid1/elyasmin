@@ -51,8 +51,8 @@
           <th>التاريخ</th>
           <th>الوصف</th>
           <th>المصدر</th>
-          <th class="text-end">مدين</th>
-          <th class="text-end">دائن</th>
+          <th>مدين</th>
+          <th>دائن</th>
         </tr>
       </thead>
       <tbody>
@@ -62,8 +62,8 @@
           <td dir="ltr">{{ je.date }}</td>
           <td>{{ je.description }}</td>
           <td class="small text-muted">{{ je.source_type or '—' }}{% if je.source_id %} #{{ je.source_id }}{% endif %}</td>
-          <td dir="ltr" class="num">{{ je.total_debit }}</td>
-          <td dir="ltr" class="num">{{ je.total_credit }}</td>
+          <td class="num">{{ je.total_debit }}</td>
+          <td class="num">{{ je.total_credit }}</td>
         </tr>
         {% else %}
         <tr><td colspan="6" class="text-center text-muted py-4">مفيش قيود في الفترة دي.</td></tr>
@@ -72,9 +72,9 @@
       {% if entries %}
       <tfoot>
         <tr class="fw-bold">
-          <td colspan="4" class="text-end">إجمالي {{ entries|length }} قيد</td>
-          <td dir="ltr" class="num">{{ total_debit }}</td>
-          <td dir="ltr" class="num">{{ total_credit }}</td>
+          <td colspan="4" class="fw-bold">إجمالي {{ entries|length }} قيد</td>
+          <td class="num fw-bold">{{ total_debit }}</td>
+          <td class="num fw-bold">{{ total_credit }}</td>
         </tr>
       </tfoot>
       {% endif %}
