@@ -48,7 +48,7 @@ def upgrade():
                  parent_id, is_postable, is_active, created_at)
             SELECT '{code}', '{name_ar}', '{name_en}',
                    '{atype}', '{side}',
-                   p.id, 1, 1, CURRENT_TIMESTAMP
+                   p.id, true, true, CURRENT_TIMESTAMP
             FROM coa_accounts p
             WHERE p.code = '{parent_code}'
               AND NOT EXISTS (
