@@ -1,62 +1,185 @@
 {% extends "base.html" %}
 {% block title %}قيد {{ entry.number }}{% endblock %}
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
-  <div>
-    <h1 class="d-flex align-items-center gap-2">
-      <i class="bi bi-journal-check"></i>
-      <span class="font-monospace">{{ entry.number }}</span>
-      {% if not entry.is_active %}<span class="badge bg-warning-subtle text-warning" style="background:var(--warning-soft)!important;color:var(--warning)!important;">موقوف</span>{% endif %}
-      {% if entry.is_reversal %}<span class="badge bg-info-subtle text-info" style="background:var(--info-soft)!important;color:var(--info)!important;">قيد عكسي</span>{% endif %}
-    </h1>
-    <p class="text-muted mb-0">{{ entry.date }} — {{ entry.description }}</p>
-  </div>
-  <div class="d-flex gap-2 flex-wrap">
-    {% if source_url %}
-    <a href="{{ source_url }}" class="btn btn-outline-primary">
-      <i class="bi bi-box-arrow-up-left"></i> فتح المصدر ({{ entry.source_type }})
-    </a>
-    {% endif %}
-    {% if current_user.is_admin and not entry.is_reversal and not entry.reversal_of_id %}
-      {% if entry.is_active %}
-      <form method="post" action="{{ url_for('accounting.journal_pause', entry_id=entry.id) }}"
-            onsubmit="return prompt_reason(this, 'إيقاف قيد', 'اكتب سبب الإيقاف')">
-        <input type="hidden" name="reason" value="">
-        <button class="btn btn-outline-warning"><i class="bi bi-pause-circle"></i> إيقاف</button>
-      </form>
-      <form method="post" action="{{ url_for('accounting.journal_reverse', entry_id=entry.id) }}"
-            onsubmit="return confirm('عمل قيد عكسي؟ ده هيلغى تأثير القيد لكن هيسجّل قيد جديد بدل ما يحذف الأصلي.')">
-        <button class="btn btn-outline-danger"><i class="bi bi-arrow-counterclockwise"></i> عكس القيد</button>
-      </form>
-      {% else %}
-      <form method="post" action="{{ url_for('accounting.journal_reactivate', entry_id=entry.id) }}"
-            onsubmit="return prompt_reason(this, 'إعادة تنشيط', 'اكتب سبب إعادة التنشيط')">
-        <input type="hidden" name="reason" value="">
-        <button class="btn btn-outline-success"><i class="bi bi-play-circle"></i> إعادة تنشيط</button>
-      </form>
+{# PHASE 31 (STYLE): rebuilt with the .inv-* invoice-shape primitives
+   (matches purchases/view.html) — navy hero, facts rail, chip badges
+   instead of inline-styled Bootstrap badges, right rail with source /
+   reversal / pause cards. #}
+
+<div class="inv-grid">
+
+  {# ============ MAIN CARD ============ #}
+  <div class="card inv-main">
+
+    {# ---- Hero ---- #}
+    <div class="inv-hero">
+      <div class="hero-l">
+        <div>
+          <div class="hero-name">
+            قيد يومية
+            {% if not entry.is_active %}
+              <span class="chip chip-unpaid">موقوف</span>
+            {% endif %}
+            {% if entry.is_reversal %}
+              <span class="chip chip-returned">قيد عكسي</span>
+            {% endif %}
+          </div>
+          <div class="hero-meta">
+            {{ entry.date }} — {{ entry.description }}
+          </div>
+        </div>
+      </div>
+      <div class="hero-r">
+        <div class="hero-kind">
+          <i class="bi bi-journal-check"></i> رقم القيد
+        </div>
+        <div class="hero-num" dir="ltr">{{ entry.number }}</div>
+      </div>
+    </div>
+
+    {# ---- Action bar ---- #}
+    <div class="inv-actions d-flex gap-2 flex-wrap">
+      {% if source_url %}
+      <a href="{{ source_url }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-box-arrow-up-left"></i> فتح المصدر
+      </a>
       {% endif %}
-    {% endif %}
-    <a href="{{ url_for('accounting.journal_list') }}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i> رجوع لدفتر اليومية
-    </a>
+      {% if current_user.is_admin and not entry.is_reversal and not entry.reversal_of_id %}
+        {% if entry.is_active %}
+        <form method="post" action="{{ url_for('accounting.journal_pause', entry_id=entry.id) }}"
+              onsubmit="return prompt_reason(this, 'إيقاف قيد', 'اكتب سبب الإيقاف')">
+          <input type="hidden" name="reason" value="">
+          <button class="btn btn-sm btn-outline-warning"><i class="bi bi-pause-circle"></i> إيقاف</button>
+        </form>
+        <form method="post" action="{{ url_for('accounting.journal_reverse', entry_id=entry.id) }}"
+              onsubmit="return confirm('عمل قيد عكسي؟ ده هيلغى تأثير القيد لكن هيسجّل قيد جديد بدل ما يحذف الأصلي.')">
+          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-counterclockwise"></i> عكس القيد</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('accounting.journal_reactivate', entry_id=entry.id) }}"
+              onsubmit="return prompt_reason(this, 'إعادة تنشيط', 'اكتب سبب إعادة التنشيط')">
+          <input type="hidden" name="reason" value="">
+          <button class="btn btn-sm btn-outline-success"><i class="bi bi-play-circle"></i> إعادة تنشيط</button>
+        </form>
+        {% endif %}
+      {% endif %}
+      <a href="{{ url_for('accounting.journal_list') }}" class="btn btn-sm btn-outline-secondary ms-auto">
+        <i class="bi bi-arrow-left"></i> دفتر اليومية
+      </a>
+    </div>
+
+    {# ---- Facts row ---- #}
+    <div class="inv-body">
+      <div class="inv-parties">
+        <div class="party-block">
+          <div class="party-label">التاريخ</div>
+          <div class="party-name" dir="ltr">{{ entry.date }}</div>
+        </div>
+        <div class="party-block">
+          <div class="party-label">المصدر</div>
+          <div class="party-name">
+            {% if entry.source_type %}
+              {{ entry.source_type }}{% if entry.source_id %} <span class="text-muted" dir="ltr">#{{ entry.source_id }}</span>{% endif %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="party-block">
+          <div class="party-label">مرجع</div>
+          <div class="party-name">{{ entry.reference or '—' }}</div>
+        </div>
+      </div>
+
+      {# ---- Lines table ---- #}
+      <div class="inv-items-wrap mt-3">
+        <table class="inv-items">
+          <thead>
+            <tr>
+              <th>الحساب</th>
+              <th>الطرف</th>
+              <th>ملاحظة</th>
+              {# `.num` applies Courier New — it doesn't shape Arabic
+                 letters ("دائن" breaks into "د ائن"). Headers keep
+                 the default Arabic font; only data cells use .num. #}
+              <th class="text-end">مدين</th>
+              <th class="text-end">دائن</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in entry.lines %}
+            <tr>
+              <td>
+                <span class="font-monospace text-muted small">{{ l.account.code }}</span>
+                &nbsp;{{ l.account.name }}
+              </td>
+              <td>
+                {% if l.party_type == 'customer' %}
+                  <a href="{{ url_for('accounting.party_ledger', party_type='customer', party_id=l.party_id) }}" class="chip chip-cash text-decoration-none">عميل #{{ l.party_id }}</a>
+                {% elif l.party_type == 'supplier' %}
+                  <a href="{{ url_for('accounting.party_ledger', party_type='supplier', party_id=l.party_id) }}" class="chip chip-credit text-decoration-none">مورد #{{ l.party_id }}</a>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="text-muted small">{{ l.memo or '' }}</td>
+              <td dir="ltr" class="num text-end">{{ "{:,.2f}".format(l.debit) if l.debit else '' }}</td>
+              <td dir="ltr" class="num text-end">{{ "{:,.2f}".format(l.credit) if l.credit else '' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="3" class="text-end fw-bold">الإجمالي</td>
+              <td dir="ltr" class="num text-end fw-bold">{{ "{:,.2f}".format(entry.total_debit) }}</td>
+              <td dir="ltr" class="num text-end fw-bold">{{ "{:,.2f}".format(entry.total_credit) }}</td>
+            </tr>
+            <tr class="{% if entry.is_balanced %}paid-row{% else %}outstanding-row{% endif %}">
+              <td colspan="3" class="text-end fw-bold">حالة التوازن</td>
+              <td colspan="2" class="text-end">
+                {% if entry.is_balanced %}
+                  <span class="chip chip-paid">متوازن</span>
+                {% else %}
+                  <span class="chip chip-overdue">غير متوازن</span>
+                {% endif %}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
   </div>
-</div>
 
-{% if entry.reversal_of_id %}
-<div class="alert alert-info">
-  <i class="bi bi-info-circle"></i>
-  ده قيد عكسي للقيد
-  <a href="{{ url_for('accounting.journal_detail', entry_id=entry.reversal_of_id) }}" class="fw-bold">#{{ entry.reversal_of_id }}</a>.
-</div>
-{% endif %}
+  {# ============ RIGHT RAIL ============ #}
+  <aside class="inv-rail">
+    {% if source_url %}
+    <div class="card p-3">
+      <div class="text-muted small mb-1">المصدر</div>
+      <div class="fw-semibold mb-2">{{ entry.source_type }}{% if entry.source_id %} #{{ entry.source_id }}{% endif %}</div>
+      <a href="{{ source_url }}" class="btn btn-sm btn-outline-primary w-100">
+        <i class="bi bi-box-arrow-up-left"></i> فتح شاشة المصدر
+      </a>
+    </div>
+    {% endif %}
 
-{% if not entry.is_active and entry.pause_reason %}
-<div class="alert alert-warning">
-  <i class="bi bi-pause-circle-fill"></i>
-  <strong>القيد موقوف</strong> — <span dir="ltr">{{ entry.paused_at.strftime('%Y-%m-%d %H:%M') if entry.paused_at else '' }}</span>
-  <br>السبب: {{ entry.pause_reason }}
+    {% if entry.reversal_of_id %}
+    <div class="card p-3">
+      <div class="text-muted small mb-1">قيد عكسي لـ</div>
+      <a href="{{ url_for('accounting.journal_detail', entry_id=entry.reversal_of_id) }}" class="fw-bold" dir="ltr">
+        <i class="bi bi-arrow-counterclockwise"></i> #{{ entry.reversal_of_id }}
+      </a>
+    </div>
+    {% endif %}
+
+    {% if not entry.is_active and entry.pause_reason %}
+    <div class="card p-3 rail-danger">
+      <div class="d-flex align-items-center gap-1 fw-bold text-danger mb-1">
+        <i class="bi bi-pause-circle-fill"></i> القيد موقوف
+      </div>
+      <div class="text-muted small mb-2" dir="ltr">
+        {{ entry.paused_at.strftime('%Y-%m-%d %H:%M') if entry.paused_at else '' }}
+      </div>
+      <div class="small"><strong>السبب:</strong> {{ entry.pause_reason }}</div>
+    </div>
+    {% endif %}
+  </aside>
 </div>
-{% endif %}
 
 <script>
   function prompt_reason(form, title, msg) {
@@ -66,74 +189,4 @@
     return true;
   }
 </script>
-
-<div class="row g-3 mb-3">
-  <div class="col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label">المصدر</div>
-      <div class="stat-value" style="font-size:1.05rem;">{{ entry.source_type or '—' }}{% if entry.source_id %} #{{ entry.source_id }}{% endif %}</div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label">مرجع</div>
-      <div class="stat-value" style="font-size:1.05rem;">{{ entry.reference or '—' }}</div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card stat-card">
-      <div class="stat-label">إجمالي مدين</div>
-      <div class="stat-value" dir="ltr">{{ entry.total_debit }}</div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card stat-card {% if entry.is_balanced %}tone-brand{% else %}tone-danger{% endif %}">
-      <div class="stat-label">إجمالي دائن</div>
-      <div class="stat-value" dir="ltr">{{ entry.total_credit }}</div>
-      <small class="text-{{ 'success' if entry.is_balanced else 'danger' }}">
-        {{ 'متوازن' if entry.is_balanced else 'غير متوازن!' }}
-      </small>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="table-responsive">
-    <table class="table mb-0">
-      <thead>
-        <tr>
-          <th>الحساب</th>
-          <th>الطرف</th>
-          <th>ملاحظة</th>
-          <th class="text-end">مدين</th>
-          <th class="text-end">دائن</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for l in entry.lines %}
-        <tr>
-          <td>
-            <span class="font-monospace text-muted small">{{ l.account.code }}</span>
-            &nbsp;{{ l.account.name }}
-          </td>
-          <td>
-            {% if l.party_type == 'customer' %}
-              <a href="{{ url_for('accounting.party_ledger', party_type='customer', party_id=l.party_id) }}"
-                 class="badge bg-info-subtle text-info text-decoration-none"
-                 style="background:var(--info-soft)!important;color:var(--info)!important;">عميل #{{ l.party_id }}</a>
-            {% elif l.party_type == 'supplier' %}
-              <a href="{{ url_for('accounting.party_ledger', party_type='supplier', party_id=l.party_id) }}"
-                 class="badge bg-warning-subtle text-warning text-decoration-none"
-                 style="background:var(--warning-soft)!important;color:var(--warning)!important;">مورد #{{ l.party_id }}</a>
-            {% else %}—{% endif %}
-          </td>
-          <td class="text-muted small">{{ l.memo or '' }}</td>
-          <td dir="ltr" class="num">{{ l.debit if l.debit else '' }}</td>
-          <td dir="ltr" class="num">{{ l.credit if l.credit else '' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
 {% endblock %}

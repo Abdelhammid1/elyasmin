@@ -473,32 +473,16 @@ def create_birth():
         db.session.add(birth)
         db.session.flush()
 
-        # Auto-move mother to nursing group (US-1.5 AC3)
-        nursing_id = _nursing_group_id()
-        if nursing_id and mother.group_id != nursing_id:
-            db.session.add(
-                CowMovement(
-                    cow_id=mother.id,
-                    from_group_id=mother.group_id,
-                    to_group_id=nursing_id,
-                    moved_on=form.birth_date.data,
-                    reason="ولادة — نقل تلقائي إلى الرضاعة",
-                    created_by_id=current_user.id,
-                )
-            )
-            mother.group_id = nursing_id
-
-        # TICKET-1: a newborn male used to jump straight to التسمين, skipping the
-        # age stages he actually goes through: مولود → رضيع → فطام → تسمين.
-        # Both sexes now start in الرضاعة; promotion onward stays manual.
+        # HERD-1 (PHASE 31): no auto-move to nursing. The dam stays in
+        # her current group; every live calf is created in the dam's
+        # current group (mother-and-calf together). The user picks the
+        # final destination on the confirmation page — skipping it
+        # leaves everyone in their initial spot, but the birth itself
+        # is always recorded.
         for rec in calf_records:
             calf_cow_id = None
             if rec["is_alive"]:
-                target_group = nursing_id
-                if not target_group:
-                    flash("مجموعة الرضاعة غير مضبوطة. من فضلك راجع الإعدادات.", "error")
-                    db.session.rollback()
-                    return render_template("herd/birth_form.html", form=form)
+                target_group = mother.group_id
 
                 tag = rec["ear_tag"] or f"TEMP-{birth.id}-{len(calf_records)}"
                 # Ensure uniqueness for auto tag
@@ -543,10 +527,91 @@ def create_birth():
 
         log_action("birth_registered", "Birth", birth.id, details=f"mother={mother.id}")
         db.session.commit()
-        flash("تم تسجيل الولادة بنجاح.", "success")
-        return redirect(url_for("herd.cow_detail", cow_id=mother.id))
+        flash("تم تسجيل الولادة. اختار مجموعة الأم والمواليد بالأسفل.", "success")
+        return redirect(url_for("herd.assign_birth_groups", birth_id=birth.id))
 
     return render_template("herd/birth_form.html", form=form)
+
+
+# ---------- HERD-1 (PHASE 31): manual group choice after birth ----------
+@bp.route("/births/<int:birth_id>/assign-groups", methods=["GET", "POST"])
+@login_required
+@write_required
+def assign_birth_groups(birth_id: int):
+    """Confirmation page shown after `create_birth`. User picks the
+    final group for the dam and each live calf — nursing is the
+    suggested default (falls back to the current group if no nursing
+    group exists). Skipping the page (any other URL) leaves the birth
+    recorded but no moves happen.
+
+    HERD-1: replaces the silent auto-move to nursing. No consent, no
+    move.
+    """
+    birth = db.session.get(Birth, birth_id)
+    if birth is None:
+        abort(404)
+
+    dam = birth.mother
+    live_calves = [c for c in birth.calves if c.is_alive and c.cow_id]
+    live_cows = [db.session.get(Cow, c.cow_id) for c in live_calves]
+    live_cows = [c for c in live_cows if c is not None]
+
+    all_groups = CattleGroup.query.filter_by(
+        is_archived=False).order_by(CattleGroup.name).all()
+    group_choices = [(g.id, g.name) for g in all_groups]
+
+    nursing_id = _nursing_group_id()
+
+    def _default_group_id(cow):
+        """Nursing if it exists; else the cow's current group."""
+        return nursing_id if nursing_id else cow.group_id
+
+    if request.method == "POST":
+        moved = 0
+        # Dam
+        new_dam_group = request.form.get("dam_group_id", type=int)
+        if new_dam_group and new_dam_group != dam.group_id:
+            db.session.add(CowMovement(
+                cow_id=dam.id,
+                from_group_id=dam.group_id,
+                to_group_id=new_dam_group,
+                moved_on=birth.birth_date,
+                reason="اختيار يدوي بعد الولادة (الأم)",
+                created_by_id=current_user.id,
+            ))
+            dam.group_id = new_dam_group
+            moved += 1
+
+        # Calves
+        for cow in live_cows:
+            new_group = request.form.get(f"calf_group_{cow.id}", type=int)
+            if new_group and new_group != cow.group_id:
+                db.session.add(CowMovement(
+                    cow_id=cow.id,
+                    from_group_id=cow.group_id,
+                    to_group_id=new_group,
+                    moved_on=birth.birth_date,
+                    reason="اختيار يدوي بعد الولادة (المولود)",
+                    created_by_id=current_user.id,
+                ))
+                cow.group_id = new_group
+                moved += 1
+
+        log_action("birth_groups_assigned", "Birth", birth.id,
+                   details=f"moves={moved}")
+        db.session.commit()
+        flash(f"تم تنفيذ {moved} نقل بناءً على اختيارك.", "success")
+        return redirect(url_for("herd.cow_detail", cow_id=dam.id))
+
+    return render_template(
+        "herd/assign_birth_groups.html",
+        birth=birth,
+        dam=dam,
+        live_cows=live_cows,
+        group_choices=group_choices,
+        default_group_id=_default_group_id,
+        nursing_id=nursing_id,
+    )
 
 
 # ---------- US-1.6 Death ----------

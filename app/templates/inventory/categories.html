@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}تصنيفات المخزون{% endblock %}
+{% block content %}
+{# PHASE 31 (INV categories): Phase-22 KPI-strip + filter-row + rich
+   chip statuses. Each row's name links to the ingredients list
+   pre-filtered by that category. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-tags"></i> تصنيفات المخزون</h1>
+    <p class="text-muted mb-0">
+      إدارة كل تصنيفات المواد. اضغط على أي تصنيف عشان تشوف المواد اللي تحته.
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('inventory.list_ingredients') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-box-seam"></i> كل المواد
+    </a>
+    {% if can_write %}
+    <a href="{{ url_for('inventory.create_category') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إضافة تصنيف جديد
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4 col-6"><div class="card stat-card">
+    <div class="stat-label">عدد التصنيفات</div>
+    <div class="stat-value" dir="ltr">{{ total }}</div>
+    <small class="text-muted">بعد تطبيق الفلتر</small>
+  </div></div>
+  <div class="col-md-4 col-6"><div class="card stat-card {% if empty_count > 0 %}tone-warning{% endif %}">
+    <div class="stat-label">تصنيفات فاضية</div>
+    <div class="stat-value" dir="ltr">{{ empty_count }}</div>
+    <small class="text-muted">من غير مواد مرتبطة</small>
+  </div></div>
+  <div class="col-md-4 col-6"><div class="card stat-card">
+    <div class="stat-label">تصنيفات مستخدمة</div>
+    <div class="stat-value" dir="ltr">{{ total - empty_count }}</div>
+    <small class="text-muted">فيها مادة واحدة على الأقل</small>
+  </div></div>
+</div>
+
+<form method="get" class="filter-row row g-2 align-items-end">
+  <div class="col-md-6">
+    <label>بحث بالاسم</label>
+    <input type="search" name="q" value="{{ f_q }}" placeholder="اسم التصنيف"
+           class="form-control form-control-sm">
+  </div>
+  <div class="col-md-4">
+    <label>الفلتر</label>
+    <select name="filter" class="form-select form-select-sm">
+      {% for slug, lbl in [('all','كل التصنيفات'), ('filled','فيه مواد'), ('empty','فاضي')] %}
+        <option value="{{ slug }}" {% if f_filled == slug %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2 d-grid">
+    <button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> فلتر</button>
+  </div>
+</form>
+
+<div class="card mt-3">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>التصنيف</th>
+          <th class="text-end">عدد المواد</th>
+          <th class="text-end">الحالة</th>
+          {% if can_write %}<th class="text-end">إجراءات</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            <a href="{{ url_for('inventory.list_ingredients', category=r.cat.name) }}"
+               class="fw-semibold text-decoration-none">
+              <i class="bi bi-tag"></i> {{ r.cat.name }}
+            </a>
+          </td>
+          <td dir="ltr" class="num text-end">{{ r.count }}</td>
+          <td class="text-end">
+            {% if r.count == 0 %}
+              <span class="chip chip-draft">فاضي</span>
+            {% else %}
+              <span class="chip chip-paid">{{ r.count }} مادة</span>
+            {% endif %}
+          </td>
+          {% if can_write %}
+          <td class="text-end" style="white-space:nowrap;">
+            <a href="{{ url_for('inventory.rename_category', cat_id=r.cat.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="تعديل الاسم">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="{{ url_for('inventory.delete_category', cat_id=r.cat.id) }}"
+                  style="display:inline;"
+                  onsubmit="return confirm('حذف التصنيف \'{{ r.cat.name }}\'؟');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-outline-danger" title="حذف">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="{% if can_write %}4{% else %}3{% endif %}" class="text-center text-muted py-4">
+          {% if f_q or f_filled != 'all' %}مفيش نتيجة مطابقة للفلتر.{% else %}مفيش تصنيفات لسه — أضف واحد.{% endif %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

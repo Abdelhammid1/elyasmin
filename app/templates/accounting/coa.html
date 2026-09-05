@@ -6,15 +6,29 @@
     <td style="padding-inline-start: {{ depth * 24 + 12 }}px;">
       <span class="text-muted small font-monospace">{{ a.code }}</span>
       &nbsp;{{ a.name }}
-      {% if not a.is_postable %}<span class="badge badge-brand ms-1" style="background: var(--brand-tint); color: var(--brand-dark);">تجميعي</span>{% endif %}
-      {% if a.treasury_account_id %}<span class="badge bg-info-subtle text-info ms-1" style="background: var(--info-soft) !important; color: var(--info) !important;">خزنة</span>{% endif %}
+      {% if not a.is_postable %}<span class="chip chip-draft ms-1">تجميعي</span>{% endif %}
+      {% if a.treasury_account_id %}<span class="chip chip-cash ms-1">خزنة</span>{% endif %}
     </td>
     <td>{{ a.type.value }}</td>
     <td>{{ 'مدين' if a.normal_side.value == 'DEBIT' else 'دائن' }}</td>
     <td dir="ltr" class="num" style="text-align:end;">{{ a.balance }}</td>
+    {% if current_user.is_admin %}
+    <td class="text-end" style="white-space:nowrap;">
+      <a href="{{ url_for('accounting.edit_ledger_account', account_id=a.id) }}"
+         class="btn btn-sm btn-outline-secondary" title="تعديل">
+        <i class="bi bi-pencil"></i>
+      </a>
+      <form method="post" action="{{ url_for('accounting.archive_ledger_account', account_id=a.id) }}"
+            style="display:inline;"
+            onsubmit="return confirm('أرشفة الحساب {{ a.display_name }}؟');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline-danger" title="أرشفة"><i class="bi bi-archive"></i></button>
+      </form>
+    </td>
+    {% endif %}
   </tr>
   {% for c in a.children|sort(attribute='code') %}
-    {{ render_account(c, depth + 1) }}
+    {% if c.is_active %}{{ render_account(c, depth + 1) }}{% endif %}
   {% endfor %}
 {% endmacro %}
 
@@ -22,22 +36,33 @@
 <div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
   <div>
     <h1><i class="bi bi-diagram-3"></i> دليل الحسابات</h1>
-    <p class="text-muted mb-0">شجرة كل حساب في المزرعة ورصيده الحالي. الحسابات <span class="badge badge-brand" style="background:var(--brand-tint);color:var(--brand-dark);">تجميعي</span> ما بيتقيّدش عليها مباشرة.</p>
+    <p class="text-muted mb-0">
+      شجرة كل حساب في المزرعة ورصيده الحالي.
+      الحسابات <span class="chip chip-draft">تجميعي</span> ما بيتقيّدش عليها مباشرة.
+    </p>
   </div>
-  <a href="{{ url_for('accounting.trial_balance_view') }}" class="btn btn-outline-primary">
-    <i class="bi bi-clipboard-data"></i> ميزان المراجعة
-  </a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('accounting.trial_balance_view') }}" class="btn btn-outline-primary">
+      <i class="bi bi-clipboard-data"></i> ميزان المراجعة
+    </a>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('accounting.create_ledger_account') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إضافة حساب
+    </a>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card">
   <div class="table-responsive">
-    <table class="table mb-0">
+    <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
           <th>الحساب</th>
           <th>النوع</th>
           <th>الجانب الطبيعي</th>
           <th class="text-end">الرصيد</th>
+          {% if current_user.is_admin %}<th class="text-end">إجراءات</th>{% endif %}
         </tr>
       </thead>
       <tbody>

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}اختيار المجموعات{% endblock %}
+{% block content %}
+{# PHASE 31 (HERD-1): after a birth is registered, the user picks the
+   final group for the dam and each live calf. Skipping this page
+   (any other URL, F5, closing the tab) leaves the birth recorded
+   but no moves happen — everyone stays in the dam's current group. #}
+
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-diagram-3"></i> اختيار مجموعات ما بعد الولادة</h1>
+    <p class="text-muted mb-0">
+      الولادة اتسجّلت بنجاح. اختار المجموعة النهائية للأم وكل مولود حي.
+      المقترح المبدئي هو <strong>مجموعة الرضاعة</strong>؛ تقدر تغيّره
+      أو تسيبه زي ما هو.
+      <span class="text-muted small">
+        (لو خرجت من الصفحة من غير تأكيد، هيفضل كل واحد في مجموعته الحالية.)
+      </span>
+    </p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <form method="post" class="card p-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      {# ---- Dam ---- #}
+      <div class="mb-4">
+        <div class="text-muted small mb-1">الأم</div>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="fw-bold" style="min-width: 180px;">
+            <i class="bi bi-flower1"></i>
+            <span dir="ltr">{{ dam.ear_tag }}</span>
+            {% if dam.name %}<span class="text-muted">— {{ dam.name }}</span>{% endif %}
+          </div>
+          <div class="text-muted small">
+            المجموعة الحالية: <span class="chip chip-draft">{{ dam.group.name if dam.group else '—' }}</span>
+          </div>
+          <div class="flex-grow-1" style="min-width: 220px;">
+            <label class="form-label small text-muted">المجموعة الجديدة</label>
+            <select name="dam_group_id" class="form-select">
+              {% for gid, gname in group_choices %}
+                <option value="{{ gid }}" {% if default_group_id(dam) == gid %}selected{% endif %}>{{ gname }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {# ---- Calves ---- #}
+      {% if live_cows %}
+      <hr>
+      <div class="text-muted small mb-2">المواليد الأحياء ({{ live_cows|length }})</div>
+      {% for cow in live_cows %}
+      <div class="mb-3">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="fw-bold" style="min-width: 180px;">
+            <i class="bi bi-{{ 'gender-male' if cow.gender == 'male' else 'gender-female' }}"></i>
+            <span dir="ltr">{{ cow.ear_tag }}</span>
+            <span class="text-muted small">({{ 'ذكر' if cow.gender == 'male' else 'أنثى' }})</span>
+          </div>
+          <div class="text-muted small">
+            الحالية: <span class="chip chip-draft">{{ cow.group.name if cow.group else '—' }}</span>
+          </div>
+          <div class="flex-grow-1" style="min-width: 220px;">
+            <label class="form-label small text-muted">المجموعة الجديدة</label>
+            <select name="calf_group_{{ cow.id }}" class="form-select">
+              {% for gid, gname in group_choices %}
+                <option value="{{ gid }}" {% if default_group_id(cow) == gid %}selected{% endif %}>{{ gname }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle"></i>
+        مفيش مواليد أحياء في هذه الولادة — بس اختار مجموعة الأم فوق.
+      </div>
+      {% endif %}
+
+      <div class="d-flex gap-2 mt-4">
+        <button class="btn btn-primary">
+          <i class="bi bi-check-lg"></i> تأكيد النقل
+        </button>
+        <a href="{{ url_for('herd.cow_detail', cow_id=dam.id) }}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i> تخطّي — سيبهم في مكانهم
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
