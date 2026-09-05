@@ -86,6 +86,15 @@ class LedgerAccount(db.Model):
         for c in self.children:
             yield from c.descendants()
 
+    def has_journal_lines(self) -> bool:
+        """PHASE 31 (FIN-6): True iff at least one JournalLine references
+        this account. Cheap existence-check — used by the CoA CRUD to
+        refuse a code-edit / delete on any account already carrying
+        posted lines. Does not filter by JE.is_active — a paused entry
+        can still be reactivated, and its line still points here."""
+        return db.session.query(JournalLine.id).filter_by(
+            account_id=self.id).first() is not None
+
     @property
     def balance(self) -> Decimal:
         """Net balance. For a leaf, the sum of its lines expressed on the

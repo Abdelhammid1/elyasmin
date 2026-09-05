@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ 'تعديل' if mode == 'edit' else 'إضافة' }} حساب{% endblock %}
+{% block content %}
+{# PHASE 31 (FIN-6): CoA add/edit form. Type SelectField is disabled by
+   JS when a parent is chosen — the value is inherited from the parent
+   in the route regardless of what the client posts. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-diagram-3"></i>
+      {{ 'تعديل حساب — ' ~ account.display_name if mode == 'edit' else 'إضافة حساب' }}
+    </h1>
+    {% if mode == 'edit' and has_lines %}
+    <p class="text-danger small mb-0">
+      <i class="bi bi-info-circle"></i>
+      الحساب عليه قيود مرحّلة — تعديل الكود / التحويل لتجميعي ممنوع.
+    </p>
+    {% endif %}
+  </div>
+  <a href="{{ url_for('accounting.chart_of_accounts') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للدليل
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">{{ form.code.label.text }}</label>
+            {{ form.code(class="form-control", dir="ltr") }}
+            {% for e in form.code.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-8">
+            <label class="form-label">{{ form.name.label.text }}</label>
+            {{ form.name(class="form-control") }}
+            {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">{{ form.name_en.label.text }}</label>
+            {{ form.name_en(class="form-control", dir="ltr") }}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">{{ form.parent_id.label.text }}</label>
+            {{ form.parent_id(class="form-select", id="parent_id") }}
+            <div class="form-text">لو اخترت أب، النوع يتوّرث منه تلقائيًا.</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">{{ form.type.label.text }}</label>
+            {{ form.type(class="form-select", id="type_field") }}
+            <div id="type_hint" class="form-text text-muted" style="display:none;">
+              النوع مقفول — بيتورّث من الحساب الأب.
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">{{ form.treasury_account_id.label.text }}</label>
+            {{ form.treasury_account_id(class="form-select") }}
+            <div class="form-text">لو الحساب مربوط بخزنة/بنك في شاشة الخزائن.</div>
+          </div>
+
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.is_postable(class="form-check-input", id="is_postable") }}
+              <label class="form-check-label" for="is_postable">
+                {{ form.is_postable.label.text }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('accounting.chart_of_accounts') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // PHASE 31 (FIN-6): when a parent is picked, lock the type field —
+  // the route inherits from the parent regardless of what's posted,
+  // but the UI should reflect that so the user doesn't think they
+  // control it.
+  (function() {
+    var parent = document.getElementById('parent_id');
+    var type = document.getElementById('type_field');
+    var hint = document.getElementById('type_hint');
+    function sync() {
+      var hasParent = parent.value && parent.value !== '0';
+      type.disabled = hasParent;
+      hint.style.display = hasParent ? 'block' : 'none';
+    }
+    parent.addEventListener('change', sync);
+    sync();
+  })();
+</script>
+{% endblock %}

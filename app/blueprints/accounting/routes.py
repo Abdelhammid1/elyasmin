@@ -49,10 +49,253 @@ def chart_of_accounts():
     roots = (
         LedgerAccount.query
         .filter(LedgerAccount.parent_id.is_(None))
+        .filter(LedgerAccount.is_active.is_(True))
         .order_by(LedgerAccount.code)
         .all()
     )
     return render_template("accounting/coa.html", roots=roots)
+
+
+# ---------- PHASE 31 (FIN-6): CoA CRUD ----------
+
+def _parent_choices(exclude_id: int | None = None):
+    """Every active account, flat + sorted by code, for the parent
+    dropdown. On edit, `exclude_id` filters out the account itself
+    AND every one of its descendants — you can't make a subtree its
+    own ancestor. Includes headers (is_postable=False) so a user can
+    park a leaf under a header."""
+    q = LedgerAccount.query.filter(LedgerAccount.is_active.is_(True))
+    all_accounts = q.order_by(LedgerAccount.code).all()
+    if exclude_id is not None:
+        excluded_ids = _descendant_ids(exclude_id)
+        all_accounts = [a for a in all_accounts if a.id not in excluded_ids]
+    choices = [(0, "— بدون (حساب رئيسي) —")]
+    choices.extend((a.id, a.display_name) for a in all_accounts)
+    return choices
+
+
+def _descendant_ids(root_id: int) -> set[int]:
+    """Every id in the subtree rooted at `root_id` (inclusive). Used
+    to guard against cycles on parent re-assignment."""
+    root = db.session.get(LedgerAccount, root_id)
+    if root is None:
+        return set()
+    return {a.id for a in root.descendants()}
+
+
+def _treasury_choices(exclude_treasury_id: int | None = None):
+    """Every un-claimed TreasuryAccount (no LedgerAccount points at it
+    yet), plus `exclude_treasury_id` when editing (so the current
+    account's own treasury stays selectable)."""
+    from app.models.finance import TreasuryAccount
+    claimed = {
+        row[0] for row in
+        db.session.query(LedgerAccount.treasury_account_id)
+        .filter(LedgerAccount.treasury_account_id.isnot(None))
+        .all()
+    }
+    if exclude_treasury_id is not None:
+        claimed.discard(exclude_treasury_id)
+    free = (
+        TreasuryAccount.query
+        .filter(TreasuryAccount.is_archived.is_(False))
+        .order_by(TreasuryAccount.name)
+        .all()
+    )
+    free = [t for t in free if t.id not in claimed]
+    return [(0, "— بدون —")] + [(t.id, t.name) for t in free]
+
+
+@bp.route("/coa/new", methods=["GET", "POST"])
+@login_required
+@write_required
+def create_ledger_account():
+    _admin_only()
+    from flask import flash
+    from app.forms.accounting import LedgerAccountForm
+    from app.models.accounting import AccountType, NORMAL_SIDE_FOR_TYPE
+    from app.utils.audit import log_action
+
+    form = LedgerAccountForm()
+    form.parent_id.choices = _parent_choices()
+    form.treasury_account_id.choices = _treasury_choices()
+
+    if form.validate_on_submit():
+        code = form.code.data.strip()
+        parent_id = form.parent_id.data or None
+        treasury_id = form.treasury_account_id.data or None
+
+        # Unique code
+        if LedgerAccount.query.filter_by(code=code).first():
+            flash(f"الكود {code} مستخدم فعلاً على حساب تاني.", "error")
+            return render_template("accounting/coa_form.html",
+                                   form=form, mode="new", account=None)
+
+        # Type inheritance from parent
+        if parent_id:
+            parent = db.session.get(LedgerAccount, parent_id)
+            if parent is None or not parent.is_active:
+                flash("الحساب الأب مش موجود أو مؤرشف.", "error")
+                return render_template("accounting/coa_form.html",
+                                       form=form, mode="new", account=None)
+            atype = parent.type
+        else:
+            atype = AccountType(form.type.data)
+
+        normal_side = NORMAL_SIDE_FOR_TYPE[atype]
+
+        acct = LedgerAccount(
+            code=code,
+            name=form.name.data.strip(),
+            name_en=(form.name_en.data or "").strip() or None,
+            type=atype,
+            normal_side=normal_side,
+            parent_id=parent_id,
+            is_postable=form.is_postable.data,
+            treasury_account_id=treasury_id,
+            is_active=True,
+        )
+        db.session.add(acct)
+        log_action("ledger_account_created", "LedgerAccount", 0,
+                   details=f"code={code}")
+        db.session.commit()
+        flash(f"تم إنشاء الحساب {acct.display_name}.", "success")
+        return redirect(url_for("accounting.chart_of_accounts"))
+
+    return render_template("accounting/coa_form.html",
+                           form=form, mode="new", account=None)
+
+
+@bp.route("/coa/<int:account_id>/edit", methods=["GET", "POST"])
+@login_required
+@write_required
+def edit_ledger_account(account_id: int):
+    _admin_only()
+    from flask import flash
+    from app.forms.accounting import LedgerAccountForm
+    from app.models.accounting import AccountType, NORMAL_SIDE_FOR_TYPE
+    from app.utils.audit import log_action
+
+    acct = db.session.get(LedgerAccount, account_id)
+    if acct is None or not acct.is_active:
+        abort(404)
+
+    form = LedgerAccountForm(obj=acct)
+    if request.method == "GET":
+        form.parent_id.data = acct.parent_id or 0
+        form.treasury_account_id.data = acct.treasury_account_id or 0
+        form.type.data = acct.type.value
+
+    form.parent_id.choices = _parent_choices(exclude_id=acct.id)
+    form.treasury_account_id.choices = _treasury_choices(
+        exclude_treasury_id=acct.treasury_account_id
+    )
+
+    has_lines = acct.has_journal_lines()
+
+    if form.validate_on_submit():
+        new_code = form.code.data.strip()
+        new_parent_id = form.parent_id.data or None
+        new_treasury_id = form.treasury_account_id.data or None
+
+        # Code-change guard — refuse if account has lines
+        if new_code != acct.code:
+            if has_lines:
+                flash("الحساب عليه قيود مرحّلة — مينفعش تعدّل الكود.", "error")
+                return render_template("accounting/coa_form.html",
+                                       form=form, mode="edit", account=acct)
+            if LedgerAccount.query.filter(
+                LedgerAccount.code == new_code,
+                LedgerAccount.id != acct.id,
+            ).first():
+                flash(f"الكود {new_code} مستخدم فعلاً على حساب تاني.", "error")
+                return render_template("accounting/coa_form.html",
+                                       form=form, mode="edit", account=acct)
+
+        # Cycle detection — parent cannot be self or a descendant of self
+        if new_parent_id and new_parent_id in _descendant_ids(acct.id):
+            flash("مينفعش يبقى الحساب أب لنفسه عبر مسار غير مباشر.", "error")
+            return render_template("accounting/coa_form.html",
+                                   form=form, mode="edit", account=acct)
+
+        # Type inheritance
+        if new_parent_id:
+            parent = db.session.get(LedgerAccount, new_parent_id)
+            if parent is None or not parent.is_active:
+                flash("الحساب الأب مش موجود أو مؤرشف.", "error")
+                return render_template("accounting/coa_form.html",
+                                       form=form, mode="edit", account=acct)
+            atype = parent.type
+        else:
+            atype = AccountType(form.type.data)
+
+        # is_postable toggle guard: if flipping to header, refuse if lines exist
+        new_postable = form.is_postable.data
+        if not new_postable and has_lines:
+            flash(
+                "الحساب عليه قيود مرحّلة — مينفعش تحوّله لتجميعي (هيتم يتيم القيود).",
+                "error",
+            )
+            return render_template("accounting/coa_form.html",
+                                   form=form, mode="edit", account=acct)
+
+        acct.code = new_code
+        acct.name = form.name.data.strip()
+        acct.name_en = (form.name_en.data or "").strip() or None
+        acct.type = atype
+        acct.normal_side = NORMAL_SIDE_FOR_TYPE[atype]
+        acct.parent_id = new_parent_id
+        acct.is_postable = new_postable
+        acct.treasury_account_id = new_treasury_id
+
+        log_action("ledger_account_updated", "LedgerAccount", acct.id,
+                   details=f"code={acct.code}")
+        db.session.commit()
+        flash(f"تم حفظ التعديلات على {acct.display_name}.", "success")
+        return redirect(url_for("accounting.chart_of_accounts"))
+
+    return render_template("accounting/coa_form.html",
+                           form=form, mode="edit", account=acct,
+                           has_lines=has_lines)
+
+
+@bp.route("/coa/<int:account_id>/archive", methods=["POST"])
+@login_required
+@write_required
+def archive_ledger_account(account_id: int):
+    _admin_only()
+    from flask import flash
+    from app.utils.audit import log_action
+
+    acct = db.session.get(LedgerAccount, account_id)
+    if acct is None or not acct.is_active:
+        abort(404)
+
+    # Refuse if it still has active children
+    active_children = [c for c in acct.children if c.is_active]
+    if active_children:
+        flash(
+            f"مينفعش تأرشف {acct.display_name} — عنده "
+            f"{len(active_children)} حساب فرعي نشط. أرشف الأبناء الأول.",
+            "error",
+        )
+        return redirect(url_for("accounting.chart_of_accounts"))
+
+    # Refuse if it has any posted lines (paused or not — reversible)
+    if acct.has_journal_lines():
+        flash(
+            f"مينفعش تأرشف {acct.display_name} — عليه قيود مرحّلة. "
+            "لو محتاج توقفه، ما تستخدمهوش في قيود جديدة بس.",
+            "error",
+        )
+        return redirect(url_for("accounting.chart_of_accounts"))
+
+    acct.is_active = False
+    log_action("ledger_account_archived", "LedgerAccount", acct.id,
+               details=f"code={acct.code}")
+    db.session.commit()
+    flash(f"تم أرشفة الحساب {acct.display_name}.", "info")
+    return redirect(url_for("accounting.chart_of_accounts"))
 
 
 # ---------- Journal listing ----------
