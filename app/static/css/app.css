@@ -781,16 +781,39 @@ table.preview-materials .num { font-family: 'Courier New', ui-monospace, monospa
 
 /* P34 (PHASE 34): general .num class — monospace digits + nowrap
    for any numeric table cell outside table.inv-items (which has its
-   own scoped rule below). Does NOT set text-align: on a mixed-
-   direction table (RTL cell wrapping an LTR number), text-align
-   value maps differently in each direction and stacking header+data
-   on the same edge requires the two to agree on direction. Instead,
-   we let the cell's own dir attribute drive alignment, and rely on
-   the caller to pair `.num` with matching text-end/text-start on
-   both `<th>` and `<td>` when needed. */
+   own scoped rule below). */
 .num {
   font-family: 'Courier New', ui-monospace, monospace;
   white-space: nowrap;
+}
+
+/* P34-final: stack numeric column headers over their data cells in
+   RTL tables.
+
+   Root cause of the misalignment Shalaby kept flagging:
+     - `<th class="text-end">الرصيد المستحق</th>` inherits RTL from
+       the body, so Bootstrap's RTL bundle maps `.text-end` to
+       `text-align: left` — pushing the label to the physical LEFT
+       of the header cell.
+     - `<td dir="ltr" class="text-end">588,144.75</td>` is LTR-scoped
+       so `.text-end` is still `text-align: left` — pushing the
+       number to the physical LEFT of the data cell.
+     - Both should hug the same physical edge in principle, but
+       because the header is short Arabic text and the number is a
+       wide monospace string, the visual endpoints don't line up.
+
+   Fix: force `.text-end` on numeric TABLE cells to `text-align:
+   right !important` in the RTL context. Both header and data end
+   up pinned to the RIGHT (=RTL start), which is where an Arabic
+   reader looks first and where numeric columns visually belong.
+
+   The `td[dir="ltr"]` selector limits the data-cell override to
+   numeric cells (marked with dir=ltr so digits render in LTR
+   BiDi order); action columns (`<td class="text-end">` with no
+   dir override) keep the Bootstrap RTL mapping. */
+[dir="rtl"] table th.text-end,
+[dir="rtl"] table td[dir="ltr"].text-end {
+  text-align: right !important;
 }
 table.preview-materials .empty td {
   text-align: center; color: var(--ms-ink-3);
