@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }} — نظام إدارة المزرعة</title>
+  {# Same asset stack as the authenticated shell — Tajawal, Bootstrap RTL, icons — so
+     landing and app read as one product #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap">
+  {# UI-REFACTOR: consume the shared tokens so landing + app share one palette. #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>
+    /* Landing is standalone (no shell) but reads from the shared tokens. */
+    body {
+      font-family: "Tajawal", "Cairo", system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--ink-2);
+    }
+
+    /* Top bar — the only navigation on the page. Brand right, CTA left. */
+    .landing-topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--neutral);
+      padding: 0.85rem 1.5rem;
+    }
+    .landing-topbar .brand {
+      font-weight: 800; font-size: 1.1rem; color: var(--ink-1);
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .landing-topbar .brand img { width: 34px; height: 34px; object-fit: contain; }
+
+    /* Hero — the page's centre of gravity. */
+    .hero {
+      background: linear-gradient(180deg, var(--brand-tint) 0%, var(--surface) 100%);
+      color: var(--ink-1);
+      padding: 4.5rem 1.5rem 5.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {  /* subtle decorative circle */
+      content: ""; position: absolute; top: -140px; left: -140px;
+      width: 380px; height: 380px; border-radius: 50%;
+      background: rgba(0, 191, 99, 0.06);
+    }
+    .hero-inner { position: relative; max-width: 900px; margin: 0 auto; text-align: center; }
+    .hero-logo {
+      width: 120px; height: 120px; object-fit: contain;
+      margin: 0 auto 1.5rem; display: block;
+    }
+    .hero h1 { font-weight: 900; font-size: clamp(2rem, 4.5vw, 3.4rem); line-height: 1.25; margin-bottom: 1.25rem; color: var(--ink-1); }
+    .hero h1 .accent { color: var(--brand-dark); }
+    .hero .lede { font-size: clamp(1.05rem, 1.8vw, 1.35rem); color: var(--ink-2); margin-bottom: 2.2rem; font-weight: 400; }
+
+    .cta-btn {
+      background: var(--brand); color: #fff;
+      font-weight: 700; padding: 0.9rem 2.2rem;
+      border-radius: var(--radius-sm); border: none; font-size: 1.1rem;
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      text-decoration: none;
+    }
+    .cta-btn:hover { background: var(--brand-dark); color: #fff; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 191, 99, 0.3); text-decoration: none; }
+    .cta-btn.subtle {
+      background: transparent; color: var(--ink-1);
+      border: 1px solid var(--neutral);
+      padding: 0.55rem 1.4rem; font-size: 0.95rem;
+    }
+    .cta-btn.subtle:hover { background: var(--brand-tint); border-color: var(--brand); color: var(--brand-dark); box-shadow: none; }
+
+    /* Features — six cards. */
+    .features { padding: 5rem 1.5rem; background: var(--neutral-bg); }
+    .features h2 { text-align: center; font-weight: 800; margin-bottom: 0.75rem; color: var(--ink-1); font-size: clamp(1.6rem, 3vw, 2.2rem); }
+    .features .section-sub { text-align: center; color: var(--ink-3); margin-bottom: 3rem; font-size: 1.05rem; }
+
+    .feature-card {
+      background: var(--surface); padding: 2rem 1.75rem;
+      border-radius: var(--radius); border: 1px solid var(--neutral);
+      height: 100%;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--brand); }
+    .feature-icon {
+      width: 52px; height: 52px; border-radius: var(--radius);
+      background: var(--brand-tint);
+      color: var(--brand-dark); font-size: 1.7rem;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+    .feature-card h3 { font-weight: 800; font-size: 1.2rem; color: var(--ink-1); margin-bottom: 0.6rem; }
+    .feature-card p { color: var(--ink-3); margin: 0; line-height: 1.7; }
+
+    /* Bottom CTA strip. */
+    .cta-strip {
+      background: var(--ink-1); color: #fff;
+      padding: 3.5rem 1.5rem; text-align: center;
+    }
+    .cta-strip h2 { font-weight: 800; margin-bottom: 1rem; font-size: clamp(1.4rem, 2.5vw, 1.9rem); color: #fff; }
+    .cta-strip p { opacity: 0.75; margin-bottom: 1.75rem; }
+
+    /* BRAND: footer styling now comes from the shared .site-footer class in
+       app.css, so the landing page uses the same footer as the rest of the app. */
+  </style>
+</head>
+<body>
+
+<div class="landing-topbar d-flex justify-content-between align-items-center">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}">
+    {{ app_name }}
+  </div>
+  {# The whole "logged-in awareness" of the page is this one conditional #}
+  {% if current_user.is_authenticated %}
+    <a href="{{ url_for('dashboard.index') }}" class="cta-btn subtle">
+      <i class="bi bi-speedometer2"></i> لوحة التحكم
+    </a>
+  {% else %}
+    <a href="{{ url_for('auth.login') }}" class="cta-btn subtle">
+      <i class="bi bi-box-arrow-in-left"></i> تسجيل الدخول
+    </a>
+  {% endif %}
+</div>
+
+<section class="hero">
+  <div class="hero-inner">
+    <img class="hero-logo" src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}">
+    <h1>مزرعتك <span class="accent">في مكان واحد</span> — من المولود لحد الفاتورة</h1>
+    <p class="lede">
+      نظام كامل لإدارة مزرعة الألبان: قطيع، وصفات علف، توريدات لبن، فواتير،
+      مخزون، مورّدين وعمالة — وحساب تكلفة كيلو اللبن أوتوماتيك.
+    </p>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('dashboard.index') }}" class="cta-btn">
+        <i class="bi bi-speedometer2"></i> ادخل لوحة التحكم
+      </a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}" class="cta-btn">
+        <i class="bi bi-box-arrow-in-left"></i> ابدأ الآن — تسجيل الدخول
+      </a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="features">
+  <h2>كل حاجة محتاجها في المزرعة</h2>
+  <p class="section-sub">أدوات متكاملة، بتشتغل مع بعض، بواجهة عربية بالكامل.</p>
+
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="bi bi-heart-pulse"></i></div>
+          <h3>إدارة القطيع الكاملة</h3>
+          <p>قطيع، مجموعات، مواليد بمراحلها الطبيعية (رضاعة → فطام → تسمين)،
+             سجل نقل وبيع ونفوق لكل حيوان.</p>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="bi bi-droplet-half"></i></div>
+          <h3>حساب تكلفة كيلو اللبن</h3>
+          <p>من العلف والإضافات لحد صافي التكلفة، مع فصل تلقائي بين مجموعة
+             الحليب وباقي المجموعات.</p>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="bi bi-receipt-cutoff"></i></div>
+          <h3>فواتير اللبن والتحليل</h3>
+          <p>توريدات يومية، تسعير على أساس البروتين والدهن والبكتيريا،
+             فواتير أسبوعية جاهزة للطباعة.</p>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="bi bi-boxes"></i></div>
+          <h3>مخزون ومشتريات ومورّدين</h3>
+          <p>مخزون بأنواع مخصصة، فواتير شراء، أرصدة موردين حيّة،
+             وأدوية بشاشة صرف مستقلة.</p>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="bi bi-file-earmark-text"></i></div>
+          <h3>تقارير احترافية</h3>
+          <p>أعمار القطيع، المواليد، المخزون، والعملاء والموردين —
+             تصدير PDF و Excel، وفلترة بالمجموعة وبالتاريخ.</p>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="bi bi-robot"></i></div>
+          <h3>مساعد ذكي بالعربي</h3>
+          <p>بيجاوب أسئلتك عن بيانات المزرعة نفسها — كام بقرة عندي؟
+             تكلفة اللبن الشهر ده؟ رصيد المورد الفلاني؟</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-strip">
+  <h2>جاهز تبدأ؟</h2>
+  <p>ادخل النظام ولاقي كل بيانات مزرعتك في مكان واحد.</p>
+  {% if current_user.is_authenticated %}
+    <a href="{{ url_for('dashboard.index') }}" class="cta-btn">
+      <i class="bi bi-speedometer2"></i> ادخل لوحة التحكم
+    </a>
+  {% else %}
+    <a href="{{ url_for('auth.login') }}" class="cta-btn">
+      <i class="bi bi-box-arrow-in-left"></i> تسجيل الدخول
+    </a>
+  {% endif %}
+</section>
+
+{# BRAND: shared footer partial, so the landing footer and every app-shell
+   footer never drift apart. The landing page's own <footer> styles above still
+   apply because the partial uses its own scoped .site-footer class. #}
+{% include "_footer.html" ignore missing %}
+
+</body>
+</html>

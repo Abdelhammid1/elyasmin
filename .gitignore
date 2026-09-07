@@ -34,3 +34,7 @@ db_backups/
 # Stray phone/screenshot files
 IMG_*.PNG
 IMG_*.JPG
+*.env.bak_*
+.alerts.env
+*.bak
+*.bak_*

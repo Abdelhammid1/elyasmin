@@ -263,7 +263,7 @@ def _recipes_preview_json():
             }
             continue
         out[str(g.id)] = {
-            "recipe_name": f"{recipe.group.name} — {recipe.effective_from}",
+            "recipe_name": recipe.name,
             "tank_name": tank_label,
             "lines": [{
                 "name": ln.ingredient.name,

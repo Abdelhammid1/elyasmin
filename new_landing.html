@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block title %}الرئيسية{% endblock %}
+
+{% block content %}
+{# Landing page is public (no login required) — it does not sit inside
+   the app-shell/sidebar layout that authenticated pages use, so it
+   needs its own Tailwind scope. Same technique as #dash-root: Tailwind
+   CDN, important-selector scoped to #landing-root, corePlugins.preflight
+   off so Bootstrap (loaded globally in base.html) isn't reset here. #}
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    important: '#landing-root',
+    corePlugins: { preflight: false },
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#0048be", "primary-container": "#1e60e6", "on-primary": "#ffffff",
+          "secondary": "#565e74", "tertiary": "#005e3f", "on-tertiary-container": "#9affcd",
+          "surface": "#f8f9ff", "surface-pure": "#ffffff", "surface-ice": "#f8fafc",
+          "surface-container": "#e5eeff", "surface-container-low": "#eff4ff",
+          "surface-container-lowest": "#ffffff", "on-surface": "#0b1c30",
+          "on-surface-variant": "#434654", "outline-variant": "#c3c6d7",
+          "sky-tint": "#e2f1ff", "mint-soft": "#ecfdf5", "slate-dark": "#0b1120",
+        },
+        fontFamily: { sans: ["Plus Jakarta Sans", "Noto Sans Arabic", "sans-serif"] },
+        spacing: {
+          "space-2xs":"0.25rem","space-xs":"0.5rem","space-sm":"0.75rem","space-md":"1rem",
+          "space-lg":"1.5rem","space-xl":"2rem","space-2xl":"3rem","space-3xl":"4.5rem",
+          "space-4xl":"6rem","gutter-mobile":"1rem","gutter-tablet":"1.5rem","gutter-desktop":"2rem",
+        },
+      }
+    }
+  }
+</script>
+
+<div id="landing-root" class="bg-surface text-on-surface" style="font-family: 'Plus Jakarta Sans','Noto Sans Arabic',sans-serif;">
+
+  <header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,23,42,0.04)]">
+    <div class="h-20 max-w-[1280px] mx-auto px-gutter-mobile md:px-gutter-tablet lg:px-gutter-desktop flex items-center justify-between">
+      <div class="flex items-center gap-space-sm">
+        <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}" class="h-8 w-auto object-contain">
+        <span class="text-lg font-bold text-on-surface tracking-tight">{{ app_name }}</span>
+      </div>
+      <nav class="hidden lg:flex items-center gap-space-md">
+        <a href="#features-overview" class="bg-primary-container text-white font-semibold rounded-lg px-space-sm py-space-xs text-sm">المميزات</a>
+        <a href="#feature-herd" class="text-on-surface-variant hover:text-on-surface text-sm px-space-xs py-1">إدارة القطيع</a>
+        <a href="#feature-cost" class="text-on-surface-variant hover:text-on-surface text-sm px-space-xs py-1">حساب التكلفة</a>
+        <a href="#feature-invoices" class="text-on-surface-variant hover:text-on-surface text-sm px-space-xs py-1">الفواتير</a>
+      </nav>
+      <div class="flex items-center gap-space-md">
+        <a href="{{ url_for('auth.login') }}" class="hidden sm:inline-flex items-center justify-center bg-primary-container text-white text-sm font-semibold px-space-lg py-space-xs rounded-lg hover:bg-primary transition-all shadow-sm">
+          تسجيل الدخول
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="w-full pt-20 bg-surface">
+    <div class="flex flex-col w-full">
+
+      <div class="relative w-full overflow-hidden">
+        <div class="absolute -top-40 right-1/4 w-[500px] h-[500px] bg-primary-container/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+        <div class="absolute top-20 -left-20 w-[420px] h-[420px] bg-tertiary/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
+
+        <section class="max-w-[1280px] mx-auto px-gutter-mobile md:px-gutter-tablet lg:px-gutter-desktop pt-space-2xl pb-space-3xl flex flex-col items-center text-center">
+          <div class="relative mb-space-md">
+            <div class="absolute -inset-2 bg-gradient-to-r from-primary-container/20 via-mint-soft to-primary/20 rounded-full blur-lg opacity-70"></div>
+            <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-surface-pure p-2 shadow-lg flex items-center justify-center">
+              <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="شعار {{ app_name }}" class="w-full h-full object-contain">
+            </div>
+          </div>
+
+          <div class="inline-flex items-center gap-space-xs px-space-md py-space-2xs rounded-full bg-sky-tint text-primary text-sm mb-space-lg shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+            <span>نظام إدارة مزارع الألبان المتكامل</span>
+            <i class="bi bi-patch-check-fill text-[16px]"></i>
+          </div>
+
+          <h1 class="text-3xl md:text-5xl text-on-surface font-bold max-w-4xl tracking-tight mb-space-md leading-tight">
+            مزرعتك في <span class="text-primary-container">مكان واحد</span> — من المولود لحد الفاتورة
+          </h1>
+
+          <p class="text-base md:text-lg text-on-surface-variant max-w-3xl mb-space-xl leading-relaxed">
+            نظام كامل لإدارة مزرعة الألبان: قطيع، وصفات علف، توريدات لبن، فواتير، مخزون، مورّدين وعمالة — وحساب تكلفة كيلو اللبن أوتوماتيك.
+          </p>
+
+          <div class="flex flex-wrap items-center justify-center gap-space-md mb-space-3xl">
+            <a href="{{ url_for('auth.login') }}" class="inline-flex items-center gap-space-xs bg-primary-container text-white text-sm font-semibold px-space-xl py-space-sm rounded-xl shadow-lg hover:bg-primary transition-all">
+              <span>ابدأ الآن — تسجيل الدخول</span>
+              <i class="bi bi-arrow-left"></i>
+            </a>
+            <a href="#features-overview" class="inline-flex items-center gap-space-xs bg-surface-pure text-on-surface text-sm font-semibold px-space-lg py-space-sm rounded-xl shadow-sm hover:bg-surface-container transition-all">
+              <span>استكشف المميزات</span>
+              <i class="bi bi-chevron-down text-on-surface-variant"></i>
+            </a>
+          </div>
+
+          {# Product-preview mockup: uses realistic sample numbers, not
+             connected to live data — this is a marketing screenshot,
+             not a dashboard widget, so static illustrative figures are
+             appropriate here (unlike inside the authenticated app). #}
+          <div class="w-full max-w-5xl bg-surface-pure rounded-2xl shadow-xl p-space-md md:p-space-xl text-right">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm pb-space-md mb-space-lg border-b border-outline-variant/30">
+              <div class="flex items-center gap-space-sm">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <div>
+                  <p class="text-base font-bold text-on-surface">نظرة عامة على تشغيل اليوم</p>
+                  <p class="text-xs text-on-surface-variant">تحديث حي ومباشر للمحلب والقطيع</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-space-xs bg-surface-ice px-space-sm py-space-2xs rounded-lg">
+                <i class="bi bi-calendar3 text-primary text-[16px]"></i>
+                <span class="text-xs font-semibold text-on-surface">اليوم • وردية الصباح</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md mb-space-xl">
+              <div class="bg-surface-ice rounded-xl p-space-md text-right flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-space-xs">
+                  <i class="bi bi-droplet-fill text-primary-container text-[20px]"></i>
+                  <span class="text-xs text-tertiary bg-mint-soft px-space-xs py-0.5 rounded-full">+4.2%</span>
+                </div>
+                <p class="text-xs text-on-surface-variant">إنتاج اللبن اليومي</p>
+                <p class="text-2xl text-on-surface font-bold mt-1">4,250 <span class="text-xs text-on-surface-variant">لتر</span></p>
+              </div>
+              <div class="bg-surface-ice rounded-xl p-space-md text-right flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-space-xs">
+                  <i class="bi bi-calculator text-tertiary text-[20px]"></i>
+                  <span class="text-xs text-primary bg-sky-tint px-space-xs py-0.5 rounded-full">محسوب آلياً</span>
+                </div>
+                <p class="text-xs text-on-surface-variant">تكلفة الكيلو التقديرية</p>
+                <p class="text-2xl text-on-surface font-bold mt-1">12.40 <span class="text-xs text-on-surface-variant">ج.م</span></p>
+              </div>
+              <div class="bg-surface-ice rounded-xl p-space-md text-right flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-space-xs">
+                  <i class="bi bi-heart-pulse text-primary text-[20px]"></i>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-space-xs py-0.5 rounded-full">جاهزية 94%</span>
+                </div>
+                <p class="text-xs text-on-surface-variant">القطيع الحلاب النشط</p>
+                <p class="text-2xl text-on-surface font-bold mt-1">180 <span class="text-xs text-on-surface-variant">رأس</span></p>
+              </div>
+              <div class="bg-surface-ice rounded-xl p-space-md text-right flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-space-xs">
+                  <i class="bi bi-clipboard2-pulse text-emerald-600 text-[20px]"></i>
+                  <span class="text-xs text-tertiary bg-mint-soft px-space-xs py-0.5 rounded-full">جودة ممتازة</span>
+                </div>
+                <p class="text-xs text-on-surface-variant">متوسط نسبة الدهن</p>
+                <p class="text-2xl text-on-surface font-bold mt-1">3.8% <span class="text-xs text-on-surface-variant">بروتين 3.3%</span></p>
+              </div>
+            </div>
+
+            <div class="bg-surface-ice rounded-xl p-space-md flex flex-col md:flex-row items-center justify-between gap-space-md">
+              <div class="flex items-center gap-space-sm w-full md:w-auto">
+                <div class="w-10 h-10 rounded-lg bg-mint-soft text-tertiary flex items-center justify-center shrink-0">
+                  <i class="bi bi-graph-up-arrow text-[20px]"></i>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm font-bold text-on-surface">كفاءة التغذية اليومية vs تكلفة الإنتاج</p>
+                  <p class="text-xs text-on-surface-variant">تم استهلاك 2.8 طن سيلاج وخلطة مركزات مع تقليل الهدر بنسبة 11%</p>
+                </div>
+              </div>
+              <div class="w-full md:w-48 h-10 flex items-center justify-end">
+                <svg class="w-full h-8 overflow-visible" fill="none" preserveaspectratio="none" viewbox="0 0 160 30">
+                  <path d="M0 24 C 20 22, 40 28, 60 14 C 80 0, 100 18, 120 10 C 140 2, 150 6, 160 4" stroke="#1E60E6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                  <circle cx="160" cy="4" fill="#1E60E6" r="3.5"></circle>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="w-full bg-surface-pure py-space-xl shadow-sm">
+        <div class="max-w-[1280px] mx-auto px-gutter-mobile md:px-gutter-tablet lg:px-gutter-desktop">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-space-lg text-center md:text-right">
+            <div class="flex items-center gap-space-sm justify-center md:justify-start">
+              <div class="w-10 h-10 rounded-full bg-sky-tint flex items-center justify-center shrink-0">
+                <i class="bi bi-translate text-primary-container text-[18px]"></i>
+              </div>
+              <div><p class="text-sm font-bold text-on-surface">100% عربي</p><p class="text-xs text-on-surface-variant">مصمم خصيصاً لمزارعنا</p></div>
+            </div>
+            <div class="flex items-center gap-space-sm justify-center md:justify-start">
+              <div class="w-10 h-10 rounded-full bg-mint-soft flex items-center justify-center shrink-0">
+                <i class="bi bi-speedometer2 text-tertiary text-[18px]"></i>
+              </div>
+              <div><p class="text-sm font-bold text-on-surface">حساب فوري</p><p class="text-xs text-on-surface-variant">تكلفة الكيلو بضغطة زر</p></div>
+            </div>
+            <div class="flex items-center gap-space-sm justify-center md:justify-start">
+              <div class="w-10 h-10 rounded-full bg-sky-tint flex items-center justify-center shrink-0">
+                <i class="bi bi-file-earmark-text text-primary text-[18px]"></i>
+              </div>
+              <div><p class="text-sm font-bold text-on-surface">تقارير جاهزة</p><p class="text-xs text-on-surface-variant">PDF & Excel للطباعة</p></div>
+            </div>
+            <div class="flex items-center gap-space-sm justify-center md:justify-start">
+              <div class="w-10 h-10 rounded-full bg-mint-soft flex items-center justify-center shrink-0">
+                <i class="bi bi-egg text-tertiary text-[18px]"></i>
+              </div>
+              <div><p class="text-sm font-bold text-on-surface">دقة المواليد</p><p class="text-xs text-on-surface-variant">متابعة مراحل النمو كاملة</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="max-w-[1280px] mx-auto px-gutter-mobile md:px-gutter-tablet lg:px-gutter-desktop py-space-3xl md:py-space-4xl w-full" id="features-overview">
+        <div class="text-center max-w-2xl mx-auto mb-space-3xl">
+          <div class="inline-flex items-center gap-1 bg-surface-container text-on-surface-variant px-space-sm py-space-2xs rounded-full text-xs mb-space-xs font-semibold">
+            <span>أدوات الإدارة الذكية</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-bold text-on-surface mb-space-xs">كل حاجة محتاجها في المزرعة</h2>
+          <p class="text-base md:text-lg text-on-surface-variant">أدوات متكاملة، بتشتغل مع بعض، بواجهة عربية بالكامل.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
+          <div id="feature-herd" class="bg-surface-pure rounded-2xl p-space-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-right">
+            <div>
+              <div class="w-14 h-14 rounded-xl bg-sky-tint flex items-center justify-center text-primary mb-space-lg">
+                <i class="bi bi-heart-pulse text-[26px]"></i>
+              </div>
+              <h3 class="text-lg font-bold text-on-surface mb-space-sm">إدارة القطيع الكاملة</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-space-lg">قطيع، مجموعات، مواليد بمراحلها الطبيعية (رضاعة ← فطام ← تسمين)، سجل نقل وبيع ونفوق لكل حيوان.</p>
+            </div>
+            <div class="pt-space-md mt-auto flex items-center justify-between text-xs text-on-surface-variant">
+              <span class="inline-flex items-center gap-1 text-primary font-semibold"><span>دورة الحياة كاملة</span><i class="bi bi-chevron-left"></i></span>
+              <span class="bg-surface-ice px-2 py-1 rounded">سجل فردي لكل رأس</span>
+            </div>
+          </div>
+
+          <div id="feature-cost" class="bg-surface-pure rounded-2xl p-space-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-right">
+            <div>
+              <div class="w-14 h-14 rounded-xl bg-mint-soft flex items-center justify-center text-tertiary mb-space-lg">
+                <i class="bi bi-droplet text-[26px]"></i>
+              </div>
+              <h3 class="text-lg font-bold text-on-surface mb-space-sm">حساب تكلفة كيلو اللبن</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-space-lg">من العلف والإضافات لحد صافي التكلفة، مع فصل تلقائي بين مجموعة الحليب وباقي المجموعات.</p>
+            </div>
+            <div class="pt-space-md mt-auto flex items-center justify-between text-xs text-on-surface-variant">
+              <span class="inline-flex items-center gap-1 text-tertiary font-semibold"><span>تحليل التكلفة الدقيق</span><i class="bi bi-chevron-left"></i></span>
+              <span class="bg-mint-soft text-tertiary px-2 py-1 rounded">أوتوماتيك 100%</span>
+            </div>
+          </div>
+
+          <div id="feature-invoices" class="bg-surface-pure rounded-2xl p-space-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-right">
+            <div>
+              <div class="w-14 h-14 rounded-xl bg-sky-tint flex items-center justify-center text-primary-container mb-space-lg">
+                <i class="bi bi-receipt-cutoff text-[26px]"></i>
+              </div>
+              <h3 class="text-lg font-bold text-on-surface mb-space-sm">فواتير اللبن والتحليل</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-space-lg">توريدات يومية، تسعير على أساس البروتين والدهن والبكتيريا، فواتير أسبوعية جاهزة للطباعة.</p>
+            </div>
+            <div class="pt-space-md mt-auto flex items-center justify-between text-xs text-on-surface-variant">
+              <span class="inline-flex items-center gap-1 text-primary font-semibold"><span>تسعير بمعايير المعمل</span><i class="bi bi-chevron-left"></i></span>
+              <span class="bg-surface-ice px-2 py-1 rounded">طباعة فورية</span>
+            </div>
+          </div>
+
+          <div class="bg-surface-pure rounded-2xl p-space-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-right">
+            <div>
+              <div class="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center text-primary mb-space-lg">
+                <i class="bi bi-boxes text-[26px]"></i>
+              </div>
+              <h3 class="text-lg font-bold text-on-surface mb-space-sm">مخزون ومشتريات ومورّدين</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-space-lg">مخزون بأنواع مخصصة، فواتير شراء، أرصدة موردين حيّة، وأدوية بشاشة صرف مستقلة.</p>
+            </div>
+            <div class="pt-space-md mt-auto flex items-center justify-between text-xs text-on-surface-variant">
+              <span class="inline-flex items-center gap-1 text-primary font-semibold"><span>شاشة بيطرية خاصة</span><i class="bi bi-chevron-left"></i></span>
+              <span class="bg-surface-ice px-2 py-1 rounded">أرصدة لحظية</span>
+            </div>
+          </div>
+
+          <div class="bg-surface-pure rounded-2xl p-space-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-right">
+            <div>
+              <div class="w-14 h-14 rounded-xl bg-mint-soft flex items-center justify-center text-tertiary mb-space-lg">
+                <i class="bi bi-bar-chart-line text-[26px]"></i>
+              </div>
+              <h3 class="text-lg font-bold text-on-surface mb-space-sm">تقارير احترافية</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-space-lg">أعمار القطيع، المواليد، المخزون، والعملاء والموردين — تصدير PDF و Excel، وفلترة بالمجموعة وبالتاريخ.</p>
+            </div>
+            <div class="pt-space-md mt-auto flex items-center justify-between text-xs text-on-surface-variant">
+              <span class="inline-flex items-center gap-1 text-tertiary font-semibold"><span>تصدير فوري</span><i class="bi bi-chevron-left"></i></span>
+              <span class="bg-mint-soft text-tertiary px-2 py-1 rounded">Excel + PDF</span>
+            </div>
+          </div>
+
+          <div class="bg-gradient-to-br from-surface-pure via-surface-pure to-sky-tint/40 rounded-2xl p-space-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-right">
+            <div>
+              <div class="flex items-center justify-between mb-space-lg">
+                <div class="w-14 h-14 rounded-xl bg-primary-container text-white flex items-center justify-center shadow-md">
+                  <i class="bi bi-robot text-[26px]"></i>
+                </div>
+                <span class="bg-primary-container/10 text-primary-container px-space-sm py-1 rounded-full text-xs font-semibold">مساعد الذكاء الاصطناعي</span>
+              </div>
+              <h3 class="text-lg font-bold text-on-surface mb-space-sm">مساعد ذكي بالعربي</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-space-md">بيجاوب أسئلتك عن بيانات المزرعة نفسها — كام بقرة عندي؟ تكلفة اللبن الشهر ده؟ رصيد المورد الفلاني؟</p>
+              <div class="bg-surface-ice/80 rounded-xl p-space-sm space-y-2 mb-space-sm text-right">
+                <div class="flex items-center gap-2 text-on-surface-variant text-xs">
+                  <i class="bi bi-chat-dots text-primary text-[16px]"></i>
+                  <span class="italic text-on-surface">"تكلفة الكيلو الأسبوع ده نزلت ولا زادت؟"</span>
+                </div>
+                <div class="bg-surface-pure p-2 rounded-lg text-xs text-tertiary flex items-center gap-1.5 shadow-sm">
+                  <i class="bi bi-check-circle text-[14px]"></i>
+                  <span>"نزلت 0.40 ج.م بسبب استبدال خلطة الصويا بتوفير 6%"</span>
+                </div>
+              </div>
+            </div>
+            <div class="pt-space-sm mt-auto">
+              <span class="inline-flex items-center gap-1 text-primary-container font-semibold text-xs"><span>دردشة فورية مع بياناتك</span><i class="bi bi-chevron-left"></i></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="max-w-[1280px] mx-auto px-gutter-mobile md:px-gutter-tablet lg:px-gutter-desktop w-full mb-space-2xl">
+        <div class="relative bg-slate-dark text-white rounded-3xl p-space-2xl md:p-space-4xl overflow-hidden shadow-2xl text-center">
+          <div class="absolute -top-24 -right-24 w-80 h-80 bg-primary-container/30 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-mint-soft/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="relative z-10 max-w-2xl mx-auto flex flex-col items-center">
+            <div class="inline-flex items-center gap-2 px-space-md py-1 rounded-full bg-white/10 backdrop-blur-md mb-space-md">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="text-xs text-white/80">بياناتك دائماً تحت سيطرتك</span>
+            </div>
+            <h2 class="text-2xl md:text-4xl font-bold text-white mb-space-md">جاهز تبدأ؟</h2>
+            <p class="text-base md:text-lg text-white/70 mb-space-xl max-w-xl">ادخل النظام ولاقي كل بيانات مزرعتك في مكان واحد.</p>
+            <a href="{{ url_for('auth.login') }}" class="inline-flex items-center gap-space-xs bg-primary-container text-white text-sm font-semibold px-space-2xl py-space-sm rounded-xl shadow-lg hover:bg-primary transition-all">
+              <i class="bi bi-box-arrow-in-left text-[18px]"></i>
+              <span>تسجيل الدخول</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="w-full bg-surface-container-lowest shadow-[0_1px_8px_rgba(15,23,42,0.04)] mt-space-3xl">
+    <div class="max-w-[1280px] mx-auto px-gutter-mobile md:px-gutter-tablet lg:px-gutter-desktop py-space-2xl">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-space-lg pb-space-lg">
+        <div class="flex items-center gap-space-sm">
+          <img src="{{ url_for('static', filename='img/logo-256.png') }}" alt="{{ app_name }}" class="h-8 w-auto object-contain">
+          <span class="text-base font-bold text-on-surface">{{ app_name }}</span>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-space-md text-sm text-on-surface-variant">
+          <a href="#features-overview" class="hover:text-on-surface">المميزات</a>
+          <a href="#feature-herd" class="hover:text-on-surface">إدارة القطيع</a>
+          <a href="#feature-cost" class="hover:text-on-surface">حساب التكلفة</a>
+          <a href="#feature-invoices" class="hover:text-on-surface">الفواتير</a>
+        </div>
+      </div>
+      <div class="pt-space-md text-center text-sm text-on-surface-variant">
+        © {{ now().year }} {{ app_name }} — تطوير {{ brand.name }}. كافة الحقوق محفوظة.
+      </div>
+    </div>
+  </footer>
+
+</div>
+{% endblock %}
