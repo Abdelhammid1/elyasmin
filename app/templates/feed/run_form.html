@@ -207,8 +207,8 @@
       return (
         '<tr class="' + (short ? 'row-short' : 'row-ok') + '">' +
           '<td>' + ln.name + '</td>' +
-          '<td class="num">' + fmt(need, 2) + ' ' + ln.unit + '</td>' +
-          '<td class="num">' + fmt(ln.stock, 2) + '</td>' +
+          '<td class="num text-end"><span dir="ltr">' + fmt(need, 2) + '</span> ' + ln.unit + '</td>' +
+          '<td class="num text-end"><span dir="ltr">' + fmt(ln.stock, 2) + '</span></td>' +
           '<td class="num status-cell">' +
              (short ? '<i class="bi bi-x-circle-fill"></i>'
                     : '<i class="bi bi-check-circle-fill"></i>') +

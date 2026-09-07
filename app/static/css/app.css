@@ -766,7 +766,13 @@ table th[dir="ltr"] {
 }
 .preview-recipe strong { color: var(--ms-ink-1); }
 
-table.preview-materials { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.preview-materials { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+table.preview-materials th:nth-child(2),
+table.preview-materials td:nth-child(2) { width: 30%; }
+table.preview-materials th:nth-child(3),
+table.preview-materials td:nth-child(3) { width: 22%; }
+table.preview-materials th:nth-child(4),
+table.preview-materials td:nth-child(4) { width: 10%; }
 table.preview-materials th {
   background: var(--ms-surface-soft); color: var(--ms-ink-3);
   font-weight: 700; padding: 6px 8px; font-size: 11px;
