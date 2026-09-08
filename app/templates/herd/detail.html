@@ -47,6 +47,15 @@
         <dt class="col-5">تاريخ الميلاد</dt><dd class="col-7" dir="ltr">{{ cow.date_of_birth or "—" }}</dd>
         <dt class="col-5">العمر (شهر)</dt><dd class="col-7">{{ cow.age_months if cow.age_months is not none else "—" }}</dd>
         <dt class="col-5">المجموعة الحالية</dt><dd class="col-7">{{ cow.group.name }}</dd>
+        {% if cow.gender == "female" %}
+        {# HERD-2 Part 2: season count = number of calvings for this cow. #}
+        <dt class="col-5">عدد المواسم</dt>
+        <dd class="col-7" dir="ltr">{{ cow.season_count }}</dd>
+        {% if cow.breeding_status %}
+        <dt class="col-5">الحالة الإنجابية</dt>
+        <dd class="col-7"><span class="chip chip-cash">{{ cow.breeding_status_label }}</span></dd>
+        {% endif %}
+        {% endif %}
       </dl>
     </div>
   </div>

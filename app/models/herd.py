@@ -139,6 +139,21 @@ class Cow(db.Model):
             self.breeding_status, self.breeding_status
         )
 
+    @property
+    def season_count(self) -> int:
+        """HERD-2 Part 2: total calvings for this cow. Cheap COUNT on
+        the births table — Birth is authoritative for calving events
+        (breeding_events also has calving rows for each Birth, but
+        Birth is the older, indexed source and doesn't require any
+        join). Auto-updates immediately after `create_birth`
+        commits a new row."""
+        from sqlalchemy import func as _func
+        return (
+            db.session.query(_func.count(Birth.id))
+            .filter(Birth.mother_id == self.id)
+            .scalar() or 0
+        )
+
 
 class CowMovement(db.Model):
     __tablename__ = "cow_movements"
