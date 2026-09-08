@@ -25,19 +25,19 @@ depends_on = None
 
 # (event_type, event_result-or-None, suggested_status, is_default, sort_order)
 _SUGGESTION_SEED = [
-    ("insemination",     None,             "inseminated",   1, 0),
-    ("insemination",     None,             "heifer_insem",  0, 1),
-    ("pregnancy_check", "pregnant",        "pregnant",      1, 0),
-    ("pregnancy_check", "pregnant",        "heifer_preg",   0, 1),
-    ("pregnancy_check", "not_pregnant",    "waiting",       1, 0),
-    ("pregnancy_check", "not_pregnant",    "inseminated",   0, 1),
-    ("drying",           None,             "dry",           1, 0),
-    ("waiting",          None,             "waiting",       1, 0),
-    ("waiting",          None,             "inseminated",   0, 1),
-    ("calving",          None,             "nursing",       1, 0),
-    ("calving",          None,             "waiting",       0, 1),
-    ("weaning",          None,             "dry",           1, 0),
-    ("weaning",          None,             "inseminated",   0, 1),
+    ("insemination",     None,             "inseminated",   True, 0),
+    ("insemination",     None,             "heifer_insem",  False, 1),
+    ("pregnancy_check", "pregnant",        "pregnant",      True, 0),
+    ("pregnancy_check", "pregnant",        "heifer_preg",   False, 1),
+    ("pregnancy_check", "not_pregnant",    "waiting",       True, 0),
+    ("pregnancy_check", "not_pregnant",    "inseminated",   False, 1),
+    ("drying",           None,             "dry",           True, 0),
+    ("waiting",          None,             "waiting",       True, 0),
+    ("waiting",          None,             "inseminated",   False, 1),
+    ("calving",          None,             "nursing",       True, 0),
+    ("calving",          None,             "waiting",       False, 1),
+    ("weaning",          None,             "dry",           True, 0),
+    ("weaning",          None,             "inseminated",   False, 1),
 ]
 
 
@@ -115,7 +115,7 @@ def upgrade():
             WHERE NOT EXISTS (
                 SELECT 1 FROM event_status_suggestions
                 WHERE event_type = :event_type
-                  AND (event_result IS :event_result OR event_result = :event_result)
+                  AND event_result IS NOT DISTINCT FROM :event_result
                   AND suggested_status = :suggested
             )
         """)
