@@ -69,6 +69,11 @@ DEFAULT_COA = [
     ("4010", "إيرادات اللبن",               "Milk Revenue",        AccountType.REVENUE,   True,  "4"),
     ("4020", "إيرادات بيع الحيوانات",       "Livestock Sales",     AccountType.REVENUE,   True,  "4"),
     ("4090", "إيرادات أخرى",                "Other Revenue",       AccountType.REVENUE,   True,  "4"),
+    # HERD-2 Part 3 (PHASE 35): single combined P&L account for
+    # asset-revaluation gains AND losses. Gains → CR, losses → DR
+    # (renders as negative revenue on the P&L; matches the ticket
+    # wording "أرباح وخسائر إعادة تقييم الأصول").
+    ("4095", "أرباح وخسائر إعادة تقييم الأصول", "Asset Revaluation P&L", AccountType.REVENUE, True, "4"),
 
     # ---- EXPENSES ----
     ("5",    "المصروفات",                   "Expenses",            AccountType.EXPENSE,   False, None),

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}تقرير قيمة القطيع{% endblock %}
+{% block content %}
+{# HERD-2 Part 3 (PHASE 35): total herd asset value at a chosen
+   date. زكاة basis — sums current_value for active cows today,
+   or reconstructs historical value from cow_valuations. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-graph-up"></i> تقرير قيمة القطيع</h1>
+    <p class="text-muted mb-0">
+      قيمة إجمالية للأبقار النشطة — الأساس اللي بيتحسب عليه الزكاة السنوية.
+    </p>
+  </div>
+  <a href="{{ url_for('herd.valuation_bulk') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع لصفحة التقييم
+  </a>
+</div>
+
+<form method="get" class="filter-row row g-2 align-items-end mb-3">
+  <div class="col-md-4">
+    <label>تاريخ التقرير</label>
+    <input type="date" name="date" value="{{ target.isoformat() }}"
+           class="form-control form-control-sm" dir="ltr">
+    <div class="form-text small">
+      {% if is_today %}اليوم — يقرا من القيمة الحالية.
+      {% else %}تاريخ سابق — يعاد بناء القيم من سجل التقييمات.
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-2 d-grid">
+    <button class="btn btn-primary btn-sm"><i class="bi bi-search"></i> عرض</button>
+  </div>
+</form>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4 col-6"><div class="card stat-card tone-brand">
+    <div class="stat-label">إجمالي قيمة القطيع في {{ target.isoformat() }}</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(total) }}</div>
+    <small class="text-muted">جنيه</small>
+  </div></div>
+  <div class="col-md-4 col-6"><div class="card stat-card">
+    <div class="stat-label">عدد الأبقار المعتبرة</div>
+    <div class="stat-value" dir="ltr">{{ rows|length }}</div>
+  </div></div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>البقرة</th>
+          <th>الجنس</th>
+          <th>المجموعة</th>
+          <th>القيمة في {{ target.isoformat() }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            <a href="{{ url_for('herd.cow_detail', cow_id=r.cow.id) }}">
+              <span dir="ltr" class="fw-semibold">{{ r.cow.ear_tag }}</span>
+            </a>
+            {% if r.cow.name %}<span class="text-muted small">— {{ r.cow.name }}</span>{% endif %}
+          </td>
+          <td class="small">{{ r.cow.gender_label }}</td>
+          <td class="small text-muted">{{ r.cow.group.name }}</td>
+          <td class="num fw-bold">{{ "{:,.2f}".format(r.value) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-center text-muted py-4">
+          مفيش أبقار نشطة.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="3">الإجمالي</td>
+          <td class="num" dir="ltr">{{ "{:,.2f}".format(total) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

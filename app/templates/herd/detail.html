@@ -56,6 +56,12 @@
         <dd class="col-7"><span class="chip chip-cash">{{ cow.breeding_status_label }}</span></dd>
         {% endif %}
         {% endif %}
+        {# HERD-2 Part 3: current asset value + link to per-cow history. #}
+        <dt class="col-5">قيمة الأصل</dt>
+        <dd class="col-7">
+          <span dir="ltr">{{ "{:,.2f}".format(cow.current_value or 0) }}</span> جنيه
+          <a href="{{ url_for('herd.valuation_history', cow_id=cow.id) }}" class="small">(التاريخ)</a>
+        </dd>
       </dl>
     </div>
   </div>

@@ -1,4 +1,5 @@
 from datetime import datetime, date
+from decimal import Decimal
 
 from app.extensions import db
 
@@ -92,6 +93,14 @@ class Cow(db.Model):
     # without an explicit user confirmation from the breeding-event
     # flow (or the retro-edit screen).
     breeding_status = db.Column(db.String(30), nullable=True)
+    # HERD-2 Part 3 (PHASE 35): the cow's most recent book value
+    # (زكاة basis). History lives in `cow_valuations`; this column
+    # is the running "current" snapshot that changes only via a
+    # `CowValuation` insert (never edited in place).
+    current_value = db.Column(
+        db.Numeric(12, 2), nullable=False, default=Decimal("0"),
+        server_default="0",
+    )
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -407,3 +416,56 @@ class EventStatusSuggestion(db.Model):
             name="uq_esm_event_status",
         ),
     )
+
+
+# ==================== HERD-2 Part 3 (PHASE 35): herd valuation ====================
+
+
+class CowValuation(db.Model):
+    """Historical record of every revaluation of a single cow.
+    `Cow.current_value` is the running snapshot of the latest row
+    for the same cow; this table is the audit trail.
+
+    On insert, a JE is posted (DR 1400 / CR 4095 for a gain, or
+    the reverse for a loss) with `source_type='CowValuation'`,
+    `source_id=this.id` — so the journal_detail page's "قيد
+    المصدر" link walks straight back to the cow that was
+    revalued."""
+    __tablename__ = "cow_valuations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cow_id = db.Column(
+        db.Integer, db.ForeignKey("cows.id"),
+        nullable=False, index=True,
+    )
+    valuation_date = db.Column(
+        db.Date, nullable=False, default=date.today, index=True,
+    )
+    value = db.Column(db.Numeric(12, 2), nullable=False)
+    # Snapshot of the cow's current_value at the moment of this
+    # revaluation. Lets the historical report reconstruct
+    # "value at date T" without walking backward through JEs.
+    prior_value = db.Column(
+        db.Numeric(12, 2), nullable=False, default=Decimal("0"),
+        server_default="0",
+    )
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False,
+    )
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True,
+    )
+
+    cow = db.relationship("Cow", backref=db.backref(
+        "valuations",
+        order_by="CowValuation.valuation_date.desc()",
+        lazy="dynamic",
+    ))
+    created_by = db.relationship("User")
+
+    @property
+    def delta(self) -> Decimal:
+        """Positive = gain, negative = loss."""
+        return (Decimal(str(self.value or 0))
+                - Decimal(str(self.prior_value or 0)))

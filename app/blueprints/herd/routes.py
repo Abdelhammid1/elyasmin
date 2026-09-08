@@ -25,6 +25,7 @@ from app.models.herd import (
     Cow,
     CowMovement,
     Death,
+    CowValuation,
     EventStatusSuggestion,
 )
 from app.utils.audit import log_action
@@ -933,4 +934,221 @@ def retro_breeding_status(cow_id: int):
     return render_template(
         "herd/breeding_retro_edit.html",
         cow=cow, all_status_choices=all_status_choices,
+    )
+
+
+# ==================== HERD-2 Part 3 (PHASE 35): herd valuation ====================
+
+
+def _post_revaluation_je(valuation, cow, created_by_id: int):
+    """HERD-2 Part 3: post the balancing JE for a revaluation.
+    Gain → Dr 1400 حيوانات المزرعة / Cr 4095 أرباح إعادة تقييم.
+    Loss → Dr 4095 / Cr 1400. Zero delta → nothing posted (caller
+    should guard).
+
+    Every JE's `source_type='CowValuation'` + `source_id=valuation.id`
+    so journal_detail's "قيد المصدر" link walks back to this row."""
+    from decimal import Decimal
+    from app.models.accounting import LedgerAccount
+    from app.services.ledger import LedgerError, post_journal
+
+    delta = Decimal(str(valuation.value)) - Decimal(str(valuation.prior_value))
+    if delta == 0:
+        return None
+
+    livestock = LedgerAccount.query.filter_by(
+        code="1400", is_active=True,
+    ).first()
+    reval = LedgerAccount.query.filter_by(
+        code="4095", is_active=True,
+    ).first()
+    if livestock is None or reval is None:
+        raise LedgerError(
+            "حسابات إعادة التقييم (1400 / 4095) مش موجودة في دليل الحسابات."
+        )
+
+    if delta > 0:
+        # Gain: DR livestock (asset up) / CR revaluation P&L
+        lines = [
+            {"account_id": livestock.id, "debit": delta, "credit": 0,
+             "memo": f"إعادة تقييم {cow.ear_tag} — ربح"},
+            {"account_id": reval.id, "debit": 0, "credit": delta,
+             "memo": f"إعادة تقييم {cow.ear_tag} — ربح"},
+        ]
+    else:
+        loss = -delta
+        # Loss: DR revaluation P&L / CR livestock (asset down)
+        lines = [
+            {"account_id": reval.id, "debit": loss, "credit": 0,
+             "memo": f"إعادة تقييم {cow.ear_tag} — خسارة"},
+            {"account_id": livestock.id, "debit": 0, "credit": loss,
+             "memo": f"إعادة تقييم {cow.ear_tag} — خسارة"},
+        ]
+
+    return post_journal(
+        description=(
+            f"إعادة تقييم البقرة {cow.ear_tag}: "
+            f"{valuation.prior_value} → {valuation.value}"
+        ),
+        lines=lines,
+        entry_date=valuation.valuation_date,
+        source_type="CowValuation",
+        source_id=valuation.id,
+        created_by=created_by_id,
+    )
+
+
+@bp.route("/valuation")
+@login_required
+def valuation_bulk():
+    """HERD-2 Part 3: bulk revaluation screen. Every active cow (both
+    sexes — livestock is livestock) with its current_value +
+    input for the new value."""
+    from decimal import Decimal
+    cows = (
+        Cow.query.filter_by(status=Cow.STATUS_ACTIVE, is_archived=False)
+        .order_by(Cow.ear_tag).all()
+    )
+    total_current = sum(
+        (Decimal(str(c.current_value or 0)) for c in cows), Decimal("0"),
+    )
+    return render_template(
+        "herd/valuation_bulk.html",
+        cows=cows, total_current=total_current,
+    )
+
+
+@bp.route("/valuation/save", methods=["POST"])
+@login_required
+@write_required
+def valuation_save():
+    """HERD-2 Part 3: process the bulk revaluation form. One row =
+    one cow input `value_<cow_id>` + optional `notes_<cow_id>`. Skip
+    rows where the new value equals the current value (no-op)."""
+    from decimal import Decimal, InvalidOperation
+    from app.services.ledger import LedgerError
+
+    val_date = request.form.get("valuation_date") or None
+    if val_date:
+        val_date = date.fromisoformat(val_date)
+    else:
+        val_date = date.today()
+
+    cows = (
+        Cow.query.filter_by(status=Cow.STATUS_ACTIVE, is_archived=False)
+        .all()
+    )
+    n_saved = 0
+    total_delta = Decimal("0")
+    for cow in cows:
+        raw = (request.form.get(f"value_{cow.id}") or "").strip()
+        if not raw:
+            continue
+        try:
+            new_val = Decimal(raw).quantize(Decimal("0.01"))
+        except (InvalidOperation, ValueError):
+            flash(
+                f"القيمة المدخلة للبقرة {cow.ear_tag} غير صالحة — اتخطيها.",
+                "warning",
+            )
+            continue
+        prior = Decimal(str(cow.current_value or 0)).quantize(Decimal("0.01"))
+        if new_val == prior:
+            continue
+
+        notes = (request.form.get(f"notes_{cow.id}") or "").strip() or None
+        valuation = CowValuation(
+            cow_id=cow.id,
+            valuation_date=val_date,
+            value=new_val,
+            prior_value=prior,
+            notes=notes,
+            created_by_id=current_user.id,
+        )
+        db.session.add(valuation)
+        db.session.flush()
+
+        try:
+            _post_revaluation_je(valuation, cow, current_user.id)
+        except LedgerError as e:
+            db.session.rollback()
+            flash(str(e), "error")
+            return redirect(url_for("herd.valuation_bulk"))
+
+        cow.current_value = new_val
+        log_action(
+            "cow_revaluated", "CowValuation", valuation.id,
+            details=f"cow={cow.id} {prior}->{new_val}",
+        )
+        n_saved += 1
+        total_delta += (new_val - prior)
+
+    db.session.commit()
+    if n_saved:
+        flash(
+            f"تم حفظ {n_saved} إعادة تقييم — إجمالي التغيير: "
+            f"{total_delta}.",
+            "success",
+        )
+    else:
+        flash("مفيش تغيرات مدخلة.", "info")
+    return redirect(url_for("herd.valuation_bulk"))
+
+
+@bp.route("/<int:cow_id>/valuations")
+@login_required
+def valuation_history(cow_id: int):
+    """HERD-2 Part 3: per-cow valuation history."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow:
+        abort(404)
+    rows = (
+        CowValuation.query.filter_by(cow_id=cow.id)
+        .order_by(CowValuation.valuation_date.desc(),
+                  CowValuation.id.desc())
+        .all()
+    )
+    return render_template(
+        "herd/valuation_history.html", cow=cow, valuations=rows,
+    )
+
+
+@bp.route("/valuation/report")
+@login_required
+def valuation_report():
+    """HERD-2 Part 3: total herd value at a given date. For today's
+    date, sums Cow.current_value directly. For a past date, walks
+    cow_valuations to find each cow's latest value on-or-before T
+    (or 0 if no valuation existed by then)."""
+    from decimal import Decimal
+    raw = request.args.get("date")
+    try:
+        target = date.fromisoformat(raw) if raw else date.today()
+    except (ValueError, TypeError):
+        target = date.today()
+
+    cows = (
+        Cow.query.filter_by(status=Cow.STATUS_ACTIVE, is_archived=False)
+        .order_by(Cow.ear_tag).all()
+    )
+    is_today = target >= date.today()
+    rows = []
+    total = Decimal("0")
+    for cow in cows:
+        if is_today:
+            v = Decimal(str(cow.current_value or 0))
+        else:
+            last = (
+                CowValuation.query.filter_by(cow_id=cow.id)
+                .filter(CowValuation.valuation_date <= target)
+                .order_by(CowValuation.valuation_date.desc(),
+                          CowValuation.id.desc()).first()
+            )
+            v = Decimal(str(last.value)) if last else Decimal("0")
+        rows.append({"cow": cow, "value": v})
+        total += v
+
+    return render_template(
+        "herd/valuation_report.html",
+        rows=rows, total=total, target=target, is_today=is_today,
     )
