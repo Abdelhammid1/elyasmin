@@ -10,10 +10,20 @@
       {% if cow.status == "active" %}<span class="badge badge-active">{{ cow.status_label }}</span>
       {% elif cow.status == "sold" %}<span class="badge badge-sold">{{ cow.status_label }}</span>
       {% else %}<span class="badge badge-dead">{{ cow.status_label }}</span>{% endif %}
+      {# HERD-2 Part 1: reproductive-status chip next to the lifecycle badge. #}
+      {% if cow.breeding_status %}
+        <span class="chip chip-cash ms-1">{{ cow.breeding_status_label }}</span>
+      {% endif %}
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
     {% if cow.status == "active" %}
+    {% if can_write and cow.gender == "female" %}
+    {# HERD-2 Part 1: breeding-cycle entry point (females only). #}
+    <a href="{{ url_for('herd.breeding_timeline', cow_id=cow.id) }}" class="btn btn-outline-info">
+      <i class="bi bi-clipboard-data"></i> دورة الإنجاب
+    </a>
+    {% endif %}
     {% if can_write %}
     <a href="{{ url_for('herd.move_cow', cow_id=cow.id) }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left-right"></i> نقل مجموعة</a>
     {% endif %}

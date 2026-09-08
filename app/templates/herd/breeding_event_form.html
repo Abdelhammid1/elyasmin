@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}تسجيل إجراء إنجابي — {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+{# HERD-2 Part 1 (PHASE 35): step 1 of the suggest-confirm flow —
+   record the reproductive-cycle event. Submitting redirects to
+   confirm_breeding_status where the user picks the next status. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clipboard-plus"></i> تسجيل إجراء إنجابي — {{ cow.ear_tag }}</h1>
+    <p class="text-muted mb-0">
+      {{ cow.name or "بدون اسم" }} · {{ cow.gender_label }}
+      {% if cow.breeding_status %} · الحالة الحالية:
+        <span class="chip chip-cash">{{ cow.breeding_status_label }}</span>
+      {% endif %}
+    </p>
+  </div>
+  <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">{{ form.event_type.label.text }}</label>
+            {{ form.event_type(class="form-select") }}
+            {% for e in form.event_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{{ form.event_date.label.text }}</label>
+            {{ form.event_date(class="form-control", dir="ltr", type="date") }}
+          </div>
+          <div class="col-md-12">
+            <label class="form-label">{{ form.result.label.text }}</label>
+            {{ form.result(class="form-select") }}
+            <div class="form-text">
+              يُختار فقط مع إجراء "الجس" — يُتجاهل مع باقي الأنواع.
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">{{ form.notes.label.text }}</label>
+            {{ form.notes(class="form-control", rows=3) }}
+          </div>
+        </div>
+
+        <div class="alert alert-info small mt-3 mb-0">
+          <i class="bi bi-info-circle"></i>
+          بعد الحفظ هنسألك تختار حالة إنجابية مقترحة — الحفظ ده مش هيغيّر
+          حالة البقرة تلقائياً.
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

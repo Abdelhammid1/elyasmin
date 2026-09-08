@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}دورة الإنجاب — {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+{# HERD-2 Part 1 (PHASE 35): two-column timeline — events on the
+   right, status changes on the left. Both newest-first. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clipboard-data"></i> دورة الإنجاب — {{ cow.ear_tag }}</h1>
+    <p class="text-muted mb-0">
+      {{ cow.name or "بدون اسم" }} · {{ cow.gender_label }}
+      {% if cow.breeding_status %} ·
+        <span class="chip chip-cash">{{ cow.breeding_status_label }}</span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if can_write %}
+    <a href="{{ url_for('herd.create_breeding_event', cow_id=cow.id) }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> إجراء جديد
+    </a>
+    <a href="{{ url_for('herd.retro_breeding_status', cow_id=cow.id) }}" class="btn btn-outline-warning">
+      <i class="bi bi-arrow-counterclockwise"></i> تعديل رجعي
+    </a>
+    {% endif %}
+    <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> رجوع
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card p-3">
+      <h5 class="mb-3">
+        <i class="bi bi-list-check"></i> سجل الإجراءات
+        <small class="text-muted">({{ events|length }})</small>
+      </h5>
+      {% if events %}
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>الإجراء</th>
+            <th>النتيجة</th>
+            <th>ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+          <tr>
+            <td dir="ltr">{{ e.event_date }}</td>
+            <td><span class="chip chip-cash">{{ e.event_label }}</span></td>
+            <td>
+              {% if e.result_label %}
+                <span class="chip chip-partial">{{ e.result_label }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ e.notes or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted mb-0">مفيش إجراءات مسجّلة لسه.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card p-3">
+      <h5 class="mb-3">
+        <i class="bi bi-diagram-2"></i> سجل تغيرات الحالة
+        <small class="text-muted">({{ changes|length }})</small>
+      </h5>
+      {% if changes %}
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>من</th>
+            <th>إلى</th>
+            <th>السبب / الرابط</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in changes %}
+          <tr>
+            <td dir="ltr">{{ c.changed_at.strftime('%Y-%m-%d') }}</td>
+            <td>
+              {% set fl = cow.BREEDING_STATUS_LABELS.get(c.from_status, c.from_status or "—") %}
+              <span class="chip chip-draft">{{ fl }}</span>
+            </td>
+            <td>
+              {% set tl = cow.BREEDING_STATUS_LABELS.get(c.to_status, c.to_status or "—") %}
+              <span class="chip chip-paid">{{ tl }}</span>
+            </td>
+            <td class="small text-muted">
+              {% if c.event_id %}
+                إجراء #{{ c.event_id }}
+              {% elif c.reason %}
+                {{ c.reason }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted mb-0">مفيش تغيرات حالة لسه.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

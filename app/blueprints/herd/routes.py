@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from app.extensions import db
 from app.forms.herd import (
     BirthForm,
+    BreedingEventForm,
     CowForm,
     CowMoveForm,
     CowSearchForm,
@@ -17,11 +18,14 @@ from app.forms.herd import (
 from app.models.herd import (
     AnimalSale,
     Birth,
+    BreedingEvent,
+    BreedingStatusChange,
     Calf,
     CattleGroup,
     Cow,
     CowMovement,
     Death,
+    EventStatusSuggestion,
 )
 from app.utils.audit import log_action
 from app.utils.decorators import write_required
@@ -473,6 +477,23 @@ def create_birth():
         db.session.add(birth)
         db.session.flush()
 
+        # HERD-2 Part 1 (PHASE 35): mirror the calving into the
+        # breeding-events log so the reproductive-cycle timeline and
+        # the season counter (Part 2) stay in sync with Birth. The
+        # dam's breeding_status is NOT auto-changed here — the
+        # suggest-confirm flow is skipped for the calving path
+        # because create_birth already runs its own multi-step UX
+        # (group choice, calf attributes). The user updates the
+        # mother's breeding_status afterward via the retro-edit
+        # screen if needed.
+        db.session.add(BreedingEvent(
+            cow_id=mother.id,
+            event_type=BreedingEvent.EVENT_CALVING,
+            event_date=form.birth_date.data,
+            birth_id=birth.id,
+            created_by_id=current_user.id,
+        ))
+
         # HERD-1 (PHASE 31): no auto-move to nursing. The dam stays in
         # her current group; every live calf is created in the dam's
         # current group (mother-and-calf together). The user picks the
@@ -677,3 +698,239 @@ def sell_cow(cow_id: int):
 def sales_list():
     sales = AnimalSale.query.order_by(AnimalSale.sale_date.desc()).limit(200).all()
     return render_template("herd/sales.html", sales=sales)
+
+
+# ==================== HERD-2 Part 1 (PHASE 35): breeding routes ====================
+
+
+def _suggestion_choices(event_type: str, event_result: str | None):
+    """Look up the config-driven suggestion list for an event kind.
+    Returns (choices_for_radio, default_status_or_None) where
+    choices_for_radio is a list of (value, label) tuples in sort order.
+
+    Sourced from `event_status_suggestions`; the ticket said the
+    mapping must be config, not hardcoded — this reads live from the
+    table every request so admin edits take effect immediately."""
+    q = EventStatusSuggestion.query.filter_by(event_type=event_type)
+    # event_result discriminator applies only to pregnancy_check;
+    # every other event stores NULL for event_result. Query for
+    # NULL when the caller didn't pass a result, so a hand-crafted
+    # POST with a spurious result on drying/insemination doesn't
+    # miss the seed rows.
+    if event_result:
+        q = q.filter_by(event_result=event_result)
+    else:
+        q = q.filter(EventStatusSuggestion.event_result.is_(None))
+    rows = q.order_by(
+        EventStatusSuggestion.sort_order, EventStatusSuggestion.id
+    ).all()
+
+    choices = []
+    default = None
+    for r in rows:
+        label = Cow.BREEDING_STATUS_LABELS.get(
+            r.suggested_status, r.suggested_status
+        )
+        choices.append((r.suggested_status, label))
+        if r.is_default and default is None:
+            default = r.suggested_status
+    return choices, default
+
+
+@bp.route("/<int:cow_id>/breeding/new", methods=["GET", "POST"])
+@login_required
+@write_required
+def create_breeding_event(cow_id: int):
+    """HERD-2 Part 1: record a reproductive-cycle event, then hand
+    off to the suggest-confirm page. GET renders the small form;
+    POST writes the BreedingEvent and redirects to the confirm
+    screen. Never changes `Cow.breeding_status` on this leg."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow or cow.is_archived:
+        abort(404)
+
+    form = BreedingEventForm()
+    if form.validate_on_submit():
+        result = form.result.data or None
+        # Guard: `result` is meaningful only on pregnancy_check. Silently
+        # drop it if the user picked something on a different event
+        # (rare, but keeps the DB clean).
+        if form.event_type.data != BreedingEvent.EVENT_PREGNANCY_CHECK:
+            result = None
+
+        event = BreedingEvent(
+            cow_id=cow.id,
+            event_type=form.event_type.data,
+            event_date=form.event_date.data,
+            result=result,
+            notes=form.notes.data,
+            created_by_id=current_user.id,
+        )
+        db.session.add(event)
+        db.session.flush()
+        log_action(
+            "breeding_event_recorded", "BreedingEvent", event.id,
+            details=f"cow={cow.id} type={event.event_type}",
+        )
+        db.session.commit()
+
+        flash("تم تسجيل الإجراء. اختار الحالة المقترحة بالأسفل.", "info")
+        return redirect(url_for(
+            "herd.confirm_breeding_status",
+            cow_id=cow.id, event_id=event.id,
+        ))
+
+    return render_template(
+        "herd/breeding_event_form.html", cow=cow, form=form,
+    )
+
+
+@bp.route(
+    "/<int:cow_id>/breeding/<int:event_id>/confirm-status",
+    methods=["GET", "POST"],
+)
+@login_required
+@write_required
+def confirm_breeding_status(cow_id: int, event_id: int):
+    """HERD-2 Part 1: the "suggest & confirm" step. Renders the
+    suggestions with a default preselected; user picks one (or
+    "no change") and clicks تأكيد.
+
+    On confirm: write a BreedingStatusChange row AND update
+    cow.breeding_status in the same transaction. Nothing writes to
+    breeding_status without landing here."""
+    cow = db.session.get(Cow, cow_id)
+    event = db.session.get(BreedingEvent, event_id)
+    if not cow or cow.is_archived or not event or event.cow_id != cow.id:
+        abort(404)
+
+    choices, default = _suggestion_choices(
+        event.event_type, event.result,
+    )
+
+    if request.method == "POST":
+        picked = (request.form.get("new_status") or "").strip()
+        # Special sentinel: user chose "لا تغيير" (no status change)
+        if picked == "" or picked == "__no_change__":
+            flash("تم حفظ الإجراء بدون تغيير حالة إنجابية.", "info")
+            return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+        valid_statuses = set(Cow.BREEDING_STATUS_LABELS.keys())
+        if picked not in valid_statuses:
+            flash("الحالة المختارة غير صالحة.", "error")
+            return render_template(
+                "herd/breeding_confirm_status.html",
+                cow=cow, event=event, choices=choices, default=default,
+            )
+
+        prior = cow.breeding_status
+        db.session.add(BreedingStatusChange(
+            cow_id=cow.id,
+            from_status=prior,
+            to_status=picked,
+            changed_by_id=current_user.id,
+            event_id=event.id,
+        ))
+        cow.breeding_status = picked
+        log_action(
+            "breeding_status_confirmed",
+            "BreedingStatusChange", 0,
+            details=f"cow={cow.id} {prior}->{picked} via event={event.id}",
+        )
+        db.session.commit()
+        flash(
+            f"تم تحديث الحالة الإنجابية إلى "
+            f"{Cow.BREEDING_STATUS_LABELS[picked]}.",
+            "success",
+        )
+        return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+    return render_template(
+        "herd/breeding_confirm_status.html",
+        cow=cow, event=event, choices=choices, default=default,
+    )
+
+
+@bp.route("/<int:cow_id>/breeding")
+@login_required
+def breeding_timeline(cow_id: int):
+    """HERD-2 Part 1: two-column log — reproductive events on one
+    side, status changes on the other. Newest first on both."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow or cow.is_archived:
+        abort(404)
+    events = (
+        BreedingEvent.query.filter_by(cow_id=cow.id)
+        .order_by(BreedingEvent.event_date.desc(),
+                  BreedingEvent.id.desc())
+        .all()
+    )
+    changes = (
+        BreedingStatusChange.query.filter_by(cow_id=cow.id)
+        .order_by(BreedingStatusChange.changed_at.desc())
+        .all()
+    )
+    return render_template(
+        "herd/breeding_timeline.html",
+        cow=cow, events=events, changes=changes,
+    )
+
+
+@bp.route("/<int:cow_id>/breeding/retro-status", methods=["GET", "POST"])
+@login_required
+@write_required
+def retro_breeding_status(cow_id: int):
+    """HERD-2 Part 1: retro-edit the reproductive status without
+    touching any BreedingEvent row. Writes one BreedingStatusChange
+    with event_id=NULL and a reason string, then flips
+    cow.breeding_status."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow or cow.is_archived:
+        abort(404)
+
+    if request.method == "POST":
+        picked = (request.form.get("new_status") or "").strip()
+        reason = (request.form.get("reason") or "").strip() or None
+
+        valid_statuses = set(Cow.BREEDING_STATUS_LABELS.keys())
+        # Allow clearing to NULL via a sentinel
+        if picked in ("", "__clear__"):
+            new_val = None
+        elif picked not in valid_statuses:
+            flash("الحالة المختارة غير صالحة.", "error")
+            return redirect(url_for(
+                "herd.retro_breeding_status", cow_id=cow.id,
+            ))
+        else:
+            new_val = picked
+
+        prior = cow.breeding_status
+        if new_val == prior:
+            flash("الحالة المختارة نفس الحالة الحالية — مفيش تغيير.", "info")
+            return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+        db.session.add(BreedingStatusChange(
+            cow_id=cow.id,
+            from_status=prior,
+            to_status=new_val or "",   # NOT NULL column; empty = cleared
+            changed_by_id=current_user.id,
+            event_id=None,
+            reason=reason or "تعديل رجعي بدون سبب مذكور",
+        ))
+        cow.breeding_status = new_val
+        log_action(
+            "breeding_status_retro_edit",
+            "BreedingStatusChange", 0,
+            details=f"cow={cow.id} {prior}->{new_val}",
+        )
+        db.session.commit()
+        flash("تم تعديل الحالة الإنجابية رجعياً.", "success")
+        return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+    all_status_choices = [
+        ("__clear__", "— بدون حالة —"),
+    ] + list(Cow.BREEDING_STATUS_LABELS.items())
+    return render_template(
+        "herd/breeding_retro_edit.html",
+        cow=cow, all_status_choices=all_status_choices,
+    )

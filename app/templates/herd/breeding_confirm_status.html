@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}تأكيد الحالة الإنجابية — {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+{# HERD-2 Part 1 (PHASE 35): step 2 of the suggest-confirm flow.
+   User picks one status from the config-driven suggestion list
+   (default preselected) or "لا تغيير". No auto-save — the cow's
+   breeding_status only changes when this form is submitted. #}
+
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-check2-circle"></i> تأكيد الحالة الإنجابية — {{ cow.ear_tag }}</h1>
+    <p class="text-muted mb-0">
+      إجراء: <span class="chip chip-cash">{{ event.event_label }}</span>
+      · <span dir="ltr">{{ event.event_date }}</span>
+      {% if event.result_label %}
+        · نتيجة: <span class="chip chip-partial">{{ event.result_label }}</span>
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <p class="text-muted small mb-3">
+        الحالة الحالية:
+        {% if cow.breeding_status %}
+          <span class="chip chip-draft">{{ cow.breeding_status_label }}</span>
+        {% else %}
+          <span class="text-muted">— بدون —</span>
+        {% endif %}
+      </p>
+
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mb-3">
+          <label class="form-label fw-bold mb-2">اختار الحالة الجديدة:</label>
+          {% for value, label in choices %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="new_status"
+                   id="ns_{{ value }}" value="{{ value }}"
+                   {% if value == default %}checked{% endif %}>
+            <label class="form-check-label" for="ns_{{ value }}">
+              {{ label }}
+              {% if value == default %}
+                <span class="text-muted small">(المقترح المبدئي)</span>
+              {% endif %}
+            </label>
+          </div>
+          {% endfor %}
+          <div class="form-check mt-2 pt-2 border-top">
+            <input class="form-check-input" type="radio" name="new_status"
+                   id="ns_no_change" value="__no_change__">
+            <label class="form-check-label text-muted" for="ns_no_change">
+              لا تغيير — سيب الحالة زي ما هي
+            </label>
+          </div>
+        </div>
+
+        <div class="alert alert-warning small mt-3 mb-0">
+          <i class="bi bi-exclamation-triangle"></i>
+          هذا التأكيد لا رجعة فيه على الحالة — لكن الإجراء نفسه يفضل
+          مسجّل في اللوج حتى لو صحّحت الحالة لاحقاً.
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> تأكيد
+          </button>
+          <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
