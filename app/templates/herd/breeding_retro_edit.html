@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}تعديل رجعي للحالة — {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+{# HERD-2 Part 1 (PHASE 35): retro-edit the reproductive status
+   without touching any BreedingEvent row. Writes one
+   BreedingStatusChange with event_id=NULL and the reason string. #}
+
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-arrow-counterclockwise"></i> تعديل رجعي للحالة — {{ cow.ear_tag }}</h1>
+    <p class="text-muted mb-0">
+      يُستخدم لتصحيح الحالة الحالية بدون مسح سجل الإجراءات.
+    </p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <p class="text-muted small mb-3">
+        الحالة الحالية:
+        {% if cow.breeding_status %}
+          <span class="chip chip-draft">{{ cow.breeding_status_label }}</span>
+        {% else %}
+          <span class="text-muted">— بدون —</span>
+        {% endif %}
+      </p>
+
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">الحالة الصحيحة</label>
+          <select name="new_status" class="form-select">
+            {% for value, label in all_status_choices %}
+              <option value="{{ value }}"
+                {% if value == cow.breeding_status %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">سبب التعديل الرجعي</label>
+          <textarea name="reason" class="form-control" rows="3"
+                    placeholder="مثلاً: التأكيد السابق كان غلط — البقرة كانت لسه رضيع مش عشار"></textarea>
+          <div class="form-text">
+            يفضل تكتب السبب — بيتحفظ في سجل التغيرات وبيساعد لما ترجع للسجل بعدين.
+          </div>
+        </div>
+
+        <div class="alert alert-info small mb-3">
+          <i class="bi bi-info-circle"></i>
+          سجل الإجراءات في breeding_events مش هيتغير. التعديل ده بيكتب
+          سطر جديد في سجل تغيرات الحالة فقط.
+        </div>
+
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-warning">
+            <i class="bi bi-check-lg"></i> تأكيد التعديل الرجعي
+          </button>
+          <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

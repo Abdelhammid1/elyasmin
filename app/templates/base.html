@@ -226,6 +226,10 @@
           <a class="sidebar-item {% if 'birth' in (request.endpoint or '') %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.births') }}">
             <i class="bi bi-egg"></i> المواليد</a>
+          {# HERD-2 Part 3: بيبني على `herd.valuation_bulk` route. #}
+          <a class="sidebar-item {% if request.endpoint and 'valuation' in request.endpoint %}active{% endif %}"
+             data-section="herd" href="{{ url_for('herd.valuation_bulk') }}">
+            <i class="bi bi-cash-stack"></i> تقييم القطيع</a>
         </div>
       </details>
 

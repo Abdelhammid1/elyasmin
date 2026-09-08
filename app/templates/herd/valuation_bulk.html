@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}تقييم القطيع{% endblock %}
+{% block content %}
+{# HERD-2 Part 3 (PHASE 35): bulk revaluation form. Every active
+   cow with its current book value + input for the new value. Rows
+   left blank / equal to current are skipped by the save handler. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-cash-stack"></i> تقييم القطيع كأصل</h1>
+    <p class="text-muted mb-0">
+      إعادة تقييم جماعية (سنوية عادة، لكن مفتوحة لأي وقت). كل
+      تعديل يترحّل تلقائيًا كقيد في "أرباح وخسائر إعادة تقييم
+      الأصول" (حساب 4095).
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('herd.valuation_report') }}" class="btn btn-outline-primary">
+      <i class="bi bi-graph-up"></i> تقرير القيمة الإجمالية
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4 col-6"><div class="card stat-card">
+    <div class="stat-label">إجمالي الأبقار</div>
+    <div class="stat-value" dir="ltr">{{ cows|length }}</div>
+  </div></div>
+  <div class="col-md-4 col-6"><div class="card stat-card tone-brand">
+    <div class="stat-label">القيمة الحالية الإجمالية</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(total_current) }}</div>
+    <small class="text-muted">جنيه · محسوب من current_value</small>
+  </div></div>
+</div>
+
+<form method="post" action="{{ url_for('herd.valuation_save') }}" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="filter-row row g-2 align-items-end mb-3">
+    <div class="col-md-3">
+      <label>تاريخ التقييم</label>
+      <input type="date" name="valuation_date" class="form-control form-control-sm"
+             dir="ltr" value="{{ target if target else '' }}">
+    </div>
+    <div class="col-md-9 text-end">
+      {% if can_write %}
+      <button class="btn btn-primary btn-sm">
+        <i class="bi bi-check-lg"></i> حفظ التغييرات (الصفوف الفارغة تُتجاهل)
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>البقرة</th>
+            <th>الجنس</th>
+            <th>المجموعة</th>
+            <th>القيمة الحالية</th>
+            <th>القيمة الجديدة</th>
+            <th>ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cows %}
+          <tr>
+            <td>
+              <a href="{{ url_for('herd.cow_detail', cow_id=c.id) }}">
+                <span dir="ltr" class="fw-semibold">{{ c.ear_tag }}</span>
+              </a>
+              {% if c.name %}<span class="text-muted small">— {{ c.name }}</span>{% endif %}
+            </td>
+            <td class="small">{{ c.gender_label }}</td>
+            <td class="small text-muted">{{ c.group.name }}</td>
+            <td class="num fw-bold">{{ "{:,.2f}".format(c.current_value or 0) }}</td>
+            <td style="width: 180px;">
+              <input type="number" step="0.01" min="0"
+                     name="value_{{ c.id }}"
+                     class="form-control form-control-sm num"
+                     dir="ltr"
+                     placeholder="{{ c.current_value or 0 }}">
+            </td>
+            <td>
+              <input type="text" name="notes_{{ c.id }}"
+                     class="form-control form-control-sm"
+                     placeholder="سبب/مصدر تغيير القيمة (اختياري)">
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">
+            مفيش أبقار نشطة للتقييم.
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</form>
+{% endblock %}

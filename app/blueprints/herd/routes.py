@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from app.extensions import db
 from app.forms.herd import (
     BirthForm,
+    BreedingEventForm,
     CowForm,
     CowMoveForm,
     CowSearchForm,
@@ -17,11 +18,15 @@ from app.forms.herd import (
 from app.models.herd import (
     AnimalSale,
     Birth,
+    BreedingEvent,
+    BreedingStatusChange,
     Calf,
     CattleGroup,
     Cow,
     CowMovement,
     Death,
+    CowValuation,
+    EventStatusSuggestion,
 )
 from app.utils.audit import log_action
 from app.utils.decorators import write_required
@@ -473,6 +478,23 @@ def create_birth():
         db.session.add(birth)
         db.session.flush()
 
+        # HERD-2 Part 1 (PHASE 35): mirror the calving into the
+        # breeding-events log so the reproductive-cycle timeline and
+        # the season counter (Part 2) stay in sync with Birth. The
+        # dam's breeding_status is NOT auto-changed here — the
+        # suggest-confirm flow is skipped for the calving path
+        # because create_birth already runs its own multi-step UX
+        # (group choice, calf attributes). The user updates the
+        # mother's breeding_status afterward via the retro-edit
+        # screen if needed.
+        db.session.add(BreedingEvent(
+            cow_id=mother.id,
+            event_type=BreedingEvent.EVENT_CALVING,
+            event_date=form.birth_date.data,
+            birth_id=birth.id,
+            created_by_id=current_user.id,
+        ))
+
         # HERD-1 (PHASE 31): no auto-move to nursing. The dam stays in
         # her current group; every live calf is created in the dam's
         # current group (mother-and-calf together). The user picks the
@@ -677,3 +699,456 @@ def sell_cow(cow_id: int):
 def sales_list():
     sales = AnimalSale.query.order_by(AnimalSale.sale_date.desc()).limit(200).all()
     return render_template("herd/sales.html", sales=sales)
+
+
+# ==================== HERD-2 Part 1 (PHASE 35): breeding routes ====================
+
+
+def _suggestion_choices(event_type: str, event_result: str | None):
+    """Look up the config-driven suggestion list for an event kind.
+    Returns (choices_for_radio, default_status_or_None) where
+    choices_for_radio is a list of (value, label) tuples in sort order.
+
+    Sourced from `event_status_suggestions`; the ticket said the
+    mapping must be config, not hardcoded — this reads live from the
+    table every request so admin edits take effect immediately."""
+    q = EventStatusSuggestion.query.filter_by(event_type=event_type)
+    # event_result discriminator applies only to pregnancy_check;
+    # every other event stores NULL for event_result. Query for
+    # NULL when the caller didn't pass a result, so a hand-crafted
+    # POST with a spurious result on drying/insemination doesn't
+    # miss the seed rows.
+    if event_result:
+        q = q.filter_by(event_result=event_result)
+    else:
+        q = q.filter(EventStatusSuggestion.event_result.is_(None))
+    rows = q.order_by(
+        EventStatusSuggestion.sort_order, EventStatusSuggestion.id
+    ).all()
+
+    choices = []
+    default = None
+    for r in rows:
+        label = Cow.BREEDING_STATUS_LABELS.get(
+            r.suggested_status, r.suggested_status
+        )
+        choices.append((r.suggested_status, label))
+        if r.is_default and default is None:
+            default = r.suggested_status
+    return choices, default
+
+
+@bp.route("/<int:cow_id>/breeding/new", methods=["GET", "POST"])
+@login_required
+@write_required
+def create_breeding_event(cow_id: int):
+    """HERD-2 Part 1: record a reproductive-cycle event, then hand
+    off to the suggest-confirm page. GET renders the small form;
+    POST writes the BreedingEvent and redirects to the confirm
+    screen. Never changes `Cow.breeding_status` on this leg."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow or cow.is_archived:
+        abort(404)
+
+    form = BreedingEventForm()
+    if form.validate_on_submit():
+        result = form.result.data or None
+        # Guard: `result` is meaningful only on pregnancy_check. Silently
+        # drop it if the user picked something on a different event
+        # (rare, but keeps the DB clean).
+        if form.event_type.data != BreedingEvent.EVENT_PREGNANCY_CHECK:
+            result = None
+
+        event = BreedingEvent(
+            cow_id=cow.id,
+            event_type=form.event_type.data,
+            event_date=form.event_date.data,
+            result=result,
+            notes=form.notes.data,
+            created_by_id=current_user.id,
+        )
+        db.session.add(event)
+        db.session.flush()
+        log_action(
+            "breeding_event_recorded", "BreedingEvent", event.id,
+            details=f"cow={cow.id} type={event.event_type}",
+        )
+        db.session.commit()
+
+        flash("تم تسجيل الإجراء. اختار الحالة المقترحة بالأسفل.", "info")
+        return redirect(url_for(
+            "herd.confirm_breeding_status",
+            cow_id=cow.id, event_id=event.id,
+        ))
+
+    return render_template(
+        "herd/breeding_event_form.html", cow=cow, form=form,
+    )
+
+
+@bp.route(
+    "/<int:cow_id>/breeding/<int:event_id>/confirm-status",
+    methods=["GET", "POST"],
+)
+@login_required
+@write_required
+def confirm_breeding_status(cow_id: int, event_id: int):
+    """HERD-2 Part 1: the "suggest & confirm" step. Renders the
+    suggestions with a default preselected; user picks one (or
+    "no change") and clicks تأكيد.
+
+    On confirm: write a BreedingStatusChange row AND update
+    cow.breeding_status in the same transaction. Nothing writes to
+    breeding_status without landing here."""
+    cow = db.session.get(Cow, cow_id)
+    event = db.session.get(BreedingEvent, event_id)
+    if not cow or cow.is_archived or not event or event.cow_id != cow.id:
+        abort(404)
+
+    choices, default = _suggestion_choices(
+        event.event_type, event.result,
+    )
+
+    if request.method == "POST":
+        picked = (request.form.get("new_status") or "").strip()
+        # Special sentinel: user chose "لا تغيير" (no status change)
+        if picked == "" or picked == "__no_change__":
+            flash("تم حفظ الإجراء بدون تغيير حالة إنجابية.", "info")
+            return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+        valid_statuses = set(Cow.BREEDING_STATUS_LABELS.keys())
+        if picked not in valid_statuses:
+            flash("الحالة المختارة غير صالحة.", "error")
+            return render_template(
+                "herd/breeding_confirm_status.html",
+                cow=cow, event=event, choices=choices, default=default,
+            )
+
+        prior = cow.breeding_status
+        db.session.add(BreedingStatusChange(
+            cow_id=cow.id,
+            from_status=prior,
+            to_status=picked,
+            changed_by_id=current_user.id,
+            event_id=event.id,
+        ))
+        cow.breeding_status = picked
+        log_action(
+            "breeding_status_confirmed",
+            "BreedingStatusChange", 0,
+            details=f"cow={cow.id} {prior}->{picked} via event={event.id}",
+        )
+        db.session.commit()
+        flash(
+            f"تم تحديث الحالة الإنجابية إلى "
+            f"{Cow.BREEDING_STATUS_LABELS[picked]}.",
+            "success",
+        )
+        return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+    return render_template(
+        "herd/breeding_confirm_status.html",
+        cow=cow, event=event, choices=choices, default=default,
+    )
+
+
+@bp.route("/<int:cow_id>/breeding")
+@login_required
+def breeding_timeline(cow_id: int):
+    """HERD-2 Part 1: two-column log — reproductive events on one
+    side, status changes on the other. Newest first on both."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow or cow.is_archived:
+        abort(404)
+    events = (
+        BreedingEvent.query.filter_by(cow_id=cow.id)
+        .order_by(BreedingEvent.event_date.desc(),
+                  BreedingEvent.id.desc())
+        .all()
+    )
+    changes = (
+        BreedingStatusChange.query.filter_by(cow_id=cow.id)
+        .order_by(BreedingStatusChange.changed_at.desc())
+        .all()
+    )
+    return render_template(
+        "herd/breeding_timeline.html",
+        cow=cow, events=events, changes=changes,
+    )
+
+
+@bp.route("/<int:cow_id>/breeding/retro-status", methods=["GET", "POST"])
+@login_required
+@write_required
+def retro_breeding_status(cow_id: int):
+    """HERD-2 Part 1: retro-edit the reproductive status without
+    touching any BreedingEvent row. Writes one BreedingStatusChange
+    with event_id=NULL and a reason string, then flips
+    cow.breeding_status."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow or cow.is_archived:
+        abort(404)
+
+    if request.method == "POST":
+        picked = (request.form.get("new_status") or "").strip()
+        reason = (request.form.get("reason") or "").strip() or None
+
+        valid_statuses = set(Cow.BREEDING_STATUS_LABELS.keys())
+        # Allow clearing to NULL via a sentinel
+        if picked in ("", "__clear__"):
+            new_val = None
+        elif picked not in valid_statuses:
+            flash("الحالة المختارة غير صالحة.", "error")
+            return redirect(url_for(
+                "herd.retro_breeding_status", cow_id=cow.id,
+            ))
+        else:
+            new_val = picked
+
+        prior = cow.breeding_status
+        if new_val == prior:
+            flash("الحالة المختارة نفس الحالة الحالية — مفيش تغيير.", "info")
+            return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+        db.session.add(BreedingStatusChange(
+            cow_id=cow.id,
+            from_status=prior,
+            to_status=new_val or "",   # NOT NULL column; empty = cleared
+            changed_by_id=current_user.id,
+            event_id=None,
+            reason=reason or "تعديل رجعي بدون سبب مذكور",
+        ))
+        cow.breeding_status = new_val
+        log_action(
+            "breeding_status_retro_edit",
+            "BreedingStatusChange", 0,
+            details=f"cow={cow.id} {prior}->{new_val}",
+        )
+        db.session.commit()
+        flash("تم تعديل الحالة الإنجابية رجعياً.", "success")
+        return redirect(url_for("herd.cow_detail", cow_id=cow.id))
+
+    all_status_choices = [
+        ("__clear__", "— بدون حالة —"),
+    ] + list(Cow.BREEDING_STATUS_LABELS.items())
+    return render_template(
+        "herd/breeding_retro_edit.html",
+        cow=cow, all_status_choices=all_status_choices,
+    )
+
+
+# ==================== HERD-2 Part 3 (PHASE 35): herd valuation ====================
+
+
+def _post_revaluation_je(valuation, cow, created_by_id: int):
+    """HERD-2 Part 3: post the balancing JE for a revaluation.
+    Gain → Dr 1400 حيوانات المزرعة / Cr 4095 أرباح إعادة تقييم.
+    Loss → Dr 4095 / Cr 1400. Zero delta → nothing posted (caller
+    should guard).
+
+    Every JE's `source_type='CowValuation'` + `source_id=valuation.id`
+    so journal_detail's "قيد المصدر" link walks back to this row."""
+    from decimal import Decimal
+    from app.models.accounting import LedgerAccount
+    from app.services.ledger import LedgerError, post_journal
+
+    delta = Decimal(str(valuation.value)) - Decimal(str(valuation.prior_value))
+    if delta == 0:
+        return None
+
+    livestock = LedgerAccount.query.filter_by(
+        code="1400", is_active=True,
+    ).first()
+    reval = LedgerAccount.query.filter_by(
+        code="4095", is_active=True,
+    ).first()
+    if livestock is None or reval is None:
+        raise LedgerError(
+            "حسابات إعادة التقييم (1400 / 4095) مش موجودة في دليل الحسابات."
+        )
+
+    if delta > 0:
+        # Gain: DR livestock (asset up) / CR revaluation P&L
+        lines = [
+            {"account_id": livestock.id, "debit": delta, "credit": 0,
+             "memo": f"إعادة تقييم {cow.ear_tag} — ربح"},
+            {"account_id": reval.id, "debit": 0, "credit": delta,
+             "memo": f"إعادة تقييم {cow.ear_tag} — ربح"},
+        ]
+    else:
+        loss = -delta
+        # Loss: DR revaluation P&L / CR livestock (asset down)
+        lines = [
+            {"account_id": reval.id, "debit": loss, "credit": 0,
+             "memo": f"إعادة تقييم {cow.ear_tag} — خسارة"},
+            {"account_id": livestock.id, "debit": 0, "credit": loss,
+             "memo": f"إعادة تقييم {cow.ear_tag} — خسارة"},
+        ]
+
+    return post_journal(
+        description=(
+            f"إعادة تقييم البقرة {cow.ear_tag}: "
+            f"{valuation.prior_value} → {valuation.value}"
+        ),
+        lines=lines,
+        entry_date=valuation.valuation_date,
+        source_type="CowValuation",
+        source_id=valuation.id,
+        created_by=created_by_id,
+    )
+
+
+@bp.route("/valuation")
+@login_required
+def valuation_bulk():
+    """HERD-2 Part 3: bulk revaluation screen. Every active cow (both
+    sexes — livestock is livestock) with its current_value +
+    input for the new value."""
+    from decimal import Decimal
+    cows = (
+        Cow.query.filter_by(status=Cow.STATUS_ACTIVE, is_archived=False)
+        .order_by(Cow.ear_tag).all()
+    )
+    total_current = sum(
+        (Decimal(str(c.current_value or 0)) for c in cows), Decimal("0"),
+    )
+    return render_template(
+        "herd/valuation_bulk.html",
+        cows=cows, total_current=total_current,
+    )
+
+
+@bp.route("/valuation/save", methods=["POST"])
+@login_required
+@write_required
+def valuation_save():
+    """HERD-2 Part 3: process the bulk revaluation form. One row =
+    one cow input `value_<cow_id>` + optional `notes_<cow_id>`. Skip
+    rows where the new value equals the current value (no-op)."""
+    from decimal import Decimal, InvalidOperation
+    from app.services.ledger import LedgerError
+
+    val_date = request.form.get("valuation_date") or None
+    if val_date:
+        val_date = date.fromisoformat(val_date)
+    else:
+        val_date = date.today()
+
+    cows = (
+        Cow.query.filter_by(status=Cow.STATUS_ACTIVE, is_archived=False)
+        .all()
+    )
+    n_saved = 0
+    total_delta = Decimal("0")
+    for cow in cows:
+        raw = (request.form.get(f"value_{cow.id}") or "").strip()
+        if not raw:
+            continue
+        try:
+            new_val = Decimal(raw).quantize(Decimal("0.01"))
+        except (InvalidOperation, ValueError):
+            flash(
+                f"القيمة المدخلة للبقرة {cow.ear_tag} غير صالحة — اتخطيها.",
+                "warning",
+            )
+            continue
+        prior = Decimal(str(cow.current_value or 0)).quantize(Decimal("0.01"))
+        if new_val == prior:
+            continue
+
+        notes = (request.form.get(f"notes_{cow.id}") or "").strip() or None
+        valuation = CowValuation(
+            cow_id=cow.id,
+            valuation_date=val_date,
+            value=new_val,
+            prior_value=prior,
+            notes=notes,
+            created_by_id=current_user.id,
+        )
+        db.session.add(valuation)
+        db.session.flush()
+
+        try:
+            _post_revaluation_je(valuation, cow, current_user.id)
+        except LedgerError as e:
+            db.session.rollback()
+            flash(str(e), "error")
+            return redirect(url_for("herd.valuation_bulk"))
+
+        cow.current_value = new_val
+        log_action(
+            "cow_revaluated", "CowValuation", valuation.id,
+            details=f"cow={cow.id} {prior}->{new_val}",
+        )
+        n_saved += 1
+        total_delta += (new_val - prior)
+
+    db.session.commit()
+    if n_saved:
+        flash(
+            f"تم حفظ {n_saved} إعادة تقييم — إجمالي التغيير: "
+            f"{total_delta}.",
+            "success",
+        )
+    else:
+        flash("مفيش تغيرات مدخلة.", "info")
+    return redirect(url_for("herd.valuation_bulk"))
+
+
+@bp.route("/<int:cow_id>/valuations")
+@login_required
+def valuation_history(cow_id: int):
+    """HERD-2 Part 3: per-cow valuation history."""
+    cow = db.session.get(Cow, cow_id)
+    if not cow:
+        abort(404)
+    rows = (
+        CowValuation.query.filter_by(cow_id=cow.id)
+        .order_by(CowValuation.valuation_date.desc(),
+                  CowValuation.id.desc())
+        .all()
+    )
+    return render_template(
+        "herd/valuation_history.html", cow=cow, valuations=rows,
+    )
+
+
+@bp.route("/valuation/report")
+@login_required
+def valuation_report():
+    """HERD-2 Part 3: total herd value at a given date. For today's
+    date, sums Cow.current_value directly. For a past date, walks
+    cow_valuations to find each cow's latest value on-or-before T
+    (or 0 if no valuation existed by then)."""
+    from decimal import Decimal
+    raw = request.args.get("date")
+    try:
+        target = date.fromisoformat(raw) if raw else date.today()
+    except (ValueError, TypeError):
+        target = date.today()
+
+    cows = (
+        Cow.query.filter_by(status=Cow.STATUS_ACTIVE, is_archived=False)
+        .order_by(Cow.ear_tag).all()
+    )
+    is_today = target >= date.today()
+    rows = []
+    total = Decimal("0")
+    for cow in cows:
+        if is_today:
+            v = Decimal(str(cow.current_value or 0))
+        else:
+            last = (
+                CowValuation.query.filter_by(cow_id=cow.id)
+                .filter(CowValuation.valuation_date <= target)
+                .order_by(CowValuation.valuation_date.desc(),
+                          CowValuation.id.desc()).first()
+            )
+            v = Decimal(str(last.value)) if last else Decimal("0")
+        rows.append({"cow": cow, "value": v})
+        total += v
+
+    return render_template(
+        "herd/valuation_report.html",
+        rows=rows, total=total, target=target, is_today=is_today,
+    )

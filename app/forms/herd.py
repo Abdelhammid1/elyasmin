@@ -162,3 +162,51 @@ class CowSearchForm(FlaskForm):
 
     class Meta:
         csrf = False
+
+
+# ==================== HERD-2 Part 1 (PHASE 35): breeding form ====================
+
+from app.models.herd import BreedingEvent
+
+BREEDING_EVENT_CHOICES = [
+    (BreedingEvent.EVENT_INSEMINATION,    "تلقيح"),
+    (BreedingEvent.EVENT_PREGNANCY_CHECK, "جس"),
+    (BreedingEvent.EVENT_DRYING,          "تجفيف"),
+    (BreedingEvent.EVENT_WAITING,         "انتظار"),
+    (BreedingEvent.EVENT_CALVING,         "ولادة"),
+    (BreedingEvent.EVENT_WEANING,         "فطام"),
+]
+
+BREEDING_RESULT_CHOICES = [
+    ("",                                    "— لا ينطبق —"),
+    (BreedingEvent.RESULT_PREGNANT,         "عشار"),
+    (BreedingEvent.RESULT_NOT_PREGNANT,     "مش عشار"),
+]
+
+
+class BreedingEventForm(FlaskForm):
+    """HERD-2 Part 1: record a single reproductive-cycle event on a
+    cow. Submitting this form ONLY writes the event — the
+    breeding_status change requires a second explicit confirmation
+    on the follow-up page."""
+
+    event_type = SelectField(
+        "نوع الإجراء",
+        choices=BREEDING_EVENT_CHOICES,
+        validators=[DataRequired(message="اختار نوع الإجراء.")],
+    )
+    event_date = DateField(
+        "التاريخ",
+        default=date.today,
+        validators=[DataRequired()],
+    )
+    result = SelectField(
+        "نتيجة الجس (اختياري لغير الجس)",
+        choices=BREEDING_RESULT_CHOICES,
+        validators=[Optional()],
+    )
+    notes = TextAreaField(
+        "ملاحظات",
+        validators=[Optional(), Length(max=1000)],
+    )
+    submit = SubmitField("سجل الإجراء")

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}تاريخ تقييم البقرة {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clock-history"></i> تاريخ تقييم البقرة {{ cow.ear_tag }}</h1>
+    <p class="text-muted mb-0">
+      كل إعادة تقييم مربوطة بقيد محاسبي — اضغط على الرابط عشان تفتحه.
+    </p>
+  </div>
+  <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع
+  </a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4 col-6"><div class="card stat-card tone-brand">
+    <div class="stat-label">القيمة الحالية</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(cow.current_value or 0) }}</div>
+  </div></div>
+  <div class="col-md-4 col-6"><div class="card stat-card">
+    <div class="stat-label">عدد التقييمات</div>
+    <div class="stat-value" dir="ltr">{{ valuations|length }}</div>
+  </div></div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>القيمة السابقة</th>
+          <th>القيمة الجديدة</th>
+          <th>الفرق</th>
+          <th>الملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in valuations %}
+        <tr>
+          <td dir="ltr">{{ v.valuation_date }}</td>
+          <td class="num text-muted">{{ "{:,.2f}".format(v.prior_value or 0) }}</td>
+          <td class="num fw-bold">{{ "{:,.2f}".format(v.value or 0) }}</td>
+          <td>
+            {% set d = v.delta %}
+            {% if d > 0 %}
+              <span class="chip chip-paid">+{{ "{:,.2f}".format(d) }}</span>
+            {% elif d < 0 %}
+              <span class="chip chip-overdue">{{ "{:,.2f}".format(d) }}</span>
+            {% else %}
+              <span class="chip chip-draft">0.00</span>
+            {% endif %}
+          </td>
+          <td class="small text-muted">{{ v.notes or "" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted py-4">
+          مفيش تقييمات مسجّلة لسه — من صفحة "تقييم القطيع".
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

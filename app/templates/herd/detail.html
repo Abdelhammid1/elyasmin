@@ -10,10 +10,20 @@
       {% if cow.status == "active" %}<span class="badge badge-active">{{ cow.status_label }}</span>
       {% elif cow.status == "sold" %}<span class="badge badge-sold">{{ cow.status_label }}</span>
       {% else %}<span class="badge badge-dead">{{ cow.status_label }}</span>{% endif %}
+      {# HERD-2 Part 1: reproductive-status chip next to the lifecycle badge. #}
+      {% if cow.breeding_status %}
+        <span class="chip chip-cash ms-1">{{ cow.breeding_status_label }}</span>
+      {% endif %}
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
     {% if cow.status == "active" %}
+    {% if can_write and cow.gender == "female" %}
+    {# HERD-2 Part 1: breeding-cycle entry point (females only). #}
+    <a href="{{ url_for('herd.breeding_timeline', cow_id=cow.id) }}" class="btn btn-outline-info">
+      <i class="bi bi-clipboard-data"></i> دورة الإنجاب
+    </a>
+    {% endif %}
     {% if can_write %}
     <a href="{{ url_for('herd.move_cow', cow_id=cow.id) }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left-right"></i> نقل مجموعة</a>
     {% endif %}
@@ -37,6 +47,21 @@
         <dt class="col-5">تاريخ الميلاد</dt><dd class="col-7" dir="ltr">{{ cow.date_of_birth or "—" }}</dd>
         <dt class="col-5">العمر (شهر)</dt><dd class="col-7">{{ cow.age_months if cow.age_months is not none else "—" }}</dd>
         <dt class="col-5">المجموعة الحالية</dt><dd class="col-7">{{ cow.group.name }}</dd>
+        {% if cow.gender == "female" %}
+        {# HERD-2 Part 2: season count = number of calvings for this cow. #}
+        <dt class="col-5">عدد المواسم</dt>
+        <dd class="col-7" dir="ltr">{{ cow.season_count }}</dd>
+        {% if cow.breeding_status %}
+        <dt class="col-5">الحالة الإنجابية</dt>
+        <dd class="col-7"><span class="chip chip-cash">{{ cow.breeding_status_label }}</span></dd>
+        {% endif %}
+        {% endif %}
+        {# HERD-2 Part 3: current asset value + link to per-cow history. #}
+        <dt class="col-5">قيمة الأصل</dt>
+        <dd class="col-7">
+          <span dir="ltr">{{ "{:,.2f}".format(cow.current_value or 0) }}</span> جنيه
+          <a href="{{ url_for('herd.valuation_history', cow_id=cow.id) }}" class="small">(التاريخ)</a>
+        </dd>
       </dl>
     </div>
   </div>
