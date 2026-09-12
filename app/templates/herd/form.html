@@ -51,6 +51,23 @@
             </div>
           </div>
 
+          {# SEASON-OFFSET (PHASE 37): backfill widget — visible on
+             both create and edit. Hint text carries the intent so
+             we don't need a gender-based JS toggle. #}
+          <div class="col-md-6">
+            {{ form.season_count_offset.label(class="form-label fw-bold") }}
+            {{ form.season_count_offset(class="form-control", dir="ltr",
+                                        type="number", min=0, max=50) }}
+            <small class="text-muted">
+              للأبقار الموجودة قبل تسجيلها في النظام — عدد المواسم
+              القديمة اللي مش مسجّلة كولادات هنا. صفر لو البقرة
+              اتولدت داخل النظام.
+            </small>
+            {% for e in form.season_count_offset.errors %}
+              <div class="text-danger small mt-1">{{ e }}</div>
+            {% endfor %}
+          </div>
+
           <div class="col-12">
             {{ form.notes.label(class="form-label fw-bold") }}
             {{ form.notes(class="form-control", rows=3) }}

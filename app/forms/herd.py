@@ -81,6 +81,17 @@ class CowForm(FlaskForm):
         "حالة خاصة (خنثة) — اسمح بوضعها في التسمين رغم إنها أنثى"
     )
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=1000)])
+    # SEASON-OFFSET (PHASE 37): manual backfill for calvings that
+    # happened BEFORE the cow was registered in the system. The
+    # field is visible on every cow form; the hint carries the
+    # intent (leave at 0 for cows born inside the system).
+    season_count_offset = IntegerField(
+        "عدد المواسم قبل تسجيلها في النظام (اختياري)",
+        validators=[Optional(),
+                    NumberRange(min=0, max=50,
+                                message="من 0 لحد 50 موسم.")],
+        default=0,
+    )
     submit = SubmitField("حفظ")
 
 

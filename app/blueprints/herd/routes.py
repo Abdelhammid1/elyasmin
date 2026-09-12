@@ -281,6 +281,9 @@ def create_cow():
                 gender=form.gender.data,
                 group_id=form.group_id.data,
                 notes=form.notes.data,
+                # SEASON-OFFSET (PHASE 37): defaults to 0 for cows
+                # born inside the system.
+                season_count_offset=form.season_count_offset.data or 0,
                 created_by_id=current_user.id,
             )
             db.session.add(cow)
@@ -345,6 +348,9 @@ def edit_cow(cow_id: int):
         cow.date_of_birth = form.date_of_birth.data
         cow.gender = form.gender.data
         cow.notes = form.notes.data
+        # SEASON-OFFSET (PHASE 37): edit lets the user backfill
+        # historical seasons for a cow already in the system.
+        cow.season_count_offset = form.season_count_offset.data or 0
 
         # If the group was changed via this form, log it as a movement too
         if form.group_id.data != cow.group_id:

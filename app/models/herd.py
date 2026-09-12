@@ -101,6 +101,13 @@ class Cow(db.Model):
         db.Numeric(12, 2), nullable=False, default=Decimal("0"),
         server_default="0",
     )
+    # SEASON-OFFSET (PHASE 37): manual backfill for calvings that
+    # happened BEFORE the cow was registered in the system. Zero
+    # for cows born inside the system; the "عدد المواسم" widget
+    # adds this on top of the COUNT of Birth rows.
+    season_count_offset = db.Column(
+        db.Integer, nullable=False, default=0, server_default="0",
+    )
     notes = db.Column(db.Text, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -150,18 +157,18 @@ class Cow(db.Model):
 
     @property
     def season_count(self) -> int:
-        """HERD-2 Part 2: total calvings for this cow. Cheap COUNT on
-        the births table — Birth is authoritative for calving events
-        (breeding_events also has calving rows for each Birth, but
-        Birth is the older, indexed source and doesn't require any
-        join). Auto-updates immediately after `create_birth`
-        commits a new row."""
+        """HERD-2 Part 2 + SEASON-OFFSET (PHASE 37): total calvings
+        for this cow — historical offset (manual backfill for
+        calvings that happened before the cow was registered in
+        the system) plus every Birth recorded here. Auto-updates
+        immediately after `create_birth` commits a new row."""
         from sqlalchemy import func as _func
-        return (
+        counted = (
             db.session.query(_func.count(Birth.id))
             .filter(Birth.mother_id == self.id)
             .scalar() or 0
         )
+        return counted + (self.season_count_offset or 0)
 
 
 class CowMovement(db.Model):

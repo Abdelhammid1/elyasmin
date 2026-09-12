@@ -234,6 +234,42 @@ def test_create_birth_mirrors_calving_into_breeding_events(admin_client, app):
         _cleanup(app)
 
 
+def test_season_count_includes_offset(app):
+    """SEASON-OFFSET (PHASE 37): season_count = offset + COUNT(Birth).
+
+    Seeds a cow with offset=3 (representing three calvings that
+    happened before the cow was registered here), confirms
+    season_count == 3, then adds one Birth row and confirms it
+    increments to 4. Kept off the admin_client since neither
+    step needs a request cycle — the property is pure model
+    logic."""
+    cow_id = _seed_cow(app)
+    try:
+        with app.app_context():
+            c = db.session.get(Cow, cow_id)
+            c.season_count_offset = 3
+            db.session.commit()
+
+            assert c.season_count == 3
+
+            # Add one Birth directly — no full create_birth flow
+            # so we don't drag in the calf-tagging machinery.
+            birth = Birth(
+                mother_id=cow_id,
+                birth_date=date.today(),
+                calves_count=1,
+                delivery_type="natural",
+            )
+            db.session.add(birth)
+            db.session.commit()
+
+            # offset (3) + COUNT(Birth)=1 = 4
+            c = db.session.get(Cow, cow_id)
+            assert c.season_count == 4
+    finally:
+        _cleanup(app)
+
+
 def test_timeline_returns_events_and_changes(admin_client, app):
     cow_id = _seed_cow(app)
     try:
