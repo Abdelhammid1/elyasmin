@@ -19,7 +19,7 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead>
-          <tr><th>العامل</th><th>نوع الأجر</th><th>عدد الحلبات</th><th>غياب</th></tr>
+          <tr><th>العامل</th><th>نوع الأجر</th><th>الحلبات / حاضر</th><th>غياب</th></tr>
         </thead>
         <tbody>
           {% for row in grid %}
@@ -27,10 +27,27 @@
             <td><strong>{{ row.worker.name }}</strong></td>
             <td>{{ row.worker.wage_label }} — <span dir="ltr">{{ row.worker.rate }}</span></td>
             <td>
-              <input type="number" name="batches_{{ row.worker.id }}" class="form-control form-control-sm"
-                     dir="ltr" min="0" max="100"
-                     value="{{ row.att.batches_worked if row.att and not row.att.is_absent else '' }}"
-                     {% if row.worker.wage_type == 'daily' %}disabled{% endif %}>
+              {# DAILY-PRESENT (PHASE 38): daily workers get an
+                 explicit "حاضر" checkbox instead of a disabled
+                 number input (which never posted, so no
+                 Attendance row was ever created for a present
+                 daily worker). Per-batch workers keep the
+                 number input as before. #}
+              {% if row.worker.wage_type == 'daily' %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox"
+                         name="present_{{ row.worker.id }}" value="1"
+                         id="present_{{ row.worker.id }}"
+                         {% if row.att and not row.att.is_absent %}checked{% endif %}>
+                  <label class="form-check-label"
+                         for="present_{{ row.worker.id }}">حاضر</label>
+                </div>
+              {% else %}
+                <input type="number" name="batches_{{ row.worker.id }}"
+                       class="form-control form-control-sm"
+                       dir="ltr" min="0" max="100"
+                       value="{{ row.att.batches_worked if row.att and not row.att.is_absent else '' }}">
+              {% endif %}
             </td>
             <td>
               <div class="form-check">

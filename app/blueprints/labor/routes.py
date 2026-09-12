@@ -261,19 +261,46 @@ def daily_attendance():
         for w in workers:
             batches_raw = request.form.get(f"batches_{w.id}", "").strip()
             absent = request.form.get(f"absent_{w.id}") == "1"
-            existing = Attendance.query.filter_by(worker_id=w.id, attendance_date=day).first()
+            # DAILY-PRESENT (PHASE 38): explicit "حاضر" signal for
+            # daily-wage workers. Pre-fix, a daily worker's
+            # attendance never landed a row because `batches` was
+            # always 0 (the field is disabled in the form) and the
+            # save-trigger was `absent OR batches > 0` — labor
+            # report then showed 0 present days + 0 مستحق even
+            # though the worker was there every day.
+            present = request.form.get(f"present_{w.id}") == "1"
+            existing = Attendance.query.filter_by(
+                worker_id=w.id, attendance_date=day
+            ).first()
 
             batches = 0
-            if not absent and batches_raw:
+            if (not absent
+                and w.wage_type == Worker.WAGE_PER_BATCH
+                and batches_raw):
                 try:
                     batches = int(batches_raw)
                 except ValueError:
                     batches = 0
 
+            # Trigger differs by wage_type:
+            #   per_batch: absent OR batches > 0   (unchanged)
+            #   daily:     absent OR present       (the fix)
+            if w.wage_type == Worker.WAGE_DAILY:
+                should_have_row = absent or present
+            else:
+                should_have_row = absent or batches > 0
+
             if existing:
-                existing.is_absent = absent
-                existing.batches_worked = 0 if absent else batches
-            elif absent or batches > 0:
+                if not should_have_row:
+                    # User un-checked both toggles → the day
+                    # reads as "no record" instead of a stale
+                    # "present". Wipe so the report doesn't keep
+                    # counting it.
+                    db.session.delete(existing)
+                else:
+                    existing.is_absent = absent
+                    existing.batches_worked = 0 if absent else batches
+            elif should_have_row:
                 db.session.add(
                     Attendance(
                         worker_id=w.id,
