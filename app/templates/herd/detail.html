@@ -21,7 +21,7 @@
     {% if can_write and cow.gender == "female" %}
     {# HERD-2 Part 1: breeding-cycle entry point (females only). #}
     <a href="{{ url_for('herd.breeding_timeline', cow_id=cow.id) }}" class="btn btn-outline-info">
-      <i class="bi bi-clipboard-data"></i> دورة الإنجاب
+      <i class="bi bi-clipboard-plus"></i> تسجيل حدث / موسم جديد
     </a>
     {% endif %}
     {% if can_write %}
