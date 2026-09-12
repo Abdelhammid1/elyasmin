@@ -27,6 +27,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.models import suppliers as _sup_models  # noqa: F401
     from app.models import feed as _feed_models  # noqa: F401
     from app.models import sales as _sales_models  # noqa: F401
+    from app.models import sales_general as _sales_gen_models  # noqa: F401
     from app.models import finance as _fin_models  # noqa: F401
     from app.models import labor as _labor_models  # noqa: F401
     from app.models import accounting as _acct_models  # noqa: F401
@@ -51,6 +52,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.blueprints.medicine.routes import bp as medicine_bp
     from app.blueprints.customers.routes import bp as customers_bp
     from app.blueprints.milk.routes import bp as milk_bp
+    from app.blueprints.sales.routes import bp as sales_bp
     from app.blueprints.finance.routes import bp as finance_bp
     from app.blueprints.labor.routes import bp as labor_bp
     from app.blueprints.help.routes import bp as help_bp
@@ -76,6 +78,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(medicine_bp, url_prefix="/medicine")
     app.register_blueprint(customers_bp, url_prefix="/customers")
     app.register_blueprint(milk_bp, url_prefix="/milk")
+    app.register_blueprint(sales_bp, url_prefix="/sales")
     app.register_blueprint(finance_bp, url_prefix="/finance")
     app.register_blueprint(accounts_bp, url_prefix="/accounts")
     app.register_blueprint(assistant_bp, url_prefix="/help/assistant")

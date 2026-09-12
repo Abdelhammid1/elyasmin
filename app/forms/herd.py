@@ -131,18 +131,10 @@ class DeathForm(FlaskForm):
     submit = SubmitField("تسجيل النفوق")
 
 
-class SaleForm(FlaskForm):
-    sale_date = DateField("تاريخ البيع", validators=[DataRequired()], default=date.today)
-    buyer_name = StringField(
-        "اسم المشتري", validators=[DataRequired(message="اسم المشتري مطلوب."), Length(max=120)]
-    )
-    price = DecimalField(
-        "السعر",
-        places=2,
-        validators=[DataRequired(message="السعر مطلوب."), NumberRange(min=0.01)],
-    )
-    notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=1000)])
-    submit = SubmitField("تسجيل البيع")
+# SALES-1: SaleForm removed — sell_cow now redirects to
+# sales.new_invoice (the general SalesInvoice builder). Old
+# AnimalSale rows are preserved; new ones are created inside
+# on_sales_invoice for each cow line.
 
 
 class CowSearchForm(FlaskForm):

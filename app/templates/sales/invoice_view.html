@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}فاتورة بيع #{{ invoice.id }}{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-receipt"></i>
+      فاتورة بيع <span dir="ltr">#{{ invoice.id }}</span>
+      {% if invoice.invoice_number %}
+        <small class="text-muted">— {{ invoice.invoice_number }}</small>
+      {% endif %}
+    </h1>
+    <p class="text-muted mb-0">
+      {{ invoice.counterparty_label }}
+      · <span dir="ltr">{{ invoice.invoice_date }}</span>
+      {% if invoice.due_date %}
+        · استحقاق <span dir="ltr">{{ invoice.due_date }}</span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('sales.list_invoices') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> رجوع للقائمة
+    </a>
+    {% set je = find_journal_entry_for('SalesInvoice', invoice.id) %}
+    {% if je %}
+    <a href="{{ url_for('accounting.journal_detail', entry_id=je.id) }}"
+       class="btn btn-outline-info">
+      <i class="bi bi-journal-text"></i> قيد المصدر <span dir="ltr">#{{ je.id }}</span>
+    </a>
+    {% endif %}
+    {% if can_write and not invoice.is_archived %}
+    <form method="post" action="{{ url_for('sales.delete_invoice', invoice_id=invoice.id) }}"
+          style="display:inline;"
+          onsubmit="return confirm('هترجع كل تأثير الفاتورة على النظام (القيد، البقرة، المخزون). متأكد؟');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-danger">
+        <i class="bi bi-trash"></i> حذف
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat-card tone-brand">
+    <div class="stat-label">إجمالي الفاتورة</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(invoice.grand_total or 0) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">مدفوع (كاش)</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(invoice.cash_amount or 0) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">آجل</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(invoice.credit_amount or 0) }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if invoice.outstanding_amount > 0 %}tone-warning{% endif %}">
+    <div class="stat-label">المتبقّي</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(invoice.outstanding_amount) }}</div>
+    <small>
+      {% set st = invoice.payment_status %}
+      {% if st == 'paid' %}<span class="chip chip-paid">مسدّدة</span>
+      {% elif st == 'partial' %}<span class="chip chip-warning">جزئي</span>
+      {% else %}<span class="chip chip-draft">لسه</span>{% endif %}
+    </small>
+  </div></div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>النوع</th>
+          <th>الوصف</th>
+          <th class="text-end">الكمية</th>
+          <th class="text-end">سعر الوحدة</th>
+          <th class="text-end">الإجمالي</th>
+          <th class="small">ملاحظات محاسبية</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in invoice.lines %}
+        <tr>
+          <td dir="ltr">{{ loop.index }}</td>
+          <td><span class="chip chip-info">{{ line.kind_label }}</span></td>
+          <td>
+            {% if line.line_kind == 'cow' and line.cow %}
+              <a href="{{ url_for('herd.cow_detail', cow_id=line.cow.id) }}">
+                <span dir="ltr">{{ line.cow.ear_tag }}</span>
+              </a>
+              {% if line.cow.name %}<span class="text-muted small">— {{ line.cow.name }}</span>{% endif %}
+            {% elif line.line_kind == 'inventory' and line.ingredient %}
+              <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=line.ingredient.id) }}">
+                {{ line.ingredient.name }}
+              </a>
+            {% else %}
+              {{ line.description or '—' }}
+            {% endif %}
+          </td>
+          <td class="num text-end" dir="ltr">{{ line.qty }}</td>
+          <td class="num text-end" dir="ltr">{{ "{:,.2f}".format(line.unit_price) }}</td>
+          <td class="num text-end fw-bold" dir="ltr">{{ "{:,.2f}".format(line.line_total) }}</td>
+          <td class="small text-muted">
+            {% if line.line_kind == 'cow' %}
+              قيمة دفترية مقفولة: <span dir="ltr">{{ "{:,.2f}".format(line.cow_book_value_snapshot or 0) }}</span>
+            {% elif line.line_kind == 'inventory' %}
+              متوسط تكلفة وقت البيع: <span dir="ltr">{{ "{:,.4f}".format(line.inv_avg_cost_snapshot or 0) }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="5">الإجمالي</td>
+          <td class="num text-end" dir="ltr">{{ "{:,.2f}".format(invoice.grand_total or 0) }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{% if invoice.notes %}
+<div class="card mt-3 p-3">
+  <div class="text-muted small">ملاحظات:</div>
+  {{ invoice.notes }}
+</div>
+{% endif %}
+
+{% endblock %}

@@ -529,6 +529,173 @@ def on_sales_return(ret, *, created_by=None):
     )
 
 
+# ==================== PHASE 36 (SALES-1) — general sales invoice ====================
+
+def on_sales_invoice(invoice, *, created_by=None):
+    """One balanced JE per SalesInvoice, tagged
+    (SalesInvoice, invoice.id). Idempotent — re-fires cleanly on
+    edit or delete via _delete_prior_je. Called from
+    `sales.routes::create_invoice` inside the same transaction as
+    the invoice + lines + AnimalSale + StockMovement writes.
+
+    JE shape, aggregated across all lines:
+
+      Debits:
+        treasury_leaf  = invoice.cash_amount          (if > 0)
+        1100 ذمم العملاء = invoice.credit_amount     (if > 0)
+                          party_type='customer', party_id=customer_id
+        4030            = inventory line avg_cost (COGS side —
+                          netted against revenue on same leaf)
+        4096            = loss when book > sale on a cow line
+
+      Credits:
+        4020 إيرادات بيع الحيوانات   (per-cow sale_price — GROSS
+                          proceeds so P&L reports can sum it)
+        4030 مبيعات مخزون            (per-inventory sale_price)
+        4090 إيرادات أخرى            (per-free-line sale_price)
+        1400 حيوانات المزرعة         (per-cow book_value_snapshot)
+        1200/1210/1220 by category   (per-inventory avg_cost)
+        4096                         gain when sale > book
+
+    Empty legs are omitted. Delegates the "balanced" check to
+    post_journal, which rejects the JE if legs don't zero out.
+    """
+    _delete_prior_je("SalesInvoice", invoice.id)
+    if invoice.is_archived:
+        return None
+
+    from app.models.sales_general import SalesInvoiceLine
+
+    cash_amount = _d(invoice.cash_amount)
+    credit_amount = _d(invoice.credit_amount)
+
+    lines = []
+
+    # -------- DR side: cash + credit split --------
+    if cash_amount > 0:
+        if invoice.treasury is None:
+            raise LedgerError(
+                "الفاتورة فيها جزء نقدي بدون خزنة — اختر خزنة قبل الحفظ."
+            )
+        treasury_leaf = _treasury_leaf(invoice.treasury)
+        lines.append({
+            "account_id": treasury_leaf.id, "debit": cash_amount,
+            "memo": f"الجزء النقدي — فاتورة بيع #{invoice.id}",
+        })
+    if credit_amount > 0:
+        if invoice.customer_id is None:
+            raise LedgerError(
+                "مينفعش يكون فيه جزء آجل بدون عميل مسجّل — walk-in لازم يكون كاش كامل."
+            )
+        ar = _code(CODE_TRADE_RECEIVABLE)  # 1100
+        lines.append({
+            "account_id": ar.id, "debit": credit_amount,
+            "party_type": "customer", "party_id": invoice.customer_id,
+            "memo": f"الجزء الآجل — فاتورة بيع #{invoice.id}",
+        })
+
+    # -------- CR side + per-line cost side --------
+    livestock_asset = None    # cache
+    gain_loss_livestock = None
+    inv_rev = None
+    other_rev = None
+
+    for line in invoice.lines:
+        line_total = _d(line.line_total)
+        if line_total <= 0:
+            continue
+
+        if line.line_kind == SalesInvoiceLine.KIND_COW:
+            # 3-leg cow shape (matches the ticket + _post_revaluation_je
+            # pattern; no per-line 4020 leg — 4096 IS the gain/loss
+            # account and holds the whole revenue-vs-book picture):
+            #   DR treasury/AR = line_total       ← already above
+            #   CR 1400        = book_value       ← asset out
+            #   CR/DR 4096     = line_total-book  ← gain (+) / loss (−)
+            # Balance:
+            #   DR line_total = CR book + CR(line_total-book)
+            #   line_total    = line_total  ✓
+            book = _d(line.cow_book_value_snapshot)
+            if livestock_asset is None:
+                livestock_asset = _code("1400")
+            if gain_loss_livestock is None:
+                gain_loss_livestock = _code("4096")
+            if book > 0:
+                lines.append({
+                    "account_id": livestock_asset.id, "credit": book,
+                    "memo": f"إقفال قيمة دفترية {line.cow.ear_tag if line.cow else line.cow_id}",
+                })
+            delta = line_total - book
+            if delta > 0:
+                # gain: CR 4096
+                lines.append({
+                    "account_id": gain_loss_livestock.id, "credit": delta,
+                    "memo": f"ربح بيع بقرة {line.cow.ear_tag if line.cow else line.cow_id}",
+                })
+            elif delta < 0:
+                # loss: DR 4096
+                lines.append({
+                    "account_id": gain_loss_livestock.id, "debit": -delta,
+                    "memo": f"خسارة بيع بقرة {line.cow.ear_tag if line.cow else line.cow_id}",
+                })
+            # delta == 0: no 4096 leg (book == price is a no-gain no-loss sale)
+
+        elif line.line_kind == SalesInvoiceLine.KIND_INVENTORY:
+            # 4030 — proceeds
+            if inv_rev is None:
+                inv_rev = _code("4030")
+            lines.append({
+                "account_id": inv_rev.id, "credit": line_total,
+                "memo": f"بيع {line.ingredient.name if line.ingredient else line.ingredient_id}",
+            })
+            # cost side — DR 4030 (net revenue = margin) + CR
+            # inventory leaf. This keeps the seed footprint small
+            # (no separate COGS account); a future ticket can split
+            # into a 5xxx COGS leaf if the client asks for gross-
+            # margin reports.
+            cost = (_d(line.inv_avg_cost_snapshot) * _d(line.qty)).quantize(Decimal("0.01"))
+            if cost > 0:
+                inv_code = INVENTORY_CODE_BY_CATEGORY.get(
+                    line.ingredient.category if line.ingredient else None,
+                    INVENTORY_DEFAULT_CODE,
+                )
+                inv_leaf = _code(inv_code)
+                lines.append({
+                    "account_id": inv_rev.id, "debit": cost,
+                    "memo": f"تكلفة {line.ingredient.name if line.ingredient else line.ingredient_id}",
+                })
+                lines.append({
+                    "account_id": inv_leaf.id, "credit": cost,
+                    "memo": f"سحب مخزون {line.ingredient.name if line.ingredient else line.ingredient_id}",
+                })
+
+        else:  # KIND_FREE
+            if other_rev is None:
+                other_rev = _code("4090")
+            lines.append({
+                "account_id": other_rev.id, "credit": line_total,
+                "memo": line.description or "بيع صنف حر",
+            })
+
+    if not lines:
+        return None
+
+    party_label = (
+        invoice.customer.name if invoice.customer_id and invoice.customer
+        else (invoice.walkin_name or "عميل نقدي")
+    )
+    return post_journal(
+        description=(
+            f"فاتورة بيع #{invoice.invoice_number or invoice.id} — {party_label}"
+        ),
+        lines=lines,
+        entry_date=invoice.invoice_date,
+        source_type="SalesInvoice",
+        source_id=invoice.id,
+        created_by=created_by,
+    )
+
+
 def on_purchase_return(ret, *, created_by=None):
     """A return TO a supplier. Reduces inventory; releases either the
     payable (credit mode) or receives cash back (cash mode).

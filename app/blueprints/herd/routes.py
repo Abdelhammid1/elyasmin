@@ -13,7 +13,6 @@ from app.forms.herd import (
     CowSearchForm,
     DeathForm,
     GroupForm,
-    SaleForm,
 )
 from app.models.herd import (
     AnimalSale,
@@ -664,33 +663,27 @@ def register_death(cow_id: int):
     return render_template("herd/death_form.html", form=form, cow=cow)
 
 
-# ---------- US-1.7 Sale ----------
+# ---------- US-1.7 Sale → SALES-1 redirect ----------
 @bp.route("/<int:cow_id>/sell", methods=["GET", "POST"])
 @login_required
 @write_required
 def sell_cow(cow_id: int):
+    """SALES-1: the old standalone sale form is gone (it wrote an
+    AnimalSale row and skipped the ledger — the "تم تسجيلها كإيراد"
+    flash was a lie). Every cow sale now flows through the general
+    SalesInvoice with kind=cow, which posts a real JE, closes the
+    book value out of 1400, and books gain/loss on 4096.
+
+    Kept as a 302 so sidebar buttons and any bookmarks / QA notes
+    pointing at `/herd/<id>/sell` keep working. Historical
+    AnimalSale rows created by the pre-SALES-1 flow are preserved
+    and still render on cow_detail — the same table is used for the
+    mirror row that on_sales_invoice creates alongside each cow
+    line."""
     cow = db.session.get(Cow, cow_id)
     if not cow or cow.status != Cow.STATUS_ACTIVE:
         abort(404)
-
-    form = SaleForm()
-    if form.validate_on_submit():
-        sale = AnimalSale(
-            cow_id=cow.id,
-            sale_date=form.sale_date.data,
-            buyer_name=form.buyer_name.data.strip(),
-            price=form.price.data,
-            notes=form.notes.data,
-            created_by_id=current_user.id,
-        )
-        db.session.add(sale)
-        cow.status = Cow.STATUS_SOLD
-        log_action("cow_sold", "Cow", cow.id, details=f"price={form.price.data}")
-        db.session.commit()
-        flash(f"تم بيع البقرة {cow.ear_tag} بمبلغ {form.price.data} — تم تسجيلها كإيراد.", "success")
-        return redirect(url_for("herd.cow_detail", cow_id=cow.id))
-
-    return render_template("herd/sale_form.html", form=form, cow=cow)
+    return redirect(url_for("sales.new_invoice", cow_id=cow.id))
 
 
 # ---------- Sales list ----------

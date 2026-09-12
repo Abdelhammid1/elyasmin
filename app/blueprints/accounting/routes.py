@@ -382,6 +382,24 @@ def _source_url(source_type, source_id):
         return url_for("purchases.view_invoice", invoice_id=source_id)
     if source_type == "AccountTransfer":
         return url_for("accounts.list_accounts")
+    # SALES-1 (PHASE 36): general sales invoice + backfill for
+    # CowValuation (revaluation JE from HERD-2 Part 3 has been
+    # posting with this source_type since then, but this
+    # dispatcher didn't know the string — silent latent bug).
+    # AnimalSale is included so any historical mirror rows the
+    # cow-sale flow creates also walk back to the cow.
+    if source_type == "SalesInvoice":
+        from app.models.sales_general import SalesInvoice
+        inv = db.session.get(SalesInvoice, source_id)
+        return url_for("sales.view_invoice", invoice_id=inv.id) if inv else None
+    if source_type == "AnimalSale":
+        from app.models.herd import AnimalSale
+        s = db.session.get(AnimalSale, source_id)
+        return url_for("herd.cow_detail", cow_id=s.cow_id) if s else None
+    if source_type == "CowValuation":
+        from app.models.herd import CowValuation
+        v = db.session.get(CowValuation, source_id)
+        return url_for("herd.cow_detail", cow_id=v.cow_id) if v else None
     if source_type.startswith("OpeningBalance:"):
         return None  # openings don't have their own screen
     return None

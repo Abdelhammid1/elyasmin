@@ -286,7 +286,11 @@
         <div class="sidebar-section-body">
           <a class="sidebar-item {% if request.endpoint and 'invoice' in request.endpoint and request.endpoint.startswith('milk') %}active{% endif %}"
              data-section="sales" href="{{ url_for('milk.list_invoices') }}">
-            <i class="bi bi-receipt-cutoff"></i> فواتير البيع</a>
+            <i class="bi bi-receipt-cutoff"></i> فواتير اللبن</a>
+          {# SALES-1 (PHASE 36): general sales invoice — cow / inventory / free lines. #}
+          <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('sales.') %}active{% endif %}"
+             data-section="sales" href="{{ url_for('sales.list_invoices') }}">
+            <i class="bi bi-receipt"></i> فاتورة بيع عامة</a>
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('customers') and 'settle' not in request.endpoint and 'dues' not in request.endpoint and 'report' not in request.endpoint %}active{% endif %}"
              data-section="sales" href="{{ url_for('customers.list_customers') }}">
             <i class="bi bi-person-lines-fill"></i> العملاء</a>

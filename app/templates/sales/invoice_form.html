@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}فاتورة بيع جديدة{% endblock %}
+{% block content %}
+{# PHASE 36 (SALES-1): mixed-line invoice builder.
+
+  Lines are managed client-side; each row has a `line-<i>-kind`
+  selector that swaps the picker between cow / inventory / free.
+  Server reads line-<i>-* keys from request.form.
+#}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-receipt-cutoff"></i> فاتورة بيع جديدة</h1>
+    <p class="text-muted mb-0">
+      اختار العميل، ضيف البنود، ووزّع الدفع بين كاش وآجل. القيد بيتسجل تلقائيًا.
+    </p>
+  </div>
+  <a href="{{ url_for('sales.list_invoices') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للفواتير
+  </a>
+</div>
+
+<form method="post" action="{{ url_for('sales.create_invoice') }}" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {# ---- header ---- #}
+  <div class="card p-3 mb-3">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">العميل</label>
+        <select name="customer_id" class="form-select" id="customer_select">
+          <option value="">— بيع walk-in (اكتب اسم يدوي) —</option>
+          {% for c in customers %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="walkin_name" class="form-control mt-2"
+               placeholder="اسم المشتري (لو walk-in)" maxlength="120">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">تاريخ الفاتورة</label>
+        <input type="date" name="invoice_date" value="{{ today }}"
+               class="form-control" dir="ltr" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">تاريخ الاستحقاق (اختياري)</label>
+        <input type="date" name="due_date" class="form-control" dir="ltr">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">رقم خارجي (اختياري)</label>
+        <input type="text" name="invoice_number" class="form-control"
+               maxlength="40">
+      </div>
+      <div class="col-md-12">
+        <label class="form-label">ملاحظات</label>
+        <textarea name="notes" class="form-control" rows="2"></textarea>
+      </div>
+    </div>
+  </div>
+
+  {# ---- lines ---- #}
+  <div class="card p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">
+        <i class="bi bi-list-ul"></i> بنود الفاتورة
+      </h5>
+      <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                onclick="addLine('cow')">
+          <i class="bi bi-plus"></i> بند بقرة
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                onclick="addLine('inventory')">
+          <i class="bi bi-plus"></i> بند مخزون
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                onclick="addLine('free')">
+          <i class="bi bi-plus"></i> بند حر
+        </button>
+      </div>
+    </div>
+
+    <div id="lines_container">
+      <div class="text-muted small p-3 text-center" id="lines_empty">
+        ضيف بند واحد على الأقل باستخدام الأزرار فوق.
+      </div>
+    </div>
+
+    <div class="mt-3 text-end">
+      <span class="text-muted small">إجمالي محسوب: </span>
+      <span class="fw-bold" dir="ltr" id="grand_total_display">0.00</span>
+    </div>
+  </div>
+
+  {# ---- payment ---- #}
+  <div class="card p-3 mb-3">
+    <h5 class="mb-2"><i class="bi bi-cash-stack"></i> شروط الدفع</h5>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">نوع الدفع</label>
+        <select name="payment_type" id="payment_type" class="form-select"
+                onchange="onPaymentTypeChange()">
+          <option value="cash">كاش كامل</option>
+          <option value="credit">آجل كامل</option>
+          <option value="mixed">جزء كاش + جزء آجل</option>
+        </select>
+      </div>
+      <div class="col-md-4" id="treasury_wrap">
+        <label class="form-label">الخزنة اللي بيدخل فيها الكاش</label>
+        <select name="treasury_account_id" class="form-select">
+          <option value="">— اختار خزنة —</option>
+          {% for a in accounts %}
+            <option value="{{ a.id }}">{{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2" id="cash_wrap">
+        <label class="form-label">مبلغ الكاش</label>
+        <input type="number" step="0.01" min="0" name="cash_amount"
+               id="cash_amount" class="form-control" dir="ltr" value="0"
+               oninput="onCashChange()">
+      </div>
+      <div class="col-md-2" id="credit_wrap" hidden>
+        <label class="form-label">مبلغ الآجل</label>
+        <input type="number" step="0.01" min="0" name="credit_amount"
+               id="credit_amount" class="form-control" dir="ltr" value="0"
+               readonly>
+      </div>
+    </div>
+    <div class="form-text mt-2">
+      لازم يكون <span dir="ltr">كاش + آجل = إجمالي الفاتورة</span>.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">
+      <i class="bi bi-check-lg"></i> إصدار الفاتورة
+    </button>
+    <a href="{{ url_for('sales.list_invoices') }}" class="btn btn-outline-secondary">
+      إلغاء
+    </a>
+  </div>
+</form>
+
+{# ---- picker data for the JS templates ---- #}
+{% set cow_options %}
+  {% for c in cows %}<option value="{{ c.id }}" data-book="{{ c.current_value or 0 }}">
+    {{ c.ear_tag }}{% if c.name %} — {{ c.name }}{% endif %}
+  </option>{% endfor %}
+{% endset %}
+{% set ing_options %}
+  {% for i in ingredients %}<option value="{{ i.id }}" data-qty="{{ i.current_qty }}"
+                                     data-cost="{{ i.avg_cost }}">
+    {{ i.name }} ({{ i.unit_label }} — متوفر: {{ i.current_qty }})
+  </option>{% endfor %}
+{% endset %}
+
+<script>
+  const COW_OPTIONS_HTML = {{ cow_options | tojson }};
+  const ING_OPTIONS_HTML = {{ ing_options | tojson }};
+  const PRESELECT_COW_ID = {{ preselect_cow_id or 'null' }};
+  let lineCounter = 0;
+
+  function addLine(kind) {
+    const idx = lineCounter++;
+    const container = document.getElementById('lines_container');
+    document.getElementById('lines_empty').hidden = true;
+
+    let picker = '';
+    if (kind === 'cow') {
+      picker = `<label class="form-label">البقرة</label>
+        <select name="line-${idx}-cow_id" class="form-select" required
+                onchange="onCowPick(this, ${idx})">
+          <option value="">— اختار —</option>${COW_OPTIONS_HTML}
+        </select>`;
+    } else if (kind === 'inventory') {
+      picker = `<label class="form-label">الصنف</label>
+        <select name="line-${idx}-ingredient_id" class="form-select" required>
+          <option value="">— اختار —</option>${ING_OPTIONS_HTML}
+        </select>`;
+    } else {
+      picker = `<label class="form-label">وصف الصنف</label>
+        <input type="text" name="line-${idx}-description" class="form-control"
+               placeholder="اكتب وصف الصنف الحر" required maxlength="255">`;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-end border rounded p-2 mb-2';
+    row.dataset.idx = idx;
+    row.innerHTML = `
+      <input type="hidden" name="line-${idx}-kind" value="${kind}">
+      <div class="col-md-1"><span class="chip chip-info">${kindLabel(kind)}</span></div>
+      <div class="col-md-5">${picker}</div>
+      <div class="col-md-2 ${kind==='cow' ? 'd-none' : ''}">
+        <label class="form-label">الكمية</label>
+        <input type="number" step="0.001" min="0.001"
+               name="line-${idx}-qty" class="form-control"
+               value="${kind==='cow' ? '1' : '1'}"
+               dir="ltr" oninput="recalc()">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">سعر الوحدة</label>
+        <input type="number" step="0.01" min="0" required
+               name="line-${idx}-unit_price" class="form-control"
+               dir="ltr" oninput="recalc()">
+      </div>
+      <div class="col-md-1">
+        <button type="button" class="btn btn-sm btn-outline-danger"
+                onclick="removeLine(this)" title="حذف البند">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+    `;
+    if (kind === 'cow') {
+      // Cow lines always have qty=1
+      const qtyInput = document.createElement('input');
+      qtyInput.type = 'hidden';
+      qtyInput.name = `line-${idx}-qty`;
+      qtyInput.value = '1';
+      row.appendChild(qtyInput);
+    }
+    container.appendChild(row);
+    recalc();
+  }
+
+  function kindLabel(kind) {
+    return {cow: 'بقرة', inventory: 'مخزون', free: 'حر'}[kind] || kind;
+  }
+
+  function removeLine(btn) {
+    btn.closest('.row').remove();
+    const rows = document.querySelectorAll('#lines_container > .row');
+    document.getElementById('lines_empty').hidden = rows.length > 0;
+    recalc();
+  }
+
+  function onCowPick(sel, idx) {
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.book) {
+      // Prefill unit_price with the book value as a starting hint.
+      const priceInput = sel.closest('.row').querySelector(
+        `[name="line-${idx}-unit_price"]`);
+      if (priceInput && !priceInput.value) {
+        priceInput.value = opt.dataset.book;
+      }
+      recalc();
+    }
+  }
+
+  function recalc() {
+    let total = 0;
+    document.querySelectorAll('#lines_container > .row').forEach(row => {
+      const qty = parseFloat(
+        row.querySelector('input[name$="-qty"]')?.value || '0');
+      const price = parseFloat(
+        row.querySelector('input[name$="-unit_price"]')?.value || '0');
+      if (!isNaN(qty) && !isNaN(price)) total += qty * price;
+    });
+    document.getElementById('grand_total_display').textContent =
+      total.toFixed(2);
+    // Auto-sync cash/credit amounts with the total.
+    onPaymentTypeChange(true);
+  }
+
+  function onPaymentTypeChange(fromRecalc) {
+    const pt = document.getElementById('payment_type').value;
+    const total = parseFloat(
+      document.getElementById('grand_total_display').textContent) || 0;
+    const cashEl = document.getElementById('cash_amount');
+    const creditEl = document.getElementById('credit_amount');
+    const cashWrap = document.getElementById('cash_wrap');
+    const creditWrap = document.getElementById('credit_wrap');
+    const treasuryWrap = document.getElementById('treasury_wrap');
+
+    if (pt === 'cash') {
+      cashEl.value = total.toFixed(2);
+      creditEl.value = '0';
+      cashEl.readOnly = true;
+      cashWrap.hidden = false;
+      creditWrap.hidden = true;
+      treasuryWrap.hidden = false;
+    } else if (pt === 'credit') {
+      cashEl.value = '0';
+      creditEl.value = total.toFixed(2);
+      cashWrap.hidden = true;
+      creditWrap.hidden = false;
+      treasuryWrap.hidden = true;
+    } else {
+      // mixed — user types cash, we compute credit
+      cashEl.readOnly = false;
+      cashWrap.hidden = false;
+      creditWrap.hidden = false;
+      treasuryWrap.hidden = false;
+      if (!fromRecalc) return;
+      const cash = parseFloat(cashEl.value) || 0;
+      creditEl.value = Math.max(0, total - cash).toFixed(2);
+    }
+  }
+
+  function onCashChange() {
+    onPaymentTypeChange(true);
+  }
+
+  // Prefill from ?cow_id= (the redirect from /herd/<id>/sell).
+  if (PRESELECT_COW_ID) {
+    addLine('cow');
+    const sel = document.querySelector(
+      `[name="line-0-cow_id"]`);
+    if (sel) {
+      sel.value = String(PRESELECT_COW_ID);
+      onCowPick(sel, 0);
+    }
+  }
+</script>
+{% endblock %}

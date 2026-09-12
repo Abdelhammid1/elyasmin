@@ -69,11 +69,23 @@ DEFAULT_COA = [
     ("4010", "إيرادات اللبن",               "Milk Revenue",        AccountType.REVENUE,   True,  "4"),
     ("4020", "إيرادات بيع الحيوانات",       "Livestock Sales",     AccountType.REVENUE,   True,  "4"),
     ("4090", "إيرادات أخرى",                "Other Revenue",       AccountType.REVENUE,   True,  "4"),
+    # SALES-1 (PHASE 36): general inventory-sale revenue. Kept
+    # separate from 4010 milk revenue and 4020 livestock sales so
+    # the P&L can show gross revenue by channel. Auto-posting nets
+    # the inventory cost against this same leaf (no separate COGS
+    # account until the client asks for one).
+    ("4030", "مبيعات مخزون",                "Inventory Sales",     AccountType.REVENUE,   True,  "4"),
     # HERD-2 Part 3 (PHASE 35): single combined P&L account for
     # asset-revaluation gains AND losses. Gains → CR, losses → DR
     # (renders as negative revenue on the P&L; matches the ticket
     # wording "أرباح وخسائر إعادة تقييم الأصول").
     ("4095", "أرباح وخسائر إعادة تقييم الأصول", "Asset Revaluation P&L", AccountType.REVENUE, True, "4"),
+    # SALES-1 (PHASE 36): gain/loss on cow-sale, sibling of 4095
+    # revaluation P&L but distinct — the ticket cares about the
+    # gain/loss picture vs book value, not the aggregate 4020
+    # proceeds figure. Keeping the two separate makes zakat and
+    # profitability reports readable later.
+    ("4096", "مكاسب/خسائر بيع الحيوانات",    "Gain/Loss on Livestock Sale", AccountType.REVENUE, True, "4"),
 
     # ---- EXPENSES ----
     ("5",    "المصروفات",                   "Expenses",            AccountType.EXPENSE,   False, None),

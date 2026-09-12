@@ -21,6 +21,9 @@ from app.extensions import db
 from app.models.sales import (
     CustomerPayment, MilkInvoice, PaymentAllocation,
 )
+from app.models.sales_general import (
+    SalesInvoice, SalesInvoicePaymentAllocation,
+)
 from app.models.suppliers import (
     PurchaseInvoice, SupplierPayment, SupplierPaymentAllocation,
 )
@@ -124,6 +127,99 @@ def allocate_customer_payment(
 # Legacy alias — the customer callers still import `allocate_payment`.
 def allocate_payment(payment, allocations, **kw):
     return allocate_customer_payment(payment, allocations, **kw)
+
+
+# ==================== PHASE 36 (SALES-1) — general sales invoice ====================
+
+def open_customer_sales_invoices_for(customer_id: int) -> list[SalesInvoice]:
+    """Every ISSUED SalesInvoice for this customer with
+    outstanding > 0, oldest first. Same shape as
+    open_customer_invoices_for on the milk side — this is the
+    natural feed for a future "collect against sales invoice"
+    modal."""
+    invs = (
+        SalesInvoice.query
+        .filter_by(customer_id=customer_id, is_archived=False,
+                   status=SalesInvoice.STATUS_ISSUED)
+        .order_by(SalesInvoice.invoice_date, SalesInvoice.id)
+        .all()
+    )
+    return [i for i in invs if i.outstanding_amount > 0]
+
+
+def allocate_sales_invoice_payment(
+    payment: CustomerPayment,
+    allocations: Iterable[tuple[int, Decimal]],
+    *,
+    created_by: Optional[int] = None,
+    replace: bool = False,
+) -> list[SalesInvoicePaymentAllocation]:
+    """Attach `allocations` = [(invoice_id, amount), ...] to a
+    CustomerPayment against SalesInvoice rows. Mirror of
+    allocate_customer_payment; separate function because
+    PaymentAllocation.invoice_id is hard-pinned to
+    milk_invoices, so SalesInvoice needs its own allocation
+    table (see sales_general.py::SalesInvoicePaymentAllocation).
+
+    Refuses if:
+      - any invoice belongs to a different customer
+      - any amount is <= 0
+      - SUM of allocations > payment.amount
+      - any single allocation would push an invoice past its
+        outstanding
+
+    Nothing here writes to the ledger. When the sales invoice is
+    saved with a cash portion, on_sales_invoice(...) has already
+    posted the DR treasury leg; this row just ties the payment
+    to the invoice so the "الجزء المدفوع" bar renders.
+    """
+    if replace:
+        for a in list(payment.allocations):
+            db.session.delete(a)
+        db.session.flush()
+
+    allocations = [(int(iid), _d(amt)) for iid, amt in allocations
+                   if amt and _d(amt) > 0]
+    if not allocations:
+        return []
+
+    total = sum((a for _, a in allocations), Decimal("0"))
+    if total > _d(payment.amount) + Decimal("0.005"):
+        raise AllocationError(
+            f"مجموع التوزيع ({total}) أكبر من قيمة الدفعة ({_d(payment.amount)})."
+        )
+
+    invoice_ids = {iid for iid, _ in allocations}
+    invoices = {
+        i.id: i for i in
+        SalesInvoice.query.filter(SalesInvoice.id.in_(invoice_ids)).all()
+    }
+
+    rows = []
+    for iid, amt in allocations:
+        inv = invoices.get(iid)
+        if inv is None:
+            raise AllocationError(f"الفاتورة رقم {iid} مش موجودة.")
+        # customer_id may be NULL on walk-in invoices — a
+        # walk-in invoice can never receive a customer-payment
+        # allocation.
+        if inv.customer_id is None or inv.customer_id != payment.customer_id:
+            raise AllocationError(
+                f"الفاتورة {inv.id} مش لعميل الدفعة."
+            )
+        remaining_before = inv.outstanding_amount
+        if amt > remaining_before + Decimal("0.005"):
+            raise AllocationError(
+                f"الفاتورة {inv.id}: المتبقّي {remaining_before} أقل من التوزيع {amt}."
+            )
+        row = SalesInvoicePaymentAllocation(
+            payment_id=payment.id, invoice_id=inv.id, amount=amt,
+            created_by_id=created_by,
+        )
+        db.session.add(row)
+        rows.append(row)
+
+    return rows
 
 
 # ==================== PHASE 4 — supplier side ====================
