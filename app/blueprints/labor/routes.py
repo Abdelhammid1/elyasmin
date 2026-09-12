@@ -253,7 +253,7 @@ def edit_worker(worker_id: int):
 @login_required
 @write_required
 def daily_attendance():
-    day_str = request.args.get("day")
+    day_str = request.form.get("day") or request.args.get("day")
     day = date.fromisoformat(day_str) if day_str else date.today()
     workers = Worker.query.filter_by(is_archived=False).order_by(Worker.name).all()
 
