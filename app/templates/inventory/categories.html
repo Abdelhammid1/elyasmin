@@ -88,6 +88,12 @@
             {% else %}
               <span class="chip chip-paid">{{ r.count }} مادة</span>
             {% endif %}
+            {# SALES-1: sellable badge — shows on categories flagged for sale. #}
+            {% if r.cat.is_sellable %}
+              <span class="chip chip-info" title="قابلة للبيع في فاتورة عامة">
+                <i class="bi bi-cart-check"></i> قابل للبيع
+              </span>
+            {% endif %}
           </td>
           {% if can_write %}
           <td class="text-end" style="white-space:nowrap;">

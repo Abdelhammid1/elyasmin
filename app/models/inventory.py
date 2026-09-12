@@ -24,6 +24,13 @@ class IngredientCategory(db.Model):
     is_active = db.Column(
         db.Boolean, nullable=False, default=True, server_default="1",
     )
+    # SALES-1: categories flagged sellable are the ones whose ingredients
+    # can appear as inventory lines on a SalesInvoice. Feed / medicine
+    # default to False (they're consumption side); admin toggles a
+    # dedicated category (e.g. "منتجات جانبية للبيع") on when needed.
+    is_sellable = db.Column(
+        db.Boolean, nullable=False, default=False, server_default="0",
+    )
     created_at = db.Column(
         db.DateTime, default=datetime.utcnow, nullable=False,
     )
@@ -184,6 +191,9 @@ class StockMovement(db.Model):
     REASON_FEED_RUN = "feed_run"
     REASON_MEDICINE = "medicine"
     REASON_ADJUST = "adjust"
+    # SALES-1: negative delta on a sale via SalesInvoice. `ref_id`
+    # points at the sales_invoices row that caused the draw-down.
+    REASON_SALE = "sale"
 
     id = db.Column(db.Integer, primary_key=True)
     ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), nullable=False, index=True)
@@ -215,6 +225,7 @@ class StockMovement(db.Model):
             self.REASON_FEED_RUN: "تشغيل علف",
             self.REASON_MEDICINE: "صرف دواء",
             self.REASON_ADJUST: "تعديل جرد",
+            self.REASON_SALE: "بيع",
         }.get(self.reason, self.reason)
 
 

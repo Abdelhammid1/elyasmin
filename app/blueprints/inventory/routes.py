@@ -507,25 +507,32 @@ def categories_list():
 def create_category():
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
+        # SALES-1: opt-in flag so the SalesInvoice item picker
+        # shows this category's ingredients.
+        is_sellable = bool(request.form.get("is_sellable"))
         if not name:
             flash("اسم التصنيف مطلوب.", "error")
             return render_template(
-                "inventory/category_form.html", mode="new", cat=None, name_val=name,
+                "inventory/category_form.html", mode="new", cat=None,
+                name_val=name, is_sellable_val=is_sellable,
             )
         if IngredientCategory.query.filter_by(name=name).first():
             flash(f"التصنيف \"{name}\" موجود فعلاً.", "error")
             return render_template(
-                "inventory/category_form.html", mode="new", cat=None, name_val=name,
+                "inventory/category_form.html", mode="new", cat=None,
+                name_val=name, is_sellable_val=is_sellable,
             )
-        cat = IngredientCategory(name=name, is_active=True)
+        cat = IngredientCategory(name=name, is_active=True,
+                                 is_sellable=is_sellable)
         db.session.add(cat)
         log_action("ingredient_category_created", "IngredientCategory", 0,
-                   details=f"name={name}")
+                   details=f"name={name} sellable={is_sellable}")
         db.session.commit()
         flash(f"تم إضافة التصنيف \"{name}\".", "success")
         return redirect(url_for("inventory.categories_list"))
     return render_template(
-        "inventory/category_form.html", mode="new", cat=None, name_val="",
+        "inventory/category_form.html", mode="new", cat=None,
+        name_val="", is_sellable_val=False,
     )
 
 
@@ -538,12 +545,15 @@ def rename_category(cat_id: int):
         abort(404)
     if request.method == "POST":
         new_name = (request.form.get("name") or "").strip()
+        new_sellable = bool(request.form.get("is_sellable"))
         if not new_name:
             flash("اسم التصنيف مطلوب.", "error")
             return render_template(
                 "inventory/category_form.html",
                 mode="edit", cat=cat, name_val=new_name,
+                is_sellable_val=new_sellable,
             )
+        changed = []
         if new_name != cat.name:
             existing = IngredientCategory.query.filter_by(name=new_name).first()
             if existing and existing.id != cat.id:
@@ -551,6 +561,7 @@ def rename_category(cat_id: int):
                 return render_template(
                     "inventory/category_form.html",
                     mode="edit", cat=cat, name_val=new_name,
+                    is_sellable_val=new_sellable,
                 )
             # Cascade the rename to every Ingredient row currently
             # pointing at the old name.
@@ -559,13 +570,19 @@ def rename_category(cat_id: int):
                 {"category": new_name}, synchronize_session=False,
             )
             cat.name = new_name
+            changed.append(f"name {old} → {new_name}")
+        if new_sellable != cat.is_sellable:
+            cat.is_sellable = new_sellable
+            changed.append(f"sellable → {new_sellable}")
+        if changed:
             log_action("ingredient_category_renamed", "IngredientCategory", cat.id,
-                       details=f"{old} → {new_name}")
+                       details=" | ".join(changed))
             db.session.commit()
-            flash(f"تم تعديل التصنيف إلى \"{new_name}\".", "success")
+            flash(f"تم تعديل التصنيف \"{cat.name}\".", "success")
         return redirect(url_for("inventory.categories_list"))
     return render_template(
-        "inventory/category_form.html", mode="edit", cat=cat, name_val=cat.name,
+        "inventory/category_form.html", mode="edit", cat=cat,
+        name_val=cat.name, is_sellable_val=bool(cat.is_sellable),
     )
 
 
