@@ -273,9 +273,13 @@
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('returns.purchases') %}active{% endif %}"
              data-section="purchasing" href="{{ url_for('returns.purchases_list') }}">
             <i class="bi bi-file-earmark-plus"></i> مرتجعات المشتريات</a>
-          <a class="sidebar-item {% if request.endpoint and 'expense' in request.endpoint %}active{% endif %}"
+          <a class="sidebar-item {% if request.endpoint and 'expense' in request.endpoint and 'categor' not in request.endpoint %}active{% endif %}"
              data-section="purchasing" href="{{ url_for('finance.list_expenses') }}">
             <i class="bi bi-cash-stack"></i> المصروفات التشغيلية</a>
+          {# EXP-CAT (PHASE 39): admin screen for the ExpenseCategory table. #}
+          <a class="sidebar-item {% if request.endpoint and 'expense_categor' in request.endpoint %}active{% endif %}"
+             data-section="purchasing" href="{{ url_for('finance.expense_categories_list') }}">
+            <i class="bi bi-tags"></i> أنواع المصروفات</a>
         </div>
       </details>
 

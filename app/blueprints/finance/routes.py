@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
@@ -11,9 +11,13 @@ from app.forms.finance import (
     ExpenseForm,
     ReportFilterForm,
     SettingsForm,
+    expense_category_choices,
 )
 from app.models.feed import FeedingSession, FeedTank, FeedTankMovement
-from app.models.finance import CompanyProfile, TreasuryAccount, Expense, Setting
+from app.models.finance import (
+    CompanyProfile, ExpenseCategory, TreasuryAccount, Expense,
+    Setting, expense_category_label,
+)
 from app.models.herd import AnimalSale, CattleGroup
 from app.models.sales import MilkDelivery
 from app.utils import accounts as acc
@@ -206,19 +210,47 @@ def list_expenses():
 def create_expense():
     form = ExpenseForm()
     form.account_id.choices = acc.active_choices()
+    # EXP-CAT (PHASE 39): choices are DB-driven now. Assigned
+    # BEFORE validate_on_submit so WTForms' SelectField validator
+    # accepts any category the picker showed the user.
+    form.category.choices = expense_category_choices()
     if not form.account_id.choices:
         flash("لازم تضيف حساب (خزنة أو بنك) الأول عشان تسجّل مصروف.", "error")
         return redirect(url_for("accounts.create_account"))
 
     if form.validate_on_submit():
-        # US-5.2 AC4: allow custom category
+        # EXP-CAT: __custom__ resolves via a case-insensitive
+        # match against existing user rows so a typo'd re-entry
+        # of the same label doesn't create two ExpenseCategory
+        # rows. Mirror of `inventory._resolve_category` at
+        # `app/blueprints/inventory/routes.py:73-91`.
         cat = form.category.data
         if cat == "__custom__":
-            custom = (form.custom_category.data or "").strip()
+            custom = " ".join((form.custom_category.data or "").split())
             if not custom:
                 flash("لازم تكتب اسم النوع الجديد.", "error")
                 return render_template("finance/expense_form.html", form=form)
-            cat = "custom:" + custom
+            existing = (
+                ExpenseCategory.query
+                .filter_by(is_system=False)
+                .filter(db.func.lower(ExpenseCategory.display_label)
+                        == custom.casefold())
+                .first()
+            )
+            if existing:
+                cat = existing.name
+                if not existing.is_active:
+                    # Re-enable a silently disabled row rather
+                    # than block the save — mirrors user intent.
+                    existing.is_active = True
+            else:
+                cat = "custom:" + custom
+                db.session.add(ExpenseCategory(
+                    name=cat,
+                    display_label=custom,
+                    is_system=False,
+                    is_active=True,
+                ))
 
         account = db.session.get(TreasuryAccount, form.account_id.data)
         if not account or account.is_archived:
@@ -462,7 +494,15 @@ def _compute_pnl(date_from: date, date_to: date) -> dict:
         "total_revenue": total_revenue,
         "total_expenses": total_expenses,
         "net": net,
-        "by_cat": [(Expense.LABELS.get(k, k), Decimal(str(v))) for k, v in by_cat.items()],
+        # EXP-CAT (PHASE 39): the property-based label helper
+        # handles legacy `custom:X` rows (strips prefix) AND
+        # built-in codes. Pre-fix, this leaked "custom:أدوات مكتبية"
+        # onto pnl.html because Expense.LABELS.get() misses on the
+        # prefixed key and falls through to the raw string.
+        "by_cat": [
+            (expense_category_label(k), Decimal(str(v)))
+            for k, v in by_cat.items()
+        ],
     }
 
 
@@ -542,3 +582,189 @@ def expenses_excel():
         rows,
         f"expenses_{date_from}_{date_to}.xlsx",
     )
+
+
+# ==================== EXP-CAT (PHASE 39): categories admin ====================
+
+@bp.route("/expense-categories")
+@login_required
+def expense_categories_list():
+    """Report of every ExpenseCategory + expense count. Copy of
+    the inventory categories screen shape (search + filter +
+    KPI strip + rename/toggle actions). System rows carry the
+    نظام lock badge and refuse both toggle and rename."""
+    q = (request.args.get("q") or "").strip()
+    f_status = (request.args.get("status") or "all").strip()
+
+    query = ExpenseCategory.query
+    if q:
+        query = query.filter(
+            ExpenseCategory.display_label.ilike(f"%{q}%")
+        )
+    if f_status == "active":
+        query = query.filter(ExpenseCategory.is_active.is_(True))
+    elif f_status == "disabled":
+        query = query.filter(ExpenseCategory.is_active.is_(False))
+
+    cats = query.order_by(
+        ExpenseCategory.is_system.desc(),
+        ExpenseCategory.display_label,
+    ).all()
+
+    rows = [{"cat": c, "count": c.expense_count} for c in cats]
+    total = len(rows)
+    system_count = sum(1 for r in rows if r["cat"].is_system)
+    active_count = sum(1 for r in rows if r["cat"].is_active)
+
+    return render_template(
+        "finance/expense_categories.html",
+        rows=rows,
+        f_q=q, f_status=f_status,
+        total=total,
+        system_count=system_count,
+        active_count=active_count,
+    )
+
+
+@bp.route("/expense-categories/new", methods=["GET", "POST"])
+@login_required
+@write_required
+def create_expense_category():
+    """Add one user-visible category. Only user rows are creatable
+    from the UI; system rows are seed-only and can't be added or
+    disabled here."""
+    if request.method == "POST":
+        label = " ".join((request.form.get("display_label") or "").split())
+        if not label:
+            flash("اسم النوع مطلوب.", "error")
+            return render_template(
+                "finance/expense_category_form.html",
+                mode="new", cat=None, label_val=label,
+            )
+        if len(label) > 120:
+            flash("الاسم طويل — حد أقصى 120 حرف.", "error")
+            return render_template(
+                "finance/expense_category_form.html",
+                mode="new", cat=None, label_val=label,
+            )
+        # Dedupe by case-folded display_label — same guard the
+        # __custom__ flow in create_expense uses.
+        existing = (
+            ExpenseCategory.query
+            .filter(db.func.lower(ExpenseCategory.display_label)
+                    == label.casefold())
+            .first()
+        )
+        if existing:
+            flash(f"النوع \"{existing.display_label}\" موجود فعلاً.",
+                  "error")
+            return render_template(
+                "finance/expense_category_form.html",
+                mode="new", cat=None, label_val=label,
+            )
+        cat = ExpenseCategory(
+            name="custom:" + label,
+            display_label=label,
+            is_system=False,
+            is_active=True,
+        )
+        db.session.add(cat)
+        log_action("expense_category_created", "ExpenseCategory", 0,
+                   details=f"label={label}")
+        db.session.commit()
+        flash(f"تم إضافة نوع \"{label}\".", "success")
+        return redirect(url_for("finance.expense_categories_list"))
+    return render_template(
+        "finance/expense_category_form.html",
+        mode="new", cat=None, label_val="",
+    )
+
+
+@bp.route("/expense-categories/<int:cat_id>/rename",
+          methods=["GET", "POST"])
+@login_required
+@write_required
+def rename_expense_category(cat_id: int):
+    """Edit display_label. System rows refuse rename (their
+    name column is the CAT_* key and the display_label is the
+    seeded Arabic). For user rows, the `custom:<old>` name
+    itself is cascaded to `expenses.category` so historical
+    rows keep resolving via string-match (parallel to the
+    inventory rename cascade)."""
+    cat = db.session.get(ExpenseCategory, cat_id)
+    if cat is None:
+        abort(404)
+    if cat.is_system:
+        flash("النوع ده نظامي — مينفعش يتعدّل.", "error")
+        return redirect(url_for("finance.expense_categories_list"))
+
+    if request.method == "POST":
+        new_label = " ".join(
+            (request.form.get("display_label") or "").split()
+        )
+        if not new_label:
+            flash("اسم النوع مطلوب.", "error")
+            return render_template(
+                "finance/expense_category_form.html",
+                mode="edit", cat=cat, label_val=new_label,
+            )
+        if new_label != cat.display_label:
+            dup = (
+                ExpenseCategory.query
+                .filter(db.func.lower(ExpenseCategory.display_label)
+                        == new_label.casefold())
+                .filter(ExpenseCategory.id != cat.id)
+                .first()
+            )
+            if dup:
+                flash(f"النوع \"{new_label}\" موجود على صف تاني.",
+                      "error")
+                return render_template(
+                    "finance/expense_category_form.html",
+                    mode="edit", cat=cat, label_val=new_label,
+                )
+            old_name = cat.name
+            new_name = "custom:" + new_label
+            Expense.query.filter_by(category=old_name).update(
+                {"category": new_name}, synchronize_session=False,
+            )
+            cat.name = new_name
+            cat.display_label = new_label
+            log_action(
+                "expense_category_renamed", "ExpenseCategory", cat.id,
+                details=f"{old_name} → {new_name}",
+            )
+            db.session.commit()
+            flash(f"تم تعديل النوع إلى \"{new_label}\".", "success")
+        return redirect(url_for("finance.expense_categories_list"))
+    return render_template(
+        "finance/expense_category_form.html",
+        mode="edit", cat=cat, label_val=cat.display_label,
+    )
+
+
+@bp.route("/expense-categories/<int:cat_id>/toggle",
+          methods=["POST"])
+@login_required
+@write_required
+def toggle_expense_category(cat_id: int):
+    """Flip is_active. System rows refuse the toggle — they
+    must stay selectable because purchases / suppliers / labor
+    still write mirror rows with those keys."""
+    cat = db.session.get(ExpenseCategory, cat_id)
+    if cat is None:
+        abort(404)
+    if cat.is_system:
+        flash("النوع ده نظامي — مينفعش يتعطّل.", "error")
+        return redirect(url_for("finance.expense_categories_list"))
+    cat.is_active = not cat.is_active
+    log_action(
+        "expense_category_toggled", "ExpenseCategory", cat.id,
+        details=f"active={cat.is_active}",
+    )
+    db.session.commit()
+    flash(
+        f"تم {'تفعيل' if cat.is_active else 'تعطيل'} النوع \"{cat.display_label}\".",
+        "info",
+    )
+    return redirect(url_for("finance.expense_categories_list"))

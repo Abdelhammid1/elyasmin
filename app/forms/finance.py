@@ -9,20 +9,41 @@ from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from app.models.finance import Expense
 
 
-EXPENSE_CATEGORY_CHOICES = [
-    (Expense.CAT_ELECTRICITY, "كهرباء"),
-    (Expense.CAT_MAINTENANCE, "صيانة"),
-    (Expense.CAT_RENT, "إيجار"),
+# EXP-CAT (PHASE 39): the picker is now driven by the
+# ExpenseCategory table. This bootstrap list keeps a minimum
+# viable set (just the "__custom__" sentinel + a single fallback)
+# so the form still class-loads before its request-time choices
+# are set — the route calls `expense_category_choices()` and
+# assigns to `form.category.choices` before validate_on_submit.
+_BOOTSTRAP_CHOICES = [
     (Expense.CAT_OTHER, "أخرى"),
     ("__custom__", "➕ نوع جديد (اكتبه)"),
 ]
 
 
+def expense_category_choices() -> list[tuple[str, str]]:
+    """PHASE 39: DB-backed picker options. Ordered so system
+    rows come first (matching the pre-fix order), then user
+    categories alphabetically by display label, then the
+    __custom__ sentinel last."""
+    from app.models.finance import ExpenseCategory
+    rows = (
+        ExpenseCategory.query
+        .filter_by(is_active=True)
+        .order_by(ExpenseCategory.is_system.desc(),
+                  ExpenseCategory.display_label)
+        .all()
+    )
+    return [(r.name, r.display_label) for r in rows] \
+        + [("__custom__", "➕ نوع جديد (اكتبه)")]
+
+
 class ExpenseForm(FlaskForm):
-    category = SelectField("النوع", choices=EXPENSE_CATEGORY_CHOICES, validators=[DataRequired()])
+    category = SelectField("النوع", choices=_BOOTSTRAP_CHOICES,
+                           validators=[DataRequired()])
     custom_category = StringField(
         "اسم النوع الجديد",
-        validators=[Optional(), Length(max=40)],
+        validators=[Optional(), Length(max=80)],
     )
     amount = DecimalField(
         "المبلغ",

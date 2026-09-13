@@ -141,7 +141,11 @@ class Expense(db.Model):
     CAT_OTHER = "other"
 
     id = db.Column(db.Integer, primary_key=True)
-    category = db.Column(db.String(40), nullable=False, index=True)
+    # EXP-CAT (PHASE 39): width bumped 40 → 80 so long Arabic
+    # custom labels (with or without the legacy "custom:" prefix)
+    # don't truncate silently. Category values are matched by
+    # exact string against `expense_categories.name`.
+    category = db.Column(db.String(80), nullable=False, index=True)
     amount = db.Column(db.Numeric(14, 2), nullable=False)
     expense_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
     description = db.Column(db.String(255), nullable=True)
@@ -170,9 +174,70 @@ class Expense(db.Model):
 
     @property
     def category_label(self) -> str:
-        if self.category and self.category.startswith("custom:"):
-            return self.category[len("custom:"):]
-        return self.LABELS.get(self.category, self.category)
+        return expense_category_label(self.category)
+
+
+def expense_category_label(raw: str | None) -> str | None:
+    """EXP-CAT (PHASE 39): presentation-safe label for any stored
+    Expense.category value. Central helper so the property AND
+    the PnL group-by renderer share one prefix-stripping path
+    (before this shipped, PnL leaked the raw `custom:X` string
+    onto the report — the property was never in the loop).
+
+    Order of resolution:
+      1. Legacy `custom:X` rows → strip the prefix.
+      2. Built-in code (electricity, rent, …) → LABELS lookup.
+      3. Anything else (e.g. bare Arabic label typed after this
+         phase) → return as-is.
+    """
+    if raw is None:
+        return None
+    if raw.startswith("custom:"):
+        return raw[len("custom:"):]
+    return Expense.LABELS.get(raw, raw)
+
+
+class ExpenseCategory(db.Model):
+    """EXP-CAT (PHASE 39): first-class expense category so the
+    dropdown remembers what the user typed. Mirrors the shape of
+    `IngredientCategory` in `app/models/inventory.py`.
+
+    Storage contract mirrors Expense.category verbatim:
+      - System rows (is_system=True) carry the English CAT_*
+        key, e.g. "electricity". Those keys are the same values
+        purchases / suppliers / labor code paths hard-write when
+        they create mirror Expense rows (payment reversals,
+        wage bookings, cash-purchase inventory rows). System
+        rows are locked against disable/rename.
+      - User rows (is_system=False) carry "custom:<label>" —
+        same shape today's `__custom__` picker option produces.
+
+    `display_label` is the Arabic string the picker + PnL show.
+    """
+    __tablename__ = "expense_categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False,
+                     index=True)
+    display_label = db.Column(db.String(120), nullable=False)
+    is_active = db.Column(
+        db.Boolean, nullable=False, default=True, server_default="1",
+    )
+    is_system = db.Column(
+        db.Boolean, nullable=False, default=False, server_default="0",
+    )
+    created_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<ExpenseCategory {self.id} {self.name}>"
+
+    @property
+    def expense_count(self) -> int:
+        return Expense.query.filter_by(
+            category=self.name, is_archived=False,
+        ).count()
 
 
 class TreasuryAccount(db.Model):
