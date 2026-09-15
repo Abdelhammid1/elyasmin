@@ -497,6 +497,130 @@ def test_walkin_cash_paid_amount_uses_cash_amount(admin_client, app):
         _cleanup(app)
 
 
+def test_cow_line_priced_by_weight(admin_client, app):
+    """SALES-3 (PHASE 43): a cow line with pricing_mode=per_kg
+    computes line_total as weight_kg × price_per_kg. Every other
+    invoice-time side effect (cow.STATUS_SOLD, current_value=0,
+    AnimalSale mirror, JE close-out on 1400/4096) is unchanged.
+
+    Setup: cow book=100, sold at 250kg × 50 = 12500.
+      DR treasury 12500
+      CR 1400      100  (book value)
+      CR 4096     12400 (gain = 12500 - 100)
+    """
+    _cleanup(app)
+    cow_id = _seed_cow(app, book_value=Decimal("100"))
+    treasury_id = _first_treasury(app)
+    try:
+        r = _post_invoice(
+            admin_client,
+            [{"kind": "cow", "cow_id": cow_id,
+              "pricing_mode": "per_kg",
+              "weight_kg": "250",
+              "price_per_kg": "50",
+              # unit_price/qty are irrelevant in per_kg mode but the
+              # form still submits placeholder values; the route
+              # ignores them.
+              "qty": "1", "unit_price": "0"}],
+            walkin_name="زبون بالوزن",
+            payment_type="cash",
+            treasury_id=treasury_id,
+            cash_amount="12500",
+        )
+        assert r.status_code in (302, 303), r.data[:400]
+
+        with app.app_context():
+            inv = SalesInvoice.query.filter_by(
+                walkin_name="زبون بالوزن"
+            ).order_by(SalesInvoice.id.desc()).first()
+            assert inv is not None
+            assert inv.grand_total == Decimal("12500.00")
+            line = inv.lines[0]
+            assert line.pricing_mode == "per_kg"
+            assert line.weight_kg == Decimal("250.000")
+            assert line.price_per_kg == Decimal("50.00")
+            assert line.line_total == Decimal("12500.00")
+            # Cow lifecycle unchanged
+            c = db.session.get(Cow, cow_id)
+            assert c.status == Cow.STATUS_SOLD
+            assert c.current_value == Decimal("0")
+
+        _, lines = _je_for(app, inv.id)
+        by_code = {}
+        for l in lines:
+            by_code.setdefault(l.account.code, []).append(l)
+        # CR 1400 = 100 book, CR 4096 = 12400 gain
+        assert sum(l.credit for l in by_code.get("1400", [])) == Decimal("100")
+        gl = by_code.get("4096", [])
+        assert sum(l.credit for l in gl) == Decimal("12400")
+        assert sum(l.debit for l in gl) == Decimal("0")
+    finally:
+        _cleanup(app)
+
+
+def test_cow_per_kg_refuses_zero_weight(admin_client, app):
+    """SALES-3: weight must be > 0 in per_kg mode."""
+    _cleanup(app)
+    cow_id = _seed_cow(app, book_value=Decimal("100"))
+    treasury_id = _first_treasury(app)
+    try:
+        r = _post_invoice(
+            admin_client,
+            [{"kind": "cow", "cow_id": cow_id,
+              "pricing_mode": "per_kg",
+              "weight_kg": "0",
+              "price_per_kg": "50",
+              "qty": "1", "unit_price": "0"}],
+            walkin_name="زبون خطأ",
+            payment_type="cash",
+            treasury_id=treasury_id,
+            cash_amount="0",
+        )
+        assert r.status_code == 400
+        with app.app_context():
+            # No invoice persisted
+            assert SalesInvoice.query.filter_by(
+                walkin_name="زبون خطأ"
+            ).count() == 0
+            # Cow stayed active
+            c = db.session.get(Cow, cow_id)
+            assert c.status == Cow.STATUS_ACTIVE
+    finally:
+        _cleanup(app)
+
+
+def test_cow_per_head_default_unchanged(admin_client, app):
+    """SALES-3: a cow line submitted without pricing_mode (or with
+    pricing_mode=per_head) behaves exactly as before — no
+    weight_kg / price_per_kg, line_total = unit_price."""
+    _cleanup(app)
+    cow_id = _seed_cow(app, book_value=Decimal("100"))
+    treasury_id = _first_treasury(app)
+    try:
+        r = _post_invoice(
+            admin_client,
+            [{"kind": "cow", "cow_id": cow_id,
+              # No pricing_mode key — route defaults to per_head
+              "qty": "1", "unit_price": "150"}],
+            walkin_name="زبون بالرأس",
+            payment_type="cash",
+            treasury_id=treasury_id,
+            cash_amount="150",
+        )
+        assert r.status_code in (302, 303)
+        with app.app_context():
+            inv = SalesInvoice.query.filter_by(
+                walkin_name="زبون بالرأس"
+            ).order_by(SalesInvoice.id.desc()).first()
+            line = inv.lines[0]
+            assert line.pricing_mode == "per_head"
+            assert line.weight_kg is None
+            assert line.price_per_kg is None
+            assert line.line_total == Decimal("150.00")
+    finally:
+        _cleanup(app)
+
+
 def test_duplicate_cow_sale_refused(admin_client, app):
     _cleanup(app)
     cow_id = _seed_cow(app, book_value=Decimal("100"))

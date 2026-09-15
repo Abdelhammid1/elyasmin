@@ -166,60 +166,120 @@
     const container = document.getElementById('lines_container');
     document.getElementById('lines_empty').hidden = true;
 
-    let picker = '';
-    if (kind === 'cow') {
-      picker = `<label class="form-label">البقرة</label>
-        <select name="line-${idx}-cow_id" class="form-select" required
-                onchange="onCowPick(this, ${idx})">
-          <option value="">— اختار —</option>${COW_OPTIONS_HTML}
-        </select>`;
-    } else if (kind === 'inventory') {
-      picker = `<label class="form-label">الصنف</label>
-        <select name="line-${idx}-ingredient_id" class="form-select" required>
-          <option value="">— اختار —</option>${ING_OPTIONS_HTML}
-        </select>`;
-    } else {
-      picker = `<label class="form-label">وصف الصنف</label>
-        <input type="text" name="line-${idx}-description" class="form-control"
-               placeholder="اكتب وصف الصنف الحر" required maxlength="255">`;
-    }
-
     const row = document.createElement('div');
     row.className = 'row g-2 align-items-end border rounded p-2 mb-2';
     row.dataset.idx = idx;
-    row.innerHTML = `
-      <input type="hidden" name="line-${idx}-kind" value="${kind}">
-      <div class="col-md-1"><span class="chip chip-info">${kindLabel(kind)}</span></div>
-      <div class="col-md-5">${picker}</div>
-      <div class="col-md-2 ${kind==='cow' ? 'd-none' : ''}">
-        <label class="form-label">الكمية</label>
-        <input type="number" step="0.001" min="0.001"
-               name="line-${idx}-qty" class="form-control"
-               value="${kind==='cow' ? '1' : '1'}"
-               dir="ltr" oninput="recalc()">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">سعر الوحدة</label>
-        <input type="number" step="0.01" min="0" required
-               name="line-${idx}-unit_price" class="form-control"
-               dir="ltr" oninput="recalc()">
-      </div>
-      <div class="col-md-1">
-        <button type="button" class="btn btn-sm btn-outline-danger"
-                onclick="removeLine(this)" title="حذف البند">
-          <i class="bi bi-x"></i>
-        </button>
-      </div>
-    `;
+
     if (kind === 'cow') {
-      // Cow lines always have qty=1
-      const qtyInput = document.createElement('input');
-      qtyInput.type = 'hidden';
-      qtyInput.name = `line-${idx}-qty`;
-      qtyInput.value = '1';
-      row.appendChild(qtyInput);
+      // SALES-3 (PHASE 43): cow rows carry a pricing-mode select
+      // that toggles between per-head (single unit_price input)
+      // and per-kg (weight_kg + price_per_kg inputs, line total
+      // computed as their product).
+      row.innerHTML = `
+        <input type="hidden" name="line-${idx}-kind" value="cow">
+        <input type="hidden" name="line-${idx}-qty" value="1">
+        <div class="col-md-1"><span class="chip chip-info">بقرة</span></div>
+        <div class="col-md-3">
+          <label class="form-label">البقرة</label>
+          <select name="line-${idx}-cow_id" class="form-select" required
+                  onchange="onCowPick(this, ${idx})">
+            <option value="">— اختار —</option>${COW_OPTIONS_HTML}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">طريقة التسعير</label>
+          <select name="line-${idx}-pricing_mode" class="form-select"
+                  onchange="onCowPricingModeChange(this, ${idx})">
+            <option value="per_head" selected>بالرأس</option>
+            <option value="per_kg">بالوزن</option>
+          </select>
+        </div>
+        <div class="col-md-2 cow-head-fields" data-cow-idx="${idx}">
+          <label class="form-label">سعر البقرة (بالرأس)</label>
+          <input type="number" step="0.01" min="0"
+                 name="line-${idx}-unit_price" class="form-control"
+                 dir="ltr" oninput="recalc()">
+        </div>
+        <div class="col-md-2 cow-kg-fields d-none" data-cow-idx="${idx}">
+          <label class="form-label">الوزن (كجم)</label>
+          <input type="number" step="0.001" min="0"
+                 name="line-${idx}-weight_kg" class="form-control"
+                 dir="ltr" oninput="recalc()">
+        </div>
+        <div class="col-md-1 cow-kg-fields d-none" data-cow-idx="${idx}">
+          <label class="form-label">سعر الكيلو</label>
+          <input type="number" step="0.01" min="0"
+                 name="line-${idx}-price_per_kg" class="form-control"
+                 dir="ltr" oninput="recalc()">
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-sm btn-outline-danger"
+                  onclick="removeLine(this)" title="حذف البند">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      `;
+    } else {
+      let picker;
+      if (kind === 'inventory') {
+        picker = `<label class="form-label">الصنف</label>
+          <select name="line-${idx}-ingredient_id" class="form-select" required>
+            <option value="">— اختار —</option>${ING_OPTIONS_HTML}
+          </select>`;
+      } else {
+        picker = `<label class="form-label">وصف الصنف</label>
+          <input type="text" name="line-${idx}-description" class="form-control"
+                 placeholder="اكتب وصف الصنف الحر" required maxlength="255">`;
+      }
+      row.innerHTML = `
+        <input type="hidden" name="line-${idx}-kind" value="${kind}">
+        <div class="col-md-1"><span class="chip chip-info">${kindLabel(kind)}</span></div>
+        <div class="col-md-5">${picker}</div>
+        <div class="col-md-2">
+          <label class="form-label">الكمية</label>
+          <input type="number" step="0.001" min="0.001"
+                 name="line-${idx}-qty" class="form-control"
+                 value="1"
+                 dir="ltr" oninput="recalc()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">سعر الوحدة</label>
+          <input type="number" step="0.01" min="0" required
+                 name="line-${idx}-unit_price" class="form-control"
+                 dir="ltr" oninput="recalc()">
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-sm btn-outline-danger"
+                  onclick="removeLine(this)" title="حذف البند">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      `;
     }
     container.appendChild(row);
+    recalc();
+  }
+
+  function onCowPricingModeChange(sel, idx) {
+    const mode = sel.value;
+    const row = sel.closest('.row');
+    const headFields = row.querySelectorAll(
+      `.cow-head-fields[data-cow-idx="${idx}"]`);
+    const kgFields = row.querySelectorAll(
+      `.cow-kg-fields[data-cow-idx="${idx}"]`);
+    if (mode === 'per_kg') {
+      headFields.forEach(el => {
+        el.classList.add('d-none');
+        el.querySelectorAll('input').forEach(i => { i.value = ''; });
+      });
+      kgFields.forEach(el => el.classList.remove('d-none'));
+    } else {
+      kgFields.forEach(el => {
+        el.classList.add('d-none');
+        el.querySelectorAll('input').forEach(i => { i.value = ''; });
+      });
+      headFields.forEach(el => el.classList.remove('d-none'));
+    }
     recalc();
   }
 
@@ -237,7 +297,15 @@
   function onCowPick(sel, idx) {
     const opt = sel.options[sel.selectedIndex];
     if (opt && opt.dataset.book) {
-      // Prefill unit_price with the book value as a starting hint.
+      // Prefill unit_price with the book value as a starting hint
+      // — only meaningful in per-head mode. In per-kg mode the
+      // user types weight + price_per_kg directly.
+      const modeSel = sel.closest('.row').querySelector(
+        `[name="line-${idx}-pricing_mode"]`);
+      if (modeSel && modeSel.value === 'per_kg') {
+        recalc();
+        return;
+      }
       const priceInput = sel.closest('.row').querySelector(
         `[name="line-${idx}-unit_price"]`);
       if (priceInput && !priceInput.value) {
@@ -250,6 +318,19 @@
   function recalc() {
     let total = 0;
     document.querySelectorAll('#lines_container > .row').forEach(row => {
+      // SALES-3 (PHASE 43): a cow row in per-kg mode carries
+      // `weight_kg` + `price_per_kg` instead of a unit_price.
+      // Detect that via the pricing_mode select; fall back to
+      // the classic qty × unit_price for every other case.
+      const modeSel = row.querySelector('select[name$="-pricing_mode"]');
+      if (modeSel && modeSel.value === 'per_kg') {
+        const w = parseFloat(
+          row.querySelector('input[name$="-weight_kg"]')?.value || '0');
+        const ppk = parseFloat(
+          row.querySelector('input[name$="-price_per_kg"]')?.value || '0');
+        if (!isNaN(w) && !isNaN(ppk)) total += w * ppk;
+        return;
+      }
       const qty = parseFloat(
         row.querySelector('input[name$="-qty"]')?.value || '0');
       const price = parseFloat(

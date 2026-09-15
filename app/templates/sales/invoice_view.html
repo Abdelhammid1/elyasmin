@@ -86,13 +86,27 @@
         {% for line in invoice.lines %}
         <tr>
           <td dir="ltr">{{ loop.index }}</td>
-          <td><span class="chip chip-info">{{ line.kind_label }}</span></td>
+          <td>
+            <span class="chip chip-info">{{ line.kind_label }}</span>
+            {# SALES-3 (PHASE 43): pricing-mode chip on cow rows so the
+               statement makes it obvious how the total was computed. #}
+            {% if line.line_kind == 'cow' %}
+              <span class="chip {% if line.pricing_mode == 'per_kg' %}chip-warning{% else %}chip-draft{% endif %} small">
+                {{ line.pricing_label }}
+              </span>
+            {% endif %}
+          </td>
           <td>
             {% if line.line_kind == 'cow' and line.cow %}
               <a href="{{ url_for('herd.cow_detail', cow_id=line.cow.id) }}">
                 <span dir="ltr">{{ line.cow.ear_tag }}</span>
               </a>
               {% if line.cow.name %}<span class="text-muted small">— {{ line.cow.name }}</span>{% endif %}
+              {% if line.pricing_mode == 'per_kg' %}
+                <div class="text-muted small" dir="ltr">
+                  {{ line.weight_kg }} كجم × {{ "{:,.2f}".format(line.price_per_kg or 0) }} = {{ "{:,.2f}".format(line.line_total) }}
+                </div>
+              {% endif %}
             {% elif line.line_kind == 'inventory' and line.ingredient %}
               <a href="{{ url_for('inventory.ingredient_detail', ingredient_id=line.ingredient.id) }}">
                 {{ line.ingredient.name }}
@@ -101,8 +115,19 @@
               {{ line.description or '—' }}
             {% endif %}
           </td>
-          <td class="num text-end" dir="ltr">{{ line.qty }}</td>
-          <td class="num text-end" dir="ltr">{{ "{:,.2f}".format(line.unit_price) }}</td>
+          <td class="num text-end" dir="ltr">
+            {% if line.pricing_mode == 'per_kg' %}
+              {{ line.weight_kg }} كجم
+            {% else %}
+              {{ line.qty }}
+            {% endif %}
+          </td>
+          <td class="num text-end" dir="ltr">
+            {{ "{:,.2f}".format(line.unit_price) }}
+            {% if line.pricing_mode == 'per_kg' %}
+              <div class="text-muted small">/ كيلو</div>
+            {% endif %}
+          </td>
           <td class="num text-end fw-bold" dir="ltr">{{ "{:,.2f}".format(line.line_total) }}</td>
           <td class="small text-muted">
             {% if line.line_kind == 'cow' %}

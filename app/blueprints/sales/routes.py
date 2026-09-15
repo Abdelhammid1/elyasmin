@@ -171,6 +171,17 @@ def _parse_lines(form_data):
             "description": (form_data.get(f"line-{idx}-description") or "").strip() or None,
             "qty": _d(form_data.get(f"line-{idx}-qty") or "0"),
             "unit_price": _d(form_data.get(f"line-{idx}-unit_price") or "0"),
+            # SALES-3 (PHASE 43): cow-line pricing mode. Defaults
+            # to per_head so the field is optional on every non-
+            # cow row and on legacy cow rows the JS doesn't touch.
+            "pricing_mode": (
+                form_data.get(f"line-{idx}-pricing_mode")
+                or SalesInvoiceLine.PRICING_PER_HEAD
+            ),
+            "weight_kg": _d(form_data.get(f"line-{idx}-weight_kg") or "0"),
+            "price_per_kg": _d(
+                form_data.get(f"line-{idx}-price_per_kg") or "0"
+            ),
         }
         lines.append(row)
     return lines
@@ -314,7 +325,41 @@ def create_invoice():
                     )
                 line.cow_id = cow.id
                 line.qty = Decimal("1")
-                line.line_total = unit_price.quantize(MONEY)
+
+                # SALES-3 (PHASE 43): the sale price is either a
+                # fixed per-head figure (existing behavior) or
+                # weight_kg × price_per_kg. Everything else about
+                # a cow line — book-value snapshot, STATUS_SOLD
+                # flip, AnimalSale mirror, JE close-out on 1400
+                # — stays identical; only what fills line_total
+                # changes.
+                pricing_mode = raw.get("pricing_mode") \
+                    or SalesInvoiceLine.PRICING_PER_HEAD
+                if pricing_mode == SalesInvoiceLine.PRICING_PER_KG:
+                    weight = raw.get("weight_kg") or Decimal("0")
+                    ppk = raw.get("price_per_kg") or Decimal("0")
+                    if weight <= 0:
+                        raise ValueError(
+                            "الوزن على بند البقرة لازم يكون أكبر من صفر."
+                        )
+                    if ppk <= 0:
+                        raise ValueError(
+                            "سعر الكيلو على بند البقرة لازم يكون أكبر من صفر."
+                        )
+                    line_total = (weight * ppk).quantize(MONEY)
+                    line.pricing_mode = SalesInvoiceLine.PRICING_PER_KG
+                    line.weight_kg = weight
+                    line.price_per_kg = ppk
+                    # Keep unit_price populated (audit + the shape
+                    # the JE description reads) but with the
+                    # per-kg figure so it's not misread as a
+                    # per-head price.
+                    line.unit_price = ppk
+                    line.line_total = line_total
+                else:
+                    line.pricing_mode = SalesInvoiceLine.PRICING_PER_HEAD
+                    line.line_total = unit_price.quantize(MONEY)
+
                 # Snapshot the book value BEFORE we zero it so the JE
                 # posts the exact 1400 close-out.
                 line.cow_book_value_snapshot = _d(cow.current_value)

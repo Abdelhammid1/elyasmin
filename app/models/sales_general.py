@@ -234,6 +234,14 @@ class SalesInvoiceLine(db.Model):
     KIND_INVENTORY = "inventory"
     KIND_FREE = "free"
 
+    # SALES-3 (PHASE 43): pricing mode for cow lines. per_head is
+    # the default and matches every existing row; per_kg says
+    # `line_total = weight_kg * price_per_kg`. Only meaningful
+    # when line_kind == KIND_COW — for the other kinds the value
+    # stays "per_head" and the weight columns are NULL.
+    PRICING_PER_HEAD = "per_head"
+    PRICING_PER_KG = "per_kg"
+
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(
         db.Integer, db.ForeignKey("sales_invoices.id"),
@@ -256,6 +264,15 @@ class SalesInvoiceLine(db.Model):
                     default=Decimal("1"))
     unit_price = db.Column(db.Numeric(12, 2), nullable=False)
     line_total = db.Column(db.Numeric(14, 2), nullable=False)
+
+    # SALES-3 (PHASE 43): weight-based pricing for cow lines.
+    # NULL for per_head lines and for every non-cow kind.
+    pricing_mode = db.Column(
+        db.String(10), nullable=False, default=PRICING_PER_HEAD,
+        server_default="per_head",
+    )
+    weight_kg = db.Column(db.Numeric(10, 3), nullable=True)
+    price_per_kg = db.Column(db.Numeric(10, 2), nullable=True)
 
     cow_book_value_snapshot = db.Column(db.Numeric(12, 2),
                                         nullable=True)
@@ -287,6 +304,17 @@ class SalesInvoiceLine(db.Model):
         if self.line_kind == self.KIND_INVENTORY and self.ingredient:
             return self.ingredient.name
         return self.description or "—"
+
+    @property
+    def pricing_label(self) -> str:
+        """SALES-3 (PHASE 43): Arabic label for the pricing mode
+        on a cow line. Empty for non-cow lines (irrelevant)."""
+        if self.line_kind != self.KIND_COW:
+            return ""
+        return {
+            self.PRICING_PER_HEAD: "بالرأس",
+            self.PRICING_PER_KG: "بالوزن",
+        }.get(self.pricing_mode, self.pricing_mode)
 
 
 class SalesInvoicePaymentAllocation(db.Model):
