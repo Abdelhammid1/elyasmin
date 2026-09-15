@@ -13,27 +13,33 @@
   {% endif %}
 </div>
 
-{# PHASE 15 (YAS-HR-1): expanded to 5 headline cards — 3 month cards
-   plus 2 lifetime totals (advances vs salary payments) so the admin
-   sees both the current-month position and the long-term picture. #}
+{# PHASE 15 (YAS-HR-1): 5 headline cards — 3 month cards plus 2 lifetime
+   totals (advances vs salary payments) so the admin sees both the
+   current-month position and the long-term picture.
+
+   WORKER-MONTH (PHASE 40): the 3 month cards now read `period_*`
+   (the worker's payroll window for the selected month), matching the
+   statement below and the attendance list. Pre-fix these read the
+   calendar-month `worker.month_*` properties which disagreed with the
+   statement for any worker whose closing_day != 1. #}
 <div class="row g-3 mb-3">
   <div class="col-md col-6">
     <div class="card stat-card">
-      <div class="stat-label">مستحق هذا الشهر</div>
-      <div class="stat-value" dir="ltr">{{ worker.month_earned }}</div>
+      <div class="stat-label">مستحق ({{ selected_month_label }})</div>
+      <div class="stat-value" dir="ltr">{{ period_earned }}</div>
     </div>
   </div>
   <div class="col-md col-6">
     <div class="card stat-card">
-      <div class="stat-label">مدفوع هذا الشهر</div>
-      <div class="stat-value text-success" dir="ltr">{{ worker.month_paid }}</div>
+      <div class="stat-label">مدفوع ({{ selected_month_label }})</div>
+      <div class="stat-value text-success" dir="ltr">{{ period_paid }}</div>
     </div>
   </div>
   <div class="col-md col-6">
     <div class="card stat-card">
-      <div class="stat-label">المتبقي (الشهر)</div>
-      <div class="stat-value {% if worker.month_balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">
-        {{ worker.month_balance }}
+      <div class="stat-label">المتبقي ({{ selected_month_label }})</div>
+      <div class="stat-value {% if period_balance > 0 %}text-danger{% else %}text-success{% endif %}" dir="ltr">
+        {{ period_balance }}
       </div>
     </div>
   </div>

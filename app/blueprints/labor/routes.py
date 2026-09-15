@@ -113,16 +113,6 @@ def worker_detail(worker_id: int):
     if not worker or worker.is_archived:
         abort(404)
 
-    today = date.today()
-    month_start = today.replace(day=1)
-    attendances = (
-        Attendance.query.filter(
-            Attendance.worker_id == worker.id,
-            Attendance.attendance_date >= month_start,
-        )
-        .order_by(Attendance.attendance_date.desc())
-        .all()
-    )
     # PHASE 15 (YAS-HR-1): full payment history with running total, plus
     # advances/salaries splits for the two new headline cards.
     history_asc = (
@@ -149,8 +139,26 @@ def worker_detail(worker_id: int):
     )
 
     # ---------- HR-1 (PHASE 32): monthly statement ----------
+    # WORKER-MONTH (PHASE 40): the payroll window drives EVERY
+    # month-scoped read on this page — the top stat cards, the
+    # attendance list, and the statement below all read from
+    # the same `period_start / period_end` so switching the
+    # month selector rewrites the whole page as one coherent
+    # view (pre-fix the top cards were on calendar month, so
+    # any worker with closing_day != 1 saw two conflicting
+    # numbers on the same page).
     selected_month = _parse_target_month(request.args.get("month"))
     period_start, period_end = worker.month_window(selected_month)
+
+    attendances = (
+        Attendance.query.filter(
+            Attendance.worker_id == worker.id,
+            Attendance.attendance_date >= period_start,
+            Attendance.attendance_date <= period_end,
+        )
+        .order_by(Attendance.attendance_date.desc())
+        .all()
+    )
     # Payments in this month bucket. `target_month == selected_month`
     # covers explicitly-tagged rows; the OR-NULL branch is a belt for
     # legacy rows without a backfill (also see the migration).
