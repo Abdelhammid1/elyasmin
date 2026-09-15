@@ -149,6 +149,12 @@ def worker_detail(worker_id: int):
     # numbers on the same page).
     selected_month = _parse_target_month(request.args.get("month"))
     period_start, period_end = worker.month_window(selected_month)
+    # WORKER-MONTH-CORRECTION (PHASE 41): closing_day is now
+    # decoupled from the earning window and only names the pay-
+    # out day of the FOLLOWING month. Passed to the template so
+    # the statement header can show "تاريخ التسوية" next to
+    # "فترة الاستحقاق".
+    settlement_date = worker.settlement_date(selected_month)
 
     attendances = (
         Attendance.query.filter(
@@ -224,6 +230,7 @@ def worker_detail(worker_id: int):
         selected_month_label=_month_label(selected_month),
         month_options=_month_options(),
         period_start=period_start, period_end=period_end,
+        settlement_date=settlement_date,
         period_payments=period_payments,
         period_earned=period_earned,
         period_paid=period_paid,

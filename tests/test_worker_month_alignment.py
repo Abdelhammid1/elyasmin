@@ -1,19 +1,15 @@
-"""PHASE 40 (WORKER-MONTH) regression suite.
+"""PHASE 40 (WORKER-MONTH) + PHASE 41 CORRECTION regression suite.
 
-Locks the "الشهر" alignment fix on /labor/<id>:
+Locks the "الشهر" alignment on /labor/<id> under the corrected
+semantics:
 
-  1. Top stat cards read `period_*` (the worker's payroll
-     window for the selected month), not the calendar-month
-     properties. This test seeds a scenario where the two
-     numbers DIFFER by construction — an Attendance row whose
-     date sits inside the payroll window but OUTSIDE the
-     calendar month — and asserts the rendered top-card value
-     matches `worker.earned_for_month(selected_month)`.
-  2. The attendance table on the same page is filtered by the
-     selected month's payroll window, not by the calendar
-     month. This test seeds two Attendance rows on either side
-     of the window boundary and asserts only the in-window one
-     renders.
+  1. Top stat cards + attendance table + statement all read the
+     same `period_start / period_end`, and that pair is now
+     ALWAYS the full calendar month of `selected_month`
+     (regardless of `closing_day`).
+  2. The statement header shows `settlement_date` — closing_day
+     of the following month — as a display-only label so the
+     admin can see when the month is due to be paid out.
 """
 from __future__ import annotations
 
@@ -29,7 +25,7 @@ from app.models.labor import Attendance, Worker
 _TAG = "WORKER-MONTH-TEST"
 
 
-def _seed_worker(app, closing_day=15, rate=100):
+def _seed_worker(app, closing_day=10, rate=100):
     """Idempotent — reuses the row if a prior run left it around
     so the test doesn't collide with itself."""
     with app.app_context():
@@ -60,79 +56,94 @@ def _cleanup(app):
         db.session.commit()
 
 
-def test_top_cards_read_from_worker_month_window(admin_client, app):
-    """Scenario constructed so calendar-month vs payroll-window
-    disagree.
+def test_top_cards_use_calendar_month_earnings(admin_client, app):
+    """A worker with closing_day=10 still earns based on the full
+    calendar month (not the pre-correction Aug-11→Sep-10 offset).
 
-    Worker closing_day=15, rate=100. Target month = 2026-08-01,
-    which for this worker maps to the window Jul 16 → Aug 15.
-    One Attendance on 2026-07-25 sits inside the window (earned
-    = 100) but OUTSIDE calendar August (`month_earned` = 0).
-    Pre-fix, the top card would show 0 while the statement
-    below showed 100. Post-fix both show 100.
+    Setup:
+      - Worker closing_day=10, rate=100.
+      - Attendance on 2026-09-05 (inside the Sept calendar month).
+      - Attendance on 2026-08-15 (inside the pre-correction Sept
+        window but OUTSIDE the corrected Sept calendar month).
+
+    Expected under the corrected semantics:
+      period_earned(Sept) = 100 (just the Sept 5 row) — not 200.
     """
-    wid = _seed_worker(app, closing_day=15, rate=100)
-    try:
-        with app.app_context():
-            db.session.add(Attendance(
-                worker_id=wid,
-                attendance_date=date(2026, 7, 25),  # inside window
-                is_absent=False,
-                batches_worked=0,
-            ))
-            db.session.commit()
-
-            w = db.session.get(Worker, wid)
-            target = date(2026, 8, 1)
-            window_earned = w.earned_for_month(target)
-            assert window_earned == Decimal("100.00")
-
-        r = admin_client.get(f"/labor/{wid}?month=2026-08")
-        assert r.status_code == 200
-        body = r.get_data(as_text=True)
-
-        # The rendered top card should carry the window's number.
-        # `<div class="stat-value" dir="ltr">100.00</div>` is the
-        # exact shape of the top "مستحق (…)" card body.
-        assert '<div class="stat-value" dir="ltr">100.00</div>' in body
-        # The Arabic month label in the card title proves the
-        # card is tagged to the selected month (post-fix), not the
-        # generic "هذا الشهر" (pre-fix).
-        assert "مستحق (أغسطس 2026)" in body
-    finally:
-        _cleanup(app)
-
-
-def test_attendance_list_respects_selected_month(admin_client, app):
-    """Two attendances on either side of the payroll window.
-
-    Same worker (closing_day=15). Target month 2026-08-01 →
-    window Jul 16 → Aug 15. Attendance A on 2026-07-25 is in
-    the window; Attendance B on 2026-06-20 is not (it belongs
-    to the July 2026 window Jun 16 → Jul 15).
-
-    The attendance table on the detail page should render A
-    and not B.
-    """
-    wid = _seed_worker(app, closing_day=15, rate=100)
+    wid = _seed_worker(app, closing_day=10, rate=100)
     try:
         with app.app_context():
             db.session.add_all([
                 Attendance(worker_id=wid,
-                           attendance_date=date(2026, 7, 25),
+                           attendance_date=date(2026, 9, 5),
                            is_absent=False, batches_worked=0),
                 Attendance(worker_id=wid,
-                           attendance_date=date(2026, 6, 20),
+                           attendance_date=date(2026, 8, 15),
                            is_absent=False, batches_worked=0),
             ])
             db.session.commit()
 
-        r = admin_client.get(f"/labor/{wid}?month=2026-08")
+            w = db.session.get(Worker, wid)
+            target = date(2026, 9, 1)
+            assert w.earned_for_month(target) == Decimal("100.00")
+
+        r = admin_client.get(f"/labor/{wid}?month=2026-09")
         assert r.status_code == 200
         body = r.get_data(as_text=True)
-        # In-window date rendered by the attendance table.
-        assert "2026-07-25" in body
-        # Out-of-window date must NOT appear anywhere on the page.
-        assert "2026-06-20" not in body
+
+        # The rendered top card carries the calendar-month number.
+        assert '<div class="stat-value" dir="ltr">100.00</div>' in body
+        assert "مستحق (سبتمبر 2026)" in body
+    finally:
+        _cleanup(app)
+
+
+def test_attendance_list_shows_only_calendar_month(admin_client, app):
+    """Attendance list on the detail page filters by
+    period_start / period_end — the full calendar month.
+
+    Setup:
+      - Worker closing_day=10.
+      - Attendance on 2026-09-05 (inside Sept calendar month).
+      - Attendance on 2026-08-15 (pre-correction inside Sept
+        window; corrected NOT).
+
+    Expected: Sept 5 date appears; Aug 15 date does not.
+    """
+    wid = _seed_worker(app, closing_day=10, rate=100)
+    try:
+        with app.app_context():
+            db.session.add_all([
+                Attendance(worker_id=wid,
+                           attendance_date=date(2026, 9, 5),
+                           is_absent=False, batches_worked=0),
+                Attendance(worker_id=wid,
+                           attendance_date=date(2026, 8, 15),
+                           is_absent=False, batches_worked=0),
+            ])
+            db.session.commit()
+
+        r = admin_client.get(f"/labor/{wid}?month=2026-09")
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        assert "2026-09-05" in body
+        assert "2026-08-15" not in body
+    finally:
+        _cleanup(app)
+
+
+def test_settlement_date_rendered_on_statement(admin_client, app):
+    """The statement header should show the settlement date so
+    the admin sees when the month is due to be paid out. For
+    closing_day=10 and target=Sept 2026, that's Oct 10, 2026.
+    """
+    wid = _seed_worker(app, closing_day=10, rate=100)
+    try:
+        r = admin_client.get(f"/labor/{wid}?month=2026-09")
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        assert "تاريخ التسوية" in body
+        # ISO date rendered by the template as {{ settlement_date }}.
+        assert "2026-10-10" in body
+        assert "فترة الاستحقاق" in body
     finally:
         _cleanup(app)

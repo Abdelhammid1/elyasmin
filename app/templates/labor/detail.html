@@ -17,11 +17,11 @@
    totals (advances vs salary payments) so the admin sees both the
    current-month position and the long-term picture.
 
-   WORKER-MONTH (PHASE 40): the 3 month cards now read `period_*`
-   (the worker's payroll window for the selected month), matching the
-   statement below and the attendance list. Pre-fix these read the
-   calendar-month `worker.month_*` properties which disagreed with the
-   statement for any worker whose closing_day != 1. #}
+   WORKER-MONTH-CORRECTION (PHASE 41): the 3 month cards read
+   `period_*` — the earning window for the selected month — which is
+   ALWAYS a full calendar month (day 1 → last day). `closing_day` no
+   longer offsets the earning window; it only names the settlement
+   date (see the statement header below). #}
 <div class="row g-3 mb-3">
   <div class="col-md col-6">
     <div class="card stat-card">
@@ -77,9 +77,15 @@
     </form>
   </div>
 
-  <div class="text-muted small mb-2" dir="ltr">
-    فترة الاحتساب: {{ period_start }} → {{ period_end }}
-    (يوم إقفال العامل: {{ worker.closing_day }})
+  {# WORKER-MONTH-CORRECTION (PHASE 41): the earning period is
+     always a full calendar month. `closing_day` no longer
+     shifts the window — it only names the date the month's
+     total gets settled (paid out) in the following month. #}
+  <div class="text-muted small mb-2">
+    <span dir="ltr">فترة الاستحقاق: {{ period_start }} → {{ period_end }}</span>
+    ·
+    <span dir="ltr">تاريخ التسوية: {{ settlement_date }}</span>
+    <span class="text-muted">(يوم إقفال العامل: {{ worker.closing_day }})</span>
   </div>
 
   {% if prior_carry != 0 %}

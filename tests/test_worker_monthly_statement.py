@@ -1,12 +1,13 @@
-"""PHASE 32 (HR-1): regression suite for the worker monthly-statement
-feature.
+"""PHASE 32 (HR-1) + PHASE 41 (WORKER-MONTH-CORRECTION): regression
+suite for the worker monthly-statement feature.
 
 Four invariants:
   1. A payment created via `record_payment` with `target_month=YYYY-MM`
      lands in that month bucket, not the payment_date's calendar month.
-  2. `Worker.month_window(target_month)` honors `closing_day` — a
-     worker with closing_day=10 earns from the 11th of the prior month
-     to the 10th of the target month.
+  2. `Worker.month_window(target_month)` always returns the FULL
+     calendar month regardless of `closing_day`. `closing_day` no
+     longer offsets the earning window — after the P41 correction it
+     only determines `settlement_date`.
   3. Negative balance in the prior month surfaces as `prior_carry` in
      the current month's context.
   4. `worker_statement_pdf` returns a PDF (or a graceful error when
@@ -109,18 +110,43 @@ def test_target_month_buckets_payment_into_chosen_month(admin_client, app):
         _cleanup(app)
 
 
-def test_closing_day_10_window_spans_prior_to_current(app):
-    """Direct model test — no HTTP. closing_day=10, target = 2026-09-01:
-    window must be 2026-08-11 → 2026-09-10 (inclusive)."""
-    wid, _tid = _seed_worker(app, closing_day=10)
-    try:
-        with app.app_context():
-            w = db.session.get(Worker, wid)
-            start, end = w.month_window(date(2026, 9, 1))
-            assert start == date(2026, 8, 11), start
-            assert end == date(2026, 9, 10), end
-    finally:
-        _cleanup(app)
+def test_month_window_is_calendar_month_regardless_of_closing_day(app):
+    """PHASE 41 CORRECTION — `closing_day` no longer offsets the
+    earning window. The window for target=2026-09-01 must be
+    Sept 1-30 whether closing_day is 1, 10, or 28."""
+    for cd in (1, 10, 28):
+        wid, _tid = _seed_worker(app, closing_day=cd)
+        try:
+            with app.app_context():
+                w = db.session.get(Worker, wid)
+                start, end = w.month_window(date(2026, 9, 1))
+                assert start == date(2026, 9, 1), (cd, start)
+                assert end == date(2026, 9, 30), (cd, end)
+        finally:
+            _cleanup(app)
+
+
+def test_settlement_date_is_closing_day_of_following_month(app):
+    """PHASE 41 CORRECTION — `settlement_date(target)` is the
+    calendar date the earning bucket is paid out on: closing_day
+    of the month AFTER target. Year rollover works for December."""
+    cases = [
+        # closing_day, target_month, expected settlement
+        (1,  date(2026, 9, 1),  date(2026, 10, 1)),
+        (10, date(2026, 9, 1),  date(2026, 10, 10)),
+        (15, date(2026, 12, 1), date(2027, 1, 15)),
+    ]
+    for cd, target, expected in cases:
+        wid, _tid = _seed_worker(app, closing_day=cd)
+        try:
+            with app.app_context():
+                w = db.session.get(Worker, wid)
+                assert w.settlement_date(target) == expected, (
+                    f"closing_day={cd}, target={target}: "
+                    f"got {w.settlement_date(target)}, expected {expected}"
+                )
+        finally:
+            _cleanup(app)
 
 
 def test_negative_balance_becomes_prior_carry(admin_client, app):

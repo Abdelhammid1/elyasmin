@@ -1,5 +1,5 @@
 from calendar import monthrange
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func
@@ -85,35 +85,56 @@ class Worker(db.Model):
     def month_balance(self) -> Decimal:
         return self.month_earned - self.month_paid
 
-    # ---------- HR-1 (PHASE 32): custom monthly cycles ----------
+    # ---------- HR-1 (PHASE 32) / WORKER-MONTH-CORRECTION (PHASE 41) ----------
+    #
+    # The original HR-1 model treated `closing_day` as a WINDOW
+    # boundary: closing_day=10 meant "the earning period runs
+    # from the 11th of the prior month to the 10th of the target
+    # month". The client re-specified in Phase 41: the earning
+    # period is ALWAYS a full calendar month — closing_day only
+    # tells you WHEN that month's total gets settled (paid out).
+    # A worker who worked Sept 1-30 has settlement day Oct 10;
+    # the earning window itself is still Sept 1-30.
+    #
+    # Consequences of the flip:
+    #   - month_window(m) now returns (day 1, last day of m).
+    #   - settlement_date(m) is closing_day of month AFTER m
+    #     (with Dec → Jan year-rollover).
+    #   - earned_for_month(m) is unchanged in shape; the value
+    #     it returns tracks the new window.
 
     def month_window(self, target_month: date) -> tuple[date, date]:
-        """Earning window for a month bucket, respecting `closing_day`.
+        """Full calendar-month earning window.
 
         `target_month` is the 1st of the month the pay is booked
-        against (e.g. `2026-08-01` means "شهر أغسطس"). Returns
-        (start, end) inclusive.
-
-          closing_day = 1  → [target_month, last day of target_month]
-          closing_day = 10 → [prior_month.day(11), target_month.day(10)]
-
-        The prior-month math is safe even for January (goes back to
-        December of the previous year).
+        against. Returns (first_day, last_day_of_month) inclusive
+        REGARDLESS of `closing_day` (see class-level note above).
         """
+        y, m = target_month.year, target_month.month
+        last_day = monthrange(y, m)[1]
+        return date(y, m, 1), date(y, m, last_day)
+
+    def settlement_date(self, target_month: date) -> date:
+        """WORKER-MONTH-CORRECTION (PHASE 41): the calendar date
+        the month's earnings become due (when the worker is paid
+        out). `closing_day` of the calendar month FOLLOWING
+        `target_month`. Default closing_day=1 → the 1st of next
+        month; e.g. closing_day=10, target=Sept → Oct 10.
+
+        Year rollover is handled: closing_day=15, target=Dec 2026
+        → Jan 15, 2027.
+        """
+        y, m = target_month.year, target_month.month
+        if m == 12:
+            y2, m2 = y + 1, 1
+        else:
+            y2, m2 = y, m + 1
         cd = int(self.closing_day or 1)
         cd = max(1, min(28, cd))   # defensive clamp
-        y, m = target_month.year, target_month.month
-        if cd == 1:
-            last_day = monthrange(y, m)[1]
-            return date(y, m, 1), date(y, m, last_day)
-        # Non-default closing_day: [prior_month.day(cd+1), target.day(cd)]
-        end = date(y, m, cd)
-        prior = end - timedelta(days=cd)   # somewhere in the prior month
-        start = date(prior.year, prior.month, cd + 1)
-        return start, end
+        return date(y2, m2, cd)
 
     def earned_for_month(self, target_month: date) -> Decimal:
-        """Sum of earnings across the target month's payroll window."""
+        """Sum of earnings across the target month's earning window."""
         s, e = self.month_window(target_month)
         return self.earned_between(s, e)
 
