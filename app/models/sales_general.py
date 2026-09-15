@@ -140,16 +140,44 @@ class SalesInvoice(db.Model):
 
     @property
     def paid_amount(self) -> Decimal:
-        """cash_amount (booked at issue) + any subsequent
-        allocations against the credit portion. Follow-up
-        payment flow is out of scope for v1 but the shape is
-        ready for it."""
-        cash = Decimal(str(self.cash_amount or 0))
+        """SALES-2 (PHASE 42): sum of allocations, plus a walk-in
+        edge case.
+
+        Before the fix, this was `cash_amount + SUM(allocations)`
+        — but for a real-customer invoice with a cash portion,
+        `create_invoice` already writes a
+        `SalesInvoicePaymentAllocation` for that cash amount
+        (that's how the "الجزء المدفوع" bar renders). Adding
+        `cash_amount` on top then double-counted the cash portion:
+        e.g. cash=40k + credit=55k = 95k total showed
+        paid=80k and outstanding=15k instead of paid=40k,
+        outstanding=55k.
+
+        Cases now:
+          * Real customer, any split — the issue-time cash
+            portion lives inside `allocations`; later credit
+            collections add more allocations. Sum is correct.
+          * Walk-in (customer_id is NULL) — `create_invoice`
+            does NOT create a CustomerPayment / allocation
+            (there's no Customer to link to), so we still need
+            to count `cash_amount` here for the paid figure to
+            land on the full price of a walk-in cash sale.
+
+        The old data self-corrects: pre-fix invoices with a
+        real customer already have the allocation row, so the
+        new formula reads `paid = allocation` = exactly what
+        was collected. No data-migration script needed.
+        """
         alloc = sum(
             (Decimal(str(a.amount or 0)) for a in self.allocations),
             Decimal("0"),
         )
-        return (cash + alloc).quantize(Decimal("0.01"))
+        if self.customer_id is None:
+            # Walk-in: cash went in, no CustomerPayment/allocation
+            # exists to represent it, so the raw cash_amount is
+            # the paid figure.
+            alloc += Decimal(str(self.cash_amount or 0))
+        return alloc.quantize(Decimal("0.01"))
 
     @property
     def outstanding_amount(self) -> Decimal:

@@ -409,6 +409,94 @@ def test_mixed_payment_free_line(admin_client, app):
         _cleanup(app)
 
 
+def test_mixed_payment_paid_amount_does_not_double_count_cash(admin_client, app):
+    """SALES-2 (PHASE 42) regression: pre-fix `paid_amount`
+    summed `cash_amount + SUM(allocations)`, but for a real-
+    customer invoice the cash portion was ALREADY inside
+    `allocations` (create_invoice writes it there for the
+    "الجزء المدفوع" bar). Result: paid was doubled.
+
+    Ticket example: cash 40,000 + credit 55,000 = 95,000. The
+    bug reported paid=80,000 and outstanding=15,000. Correct
+    values are paid=40,000 and outstanding=55,000.
+    """
+    _cleanup(app)
+    cust_id = _seed_customer(app)
+    treasury_id = _first_treasury(app)
+    try:
+        r = _post_invoice(
+            admin_client,
+            [{"kind": "free",
+              "description": "بيع عام مركّب",
+              "qty": "1", "unit_price": "95000"}],
+            customer_id=cust_id,
+            payment_type="mixed",
+            treasury_id=treasury_id,
+            cash_amount="40000",
+            credit_amount="55000",
+        )
+        assert r.status_code in (302, 303), r.data[:400]
+        with app.app_context():
+            inv = SalesInvoice.query.filter_by(
+                customer_id=cust_id
+            ).order_by(SalesInvoice.id.desc()).first()
+            assert inv.grand_total == Decimal("95000.00")
+            assert inv.cash_amount == Decimal("40000.00")
+            assert inv.credit_amount == Decimal("55000.00")
+            # Exactly ONE allocation for the cash portion at issue.
+            allocs = SalesInvoicePaymentAllocation.query.filter_by(
+                invoice_id=inv.id
+            ).all()
+            assert len(allocs) == 1
+            assert allocs[0].amount == Decimal("40000.00")
+            # THE FIX: paid = allocation total (40000), not
+            # 40000 + 40000 = 80000.
+            assert inv.paid_amount == Decimal("40000.00")
+            assert inv.outstanding_amount == Decimal("55000.00")
+            assert inv.payment_status == "partial"
+    finally:
+        _cleanup(app)
+
+
+def test_walkin_cash_paid_amount_uses_cash_amount(admin_client, app):
+    """SALES-2 (PHASE 42): for a walk-in cash invoice there's no
+    customer to link a CustomerPayment to, so create_invoice
+    does NOT write an allocation. The paid formula must fall
+    back to `cash_amount` in that case so a walk-in cash sale
+    reads as fully paid, not as fully outstanding."""
+    _cleanup(app)
+    treasury_id = _first_treasury(app)
+    try:
+        r = _post_invoice(
+            admin_client,
+            [{"kind": "free",
+              "description": "بيع walk-in",
+              "qty": "1", "unit_price": "300"}],
+            walkin_name="زبون كاش",
+            payment_type="cash",
+            treasury_id=treasury_id,
+            cash_amount="300",
+        )
+        assert r.status_code in (302, 303), r.data[:400]
+        with app.app_context():
+            inv = SalesInvoice.query.filter_by(
+                walkin_name="زبون كاش"
+            ).order_by(SalesInvoice.id.desc()).first()
+            assert inv.customer_id is None
+            # No allocation was created (no Customer to link)
+            allocs = SalesInvoicePaymentAllocation.query.filter_by(
+                invoice_id=inv.id
+            ).all()
+            assert len(allocs) == 0
+            # …but paid still reads as the full 300 via the
+            # walk-in branch on paid_amount.
+            assert inv.paid_amount == Decimal("300.00")
+            assert inv.outstanding_amount == Decimal("0.00")
+            assert inv.payment_status == "paid"
+    finally:
+        _cleanup(app)
+
+
 def test_duplicate_cow_sale_refused(admin_client, app):
     _cleanup(app)
     cow_id = _seed_cow(app, book_value=Decimal("100"))
