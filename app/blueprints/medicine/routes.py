@@ -29,7 +29,7 @@ def _cow_choices():
         .order_by(Cow.ear_tag)
         .all()
     )
-    return [(c.id, f"{c.ear_tag}{(' — ' + c.name) if c.name else ''}") for c in cows]
+    return [(c.id, c.ear_tag) for c in cows]
 
 
 def _group_choices():

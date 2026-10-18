@@ -39,14 +39,13 @@
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead><tr>
-        <th>رقم الأذن</th><th>الاسم</th><th>الجنس</th><th>المجموعة</th>
+        <th>رقم الأذن</th><th>الجنس</th><th>المجموعة</th>
         <th>تاريخ الميلاد</th><th>العمر (شهور)</th><th>العمر</th>
       </tr></thead>
       <tbody>
         {% for r in rows %}
         <tr>
           <td class="fw-bold">{{ r.cow.ear_tag }}</td>
-          <td>{{ r.cow.name or '—' }}</td>
           <td>{{ r.cow.gender_label }}</td>
           <td>{{ r.cow.group.name if r.cow.group else '—' }}</td>
           <td dir="ltr">{{ r.cow.date_of_birth or '—' }}</td>

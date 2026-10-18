@@ -19,9 +19,11 @@
             <small class="text-muted">رقم الأذن لازم يكون فريد.</small>
           </div>
 
+          {# HERD-4: status replaces the name field (farm uses numbers only). #}
           <div class="col-md-6">
-            {{ form.name.label(class="form-label fw-bold") }}
-            {{ form.name(class="form-control") }}
+            {{ form.breeding_status.label(class="form-label fw-bold") }}
+            {{ form.breeding_status(class="form-select") }}
+            <small class="text-muted">للبقرة الموجودة فعلًا: عشار، انتظار، جفاف…</small>
           </div>
 
           <div class="col-md-6">

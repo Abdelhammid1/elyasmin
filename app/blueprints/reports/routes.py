@@ -82,8 +82,8 @@ def herd_ages_excel():
     rows = _herd_age_rows()
     return excel_response(
         "أعمار القطيع",
-        ["رقم الأذن", "الاسم", "الجنس", "المجموعة", "تاريخ الميلاد", "العمر (شهور)", "العمر"],
-        [[r["cow"].ear_tag, r["cow"].name or "", r["cow"].gender_label,
+        ["رقم الأذن", "الجنس", "المجموعة", "تاريخ الميلاد", "العمر (شهور)", "العمر"],
+        [[r["cow"].ear_tag, r["cow"].gender_label,
           r["cow"].group.name if r["cow"].group else "",
           r["cow"].date_of_birth.isoformat() if r["cow"].date_of_birth else "",
           r["months"] if r["months"] is not None else "", r["age_label"]] for r in rows],

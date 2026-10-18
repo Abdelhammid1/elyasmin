@@ -63,7 +63,6 @@
             <a href="{{ url_for('herd.cow_detail', cow_id=r.cow.id) }}">
               <span dir="ltr" class="fw-semibold">{{ r.cow.ear_tag }}</span>
             </a>
-            {% if r.cow.name %}<span class="text-muted small">— {{ r.cow.name }}</span>{% endif %}
           </td>
           <td class="small">{{ r.cow.gender_label }}</td>
           <td class="small text-muted">{{ r.cow.group.name }}</td>

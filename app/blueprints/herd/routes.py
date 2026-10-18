@@ -190,8 +190,7 @@ def list_cows():
 
     q = (form.q.data or "").strip()
     if q:
-        like = f"%{q}%"
-        query = query.filter(or_(Cow.ear_tag.ilike(like), Cow.name.ilike(like)))
+        query = query.filter(Cow.ear_tag.ilike(f"%{q}%"))
 
     if form.group_id.data and form.group_id.data > 0:
         query = query.filter_by(group_id=form.group_id.data)
@@ -253,6 +252,16 @@ def cow_detail(cow_id: int):
     )
 
 
+def _status_choices(current: str | None = None) -> list[tuple[str, str]]:
+    """HERD-4: picker for the cow form. Keeps the cow's current status
+    selectable even if it was disabled since, so editing other fields
+    doesn't fail validation."""
+    choices = [("", "— بدون حالة —")] + breeding_status_choices()
+    if current and current not in {code for code, _ in choices}:
+        choices.append((current, breeding_status_label(current)))
+    return choices
+
+
 # ---------- US-1.3 Add cow ----------
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
@@ -260,6 +269,7 @@ def cow_detail(cow_id: int):
 def create_cow():
     form = CowForm()
     form.group_id.choices = _group_choices()
+    form.breeding_status.choices = _status_choices()
 
     if form.validate_on_submit():
         if _fattening_blocked(form):
@@ -277,9 +287,10 @@ def create_cow():
         if existing:
             flash(f"رقم الأذن {ear_tag} مستخدم قبل كده.", "error")
         else:
+            status = form.breeding_status.data or None
             cow = Cow(
                 ear_tag=ear_tag,
-                name=form.name.data.strip() if form.name.data else None,
+                breeding_status=status,
                 date_of_birth=form.date_of_birth.data,
                 gender=form.gender.data,
                 group_id=form.group_id.data,
@@ -302,6 +313,13 @@ def create_cow():
                     created_by_id=current_user.id,
                 )
             )
+            if status:
+                # Start the status history on day one.
+                db.session.add(BreedingStatusChange(
+                    cow_id=cow.id, from_status=None, to_status=status,
+                    changed_by_id=current_user.id, event_id=None,
+                    reason="الحالة عند إضافة البقرة",
+                ))
             log_action("cow_created", "Cow", cow.id, details=f"tag={cow.ear_tag}")
             db.session.commit()
             flash(f"تم إضافة البقرة رقم {cow.ear_tag} بنجاح.", "success")
@@ -323,6 +341,7 @@ def edit_cow(cow_id: int):
 
     form = CowForm(obj=cow)
     form.group_id.choices = _group_choices()
+    form.breeding_status.choices = _status_choices(cow.breeding_status)
 
     if form.validate_on_submit():
         if _fattening_blocked(form):
@@ -347,7 +366,15 @@ def edit_cow(cow_id: int):
                 )
             cow.ear_tag = new_tag
 
-        cow.name = form.name.data.strip() if form.name.data else None
+        new_status = form.breeding_status.data or None
+        if new_status != cow.breeding_status:
+            db.session.add(BreedingStatusChange(
+                cow_id=cow.id, from_status=cow.breeding_status,
+                to_status=new_status or "",  # NOT NULL; empty = cleared
+                changed_by_id=current_user.id, event_id=None,
+                reason="تعديل من بيانات البقرة",
+            ))
+            cow.breeding_status = new_status
         cow.date_of_birth = form.date_of_birth.data
         cow.gender = form.gender.data
         cow.notes = form.notes.data
@@ -434,7 +461,7 @@ def create_birth():
         .order_by(Cow.ear_tag)
         .all()
     )
-    form.mother_id.choices = [(c.id, f"{c.ear_tag} — {c.name or 'بدون اسم'}") for c in mothers]
+    form.mother_id.choices = [(c.id, c.ear_tag) for c in mothers]
 
     if form.validate_on_submit():
         mother = db.session.get(Cow, form.mother_id.data)

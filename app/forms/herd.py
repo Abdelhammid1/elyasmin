@@ -66,7 +66,10 @@ class CowForm(FlaskForm):
         "رقم الأذن (Ear Tag)",
         validators=[DataRequired(message="رقم الأذن مطلوب."), Length(max=50)],
     )
-    name = StringField("الاسم (اختياري)", validators=[Optional(), Length(max=80)])
+    # HERD-4: the farm identifies cows by number only — no name field.
+    # Status (HERD-3 list) is set right at entry for cows already on
+    # the farm; choices are filled in the route.
+    breeding_status = SelectField("الحالة", validators=[Optional()])
     date_of_birth = DateField(
         "تاريخ الميلاد",
         validators=[Optional()],
@@ -149,10 +152,10 @@ class DeathForm(FlaskForm):
 
 
 class CowSearchForm(FlaskForm):
-    q = StringField("بحث برقم الأذن أو الاسم", validators=[Optional()])
+    q = StringField("بحث برقم الأذن", validators=[Optional()])
     group_id = SelectField("المجموعة", coerce=int, validators=[Optional()])
     status = SelectField(
-        "الحالة",
+        "الوضع",  # lifecycle; "الحالة" is now the breeding status (HERD-4)
         choices=[
             ("active", "نشط"),
             ("sold", "مباع"),

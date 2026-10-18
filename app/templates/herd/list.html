@@ -46,7 +46,7 @@
 <form method="get" class="filter-row row g-2 align-items-end">
   <div class="col-md-4">
     {{ form.q.label(class="form-label small mb-1") }}
-    {{ form.q(class="form-control form-control-sm", placeholder="رقم الأذن أو الاسم") }}
+    {{ form.q(class="form-control form-control-sm", placeholder="رقم الأذن") }}
   </div>
   <div class="col-md-3">
     {{ form.group_id.label(class="form-label small mb-1") }}
@@ -68,11 +68,11 @@
       <thead>
         <tr>
           <th>رقم الأذن</th>
-          <th>الاسم</th>
           <th class="text-center">الجنس</th>
           <th>المجموعة</th>
           <th class="text-center">العمر (شهر)</th>
           <th class="text-center">الحالة</th>
+          <th class="text-center">الوضع</th>
           <th class="text-end">إجراءات</th>
         </tr>
       </thead>
@@ -83,7 +83,6 @@
             <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"
                class="fw-bold font-monospace text-decoration-none text-body">{{ cow.ear_tag }}</a>
           </td>
-          <td>{{ cow.name or "—" }}</td>
           <td class="text-center">
             {% if cow.gender == 'female' %}
               <span class="chip" style="background: #f5e6ff; color: #a855f7;">♀ أنثى</span>
@@ -93,6 +92,10 @@
           </td>
           <td class="small">{{ cow.group.name }}</td>
           <td class="text-center" dir="ltr">{{ cow.age_months if cow.age_months is not none else "—" }}</td>
+          {# HERD-4: breeding status; the lifecycle column is now "الوضع". #}
+          <td class="text-center">
+            {% if cow.breeding_status %}<span class="chip chip-cash">{{ cow.breeding_status_label }}</span>{% else %}—{% endif %}
+          </td>
           <td class="text-center">
             {% if cow.status == "active" %}
               <span class="chip chip-paid"><i class="bi bi-check-circle"></i> نشطة</span>

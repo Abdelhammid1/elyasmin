@@ -3,9 +3,7 @@
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
   <div>
-    <h1><i class="bi bi-heart-pulse"></i> البقرة {{ cow.ear_tag }}
-      {% if cow.name %}<small class="text-muted">— {{ cow.name }}</small>{% endif %}
-    </h1>
+    <h1><i class="bi bi-heart-pulse"></i> البقرة {{ cow.ear_tag }}</h1>
     <div>
       {% if cow.status == "active" %}<span class="badge badge-active">{{ cow.status_label }}</span>
       {% elif cow.status == "sold" %}<span class="badge badge-sold">{{ cow.status_label }}</span>
@@ -42,19 +40,19 @@
       <h5 class="mb-3">البيانات الأساسية</h5>
       <dl class="row mb-0">
         <dt class="col-5">رقم الأذن</dt><dd class="col-7" dir="ltr">{{ cow.ear_tag }}</dd>
-        <dt class="col-5">الاسم</dt><dd class="col-7">{{ cow.name or "—" }}</dd>
         <dt class="col-5">الجنس</dt><dd class="col-7">{{ cow.gender_label }}</dd>
         <dt class="col-5">تاريخ الميلاد</dt><dd class="col-7" dir="ltr">{{ cow.date_of_birth or "—" }}</dd>
         <dt class="col-5">العمر (شهر)</dt><dd class="col-7">{{ cow.age_months if cow.age_months is not none else "—" }}</dd>
         <dt class="col-5">المجموعة الحالية</dt><dd class="col-7">{{ cow.group.name }}</dd>
+        {# HERD-4: status applies to males too (عجل رضيع، تسمين). #}
+        <dt class="col-5">الحالة</dt>
+        <dd class="col-7">
+          {% if cow.breeding_status %}<span class="chip chip-cash">{{ cow.breeding_status_label }}</span>{% else %}—{% endif %}
+        </dd>
         {% if cow.gender == "female" %}
         {# HERD-2 Part 2: season count = number of calvings for this cow. #}
         <dt class="col-5">عدد المواسم</dt>
         <dd class="col-7" dir="ltr">{{ cow.season_count }}</dd>
-        {% if cow.breeding_status %}
-        <dt class="col-5">الحالة الإنجابية</dt>
-        <dd class="col-7"><span class="chip chip-cash">{{ cow.breeding_status_label }}</span></dd>
-        {% endif %}
         {% endif %}
         {# HERD-2 Part 3: current asset value + link to per-cow history. #}
         <dt class="col-5">قيمة الأصل</dt>

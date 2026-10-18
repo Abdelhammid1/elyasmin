@@ -145,7 +145,7 @@
 {# ---- picker data for the JS templates ---- #}
 {% set cow_options %}
   {% for c in cows %}<option value="{{ c.id }}" data-book="{{ c.current_value or 0 }}">
-    {{ c.ear_tag }}{% if c.name %} — {{ c.name }}{% endif %}
+    {{ c.ear_tag }}
   </option>{% endfor %}
 {% endset %}
 {% set ing_options %}

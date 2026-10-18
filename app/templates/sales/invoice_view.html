@@ -101,7 +101,6 @@
               <a href="{{ url_for('herd.cow_detail', cow_id=line.cow.id) }}">
                 <span dir="ltr">{{ line.cow.ear_tag }}</span>
               </a>
-              {% if line.cow.name %}<span class="text-muted small">— {{ line.cow.name }}</span>{% endif %}
               {% if line.pricing_mode == 'per_kg' %}
                 <div class="text-muted small" dir="ltr">
                   {{ line.weight_kg }} كجم × {{ "{:,.2f}".format(line.price_per_kg or 0) }} = {{ "{:,.2f}".format(line.line_total) }}
