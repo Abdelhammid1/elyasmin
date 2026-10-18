@@ -120,6 +120,10 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.services.accounting_links import find_journal_entry_for
     app.jinja_env.globals["find_journal_entry_for"] = find_journal_entry_for
 
+    # OPS-1: `flask reset-data` — go-live wipe of trial data.
+    from app.commands.reset_data import reset_data_command
+    app.cli.add_command(reset_data_command)
+
     # HERD-3: status code → Arabic name, for any template.
     from app.models.herd import breeding_status_label, event_type_label
     app.jinja_env.globals["breeding_status_label"] = breeding_status_label
