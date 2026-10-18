@@ -105,3 +105,29 @@ def test_cli_yes_wipes(app, db_copy):
         assert _count(conn, "cows") == 0
         assert _count(conn, "users") > 0
     engine.dispose()
+
+
+def test_pg_dump_password_not_in_argv(app, tmp_path, monkeypatch):
+    """The Postgres backup must not put the password on pg_dump's
+    command line (visible to every user via ps); it goes in PGPASSWORD."""
+    from types import SimpleNamespace
+    from sqlalchemy.engine import make_url
+    from app.commands import reset_data as rd
+
+    calls = {}
+
+    def fake_run(args, env=None, **kw):
+        calls["args"], calls["env"] = args, env
+        return SimpleNamespace(returncode=0, stderr="")
+
+    monkeypatch.setattr(rd.shutil, "which", lambda name: "/usr/bin/pg_dump")
+    monkeypatch.setattr(rd.subprocess, "run", fake_run)
+    monkeypatch.setattr(app, "instance_path", str(tmp_path))
+    engine = SimpleNamespace(
+        url=make_url("postgresql+psycopg2://farm:s3cret-pw@db.local:5432/farm"))
+    with app.app_context():
+        rd._backup(engine, backup_done=False)
+
+    assert not any("s3cret-pw" in str(a) for a in calls["args"])
+    assert calls["env"]["PGPASSWORD"] == "s3cret-pw"
+    assert any("farm@db.local:5432/farm" in str(a) for a in calls["args"])

@@ -16,6 +16,7 @@ Run book:
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import warnings
@@ -155,9 +156,17 @@ def _backup(engine, backup_done: bool) -> str:
                 "pg_dump not found, so no automatic backup. Take a backup "
                 "yourself and re-run with --backup-done."
             )
-        env_url = url.set(drivername="postgresql").render_as_string(hide_password=False)
-        result = subprocess.run([pg_dump, "--no-owner", "-f", str(dest), env_url],
-                                capture_output=True, text=True)
+        # Password goes through PGPASSWORD, never argv — command-line
+        # arguments are visible to every user on the server (ps).
+        # (URL.set(password=None) would KEEP the password — None means
+        # "unchanged" there; _replace really drops it.)
+        conn_url = url.set(drivername="postgresql")._replace(password=None)
+        env = {**os.environ, "PGPASSWORD": url.password} if url.password else None
+        result = subprocess.run(
+            [pg_dump, "--no-owner", "-f", str(dest),
+             "--dbname", conn_url.render_as_string(hide_password=False)],
+            env=env, capture_output=True, text=True,
+        )
         if result.returncode != 0:
             raise ResetError(f"pg_dump failed: {result.stderr.strip()}")
         return str(dest)
