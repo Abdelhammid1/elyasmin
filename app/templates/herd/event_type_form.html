@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ 'تعديل' if mode == 'edit' else 'إضافة' }} إجراء{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-clipboard-check"></i>
+      {{ 'تعديل إجراء — ' ~ etype.name if mode == 'edit' else 'إضافة إجراء جديد' }}
+    </h1>
+  </div>
+  <a href="{{ url_for('herd.event_types_list') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.name.label(class="form-label") }}
+          {{ form.name(class="form-control", maxlength=60) }}
+          {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.target_group_id.label(class="form-label") }}
+          {{ form.target_group_id(class="form-select") }}
+        </div>
+
+        <div class="mb-3 form-check">
+          {{ form.has_result(class="form-check-input", id="hasResult") }}
+          {{ form.has_result.label(class="form-check-label", for="hasResult") }}
+        </div>
+
+        <div class="mb-3" id="singleStatus">
+          {{ form.target_status.label(class="form-label") }}
+          {{ form.target_status(class="form-select") }}
+        </div>
+
+        <div class="row g-3 mb-3" id="resultStatuses">
+          <div class="col-md-6">
+            {{ form.status_if_positive.label(class="form-label") }}
+            {{ form.status_if_positive(class="form-select") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.status_if_negative.label(class="form-label") }}
+            {{ form.status_if_negative(class="form-select") }}
+          </div>
+        </div>
+
+        <div class="mb-3">
+          {{ form.sort_order.label(class="form-label") }}
+          {{ form.sort_order(class="form-control", dir="ltr") }}
+        </div>
+
+        {% if mode == 'edit' and etype.is_system %}
+        <div class="form-text mb-3">
+          إجراء أساسي — تقدر تغيّر اسمه وإعداداته، بس مينفعش يتعطّل.
+          {% if etype.code == 'calving' %}الولادة بتتسجل من فورم الولادات، والإعداد هنا بيتطبق على الأم.{% endif %}
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('herd.event_types_list') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const hasResult = document.getElementById('hasResult');
+  function toggleResult() {
+    document.getElementById('singleStatus').hidden = hasResult.checked;
+    document.getElementById('resultStatuses').hidden = !hasResult.checked;
+  }
+  hasResult.addEventListener('change', toggleResult);
+  toggleResult();
+</script>
+{% endblock %}

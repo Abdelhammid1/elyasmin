@@ -174,31 +174,21 @@ class CowSearchForm(FlaskForm):
 
 from app.models.herd import BreedingEvent
 
-BREEDING_EVENT_CHOICES = [
-    (BreedingEvent.EVENT_INSEMINATION,    "تلقيح"),
-    (BreedingEvent.EVENT_PREGNANCY_CHECK, "جس"),
-    (BreedingEvent.EVENT_DRYING,          "تجفيف"),
-    (BreedingEvent.EVENT_WAITING,         "انتظار"),
-    (BreedingEvent.EVENT_CALVING,         "ولادة"),
-    (BreedingEvent.EVENT_WEANING,         "فطام"),
-]
-
 BREEDING_RESULT_CHOICES = [
-    ("",                                    "— لا ينطبق —"),
+    ("",                                    "— اختار النتيجة —"),
     (BreedingEvent.RESULT_PREGNANT,         "عشار"),
-    (BreedingEvent.RESULT_NOT_PREGNANT,     "مش عشار"),
+    (BreedingEvent.RESULT_NOT_PREGNANT,     "فارغة"),
 ]
 
 
 class BreedingEventForm(FlaskForm):
-    """HERD-2 Part 1: record a single reproductive-cycle event on a
-    cow. Submitting this form ONLY writes the event — the
-    breeding_status change requires a second explicit confirmation
-    on the follow-up page."""
+    """HERD-5: record an event on a cow. The new group and status are
+    pre-filled from the event type's settings (JS) and can be changed
+    before saving; "" means leave as is. Choices for event_type,
+    new_group_id and new_status are set in the route."""
 
     event_type = SelectField(
         "نوع الإجراء",
-        choices=BREEDING_EVENT_CHOICES,
         validators=[DataRequired(message="اختار نوع الإجراء.")],
     )
     event_date = DateField(
@@ -207,12 +197,31 @@ class BreedingEventForm(FlaskForm):
         validators=[DataRequired()],
     )
     result = SelectField(
-        "نتيجة الجس (اختياري لغير الجس)",
+        "النتيجة",
         choices=BREEDING_RESULT_CHOICES,
         validators=[Optional()],
     )
+    new_group_id = SelectField("المجموعة بعد الإجراء", validators=[Optional()])
+    new_status = SelectField("الحالة بعد الإجراء", validators=[Optional()])
     notes = TextAreaField(
         "ملاحظات",
         validators=[Optional(), Length(max=1000)],
     )
     submit = SubmitField("سجل الإجراء")
+
+
+class EventTypeForm(FlaskForm):
+    """HERD-5: add / edit an event type and what it applies.
+    Status/group choices are set in the route ("" = no change)."""
+
+    name = StringField(
+        "اسم الإجراء",
+        validators=[DataRequired(message="اسم الإجراء مطلوب."), Length(max=60)],
+    )
+    target_group_id = SelectField("ينقل البقرة لمجموعة", validators=[Optional()])
+    has_result = BooleanField("الإجراء له نتيجة (عشار / فارغة) — زي الجس")
+    target_status = SelectField("الحالة بعد الإجراء", validators=[Optional()])
+    status_if_positive = SelectField("الحالة لو النتيجة عشار", validators=[Optional()])
+    status_if_negative = SelectField("الحالة لو النتيجة فارغة", validators=[Optional()])
+    sort_order = IntegerField("الترتيب", validators=[Optional()], default=0)
+    submit = SubmitField("حفظ")

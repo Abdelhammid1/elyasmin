@@ -1,18 +1,17 @@
 {% extends "base.html" %}
-{% block title %}تسجيل إجراء إنجابي — {{ cow.ear_tag }}{% endblock %}
+{% block title %}تسجيل إجراء — {{ cow.ear_tag }}{% endblock %}
 {% block content %}
-{# HERD-2 Part 1 (PHASE 35): step 1 of the suggest-confirm flow —
-   record the reproductive-cycle event. Submitting redirects to
-   confirm_breeding_status where the user picks the next status. #}
+{# HERD-5: one-page event form. Picking the event type pre-fills the
+   new group and status from the type's settings (أنواع الإجراءات);
+   both can be changed before saving. #}
 
 <div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
   <div>
-    <h1><i class="bi bi-clipboard-plus"></i> تسجيل إجراء إنجابي — {{ cow.ear_tag }}</h1>
+    <h1><i class="bi bi-clipboard-plus"></i> تسجيل إجراء — <span dir="ltr">{{ cow.ear_tag }}</span></h1>
     <p class="text-muted mb-0">
       {{ cow.gender_label }}
-      {% if cow.breeding_status %} · الحالة الحالية:
-        <span class="chip chip-cash">{{ cow.breeding_status_label }}</span>
-      {% endif %}
+      · المجموعة: <span class="chip chip-draft">{{ cow.group.name }}</span>
+      · الحالة: <span class="chip chip-cash">{{ cow.breeding_status_label or "—" }}</span>
     </p>
   </div>
   <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">
@@ -21,7 +20,7 @@
 </div>
 
 <div class="row justify-content-center">
-  <div class="col-lg-7">
+  <div class="col-lg-8">
     <div class="card p-4">
       <form method="post" novalidate>
         {{ form.hidden_tag() }}
@@ -29,30 +28,48 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">{{ form.event_type.label.text }}</label>
-            {{ form.event_type(class="form-select") }}
+            {{ form.event_type(class="form-select", id="evType") }}
             {% for e in form.event_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-6">
             <label class="form-label">{{ form.event_date.label.text }}</label>
             {{ form.event_date(class="form-control", dir="ltr", type="date") }}
           </div>
-          <div class="col-md-12">
-            <label class="form-label">{{ form.result.label.text }}</label>
-            {{ form.result(class="form-select") }}
-            <div class="form-text">
-              يُختار فقط مع إجراء "الجس" — يُتجاهل مع باقي الأنواع.
+
+          <div class="col-12" id="calvingNote" hidden>
+            <div class="alert alert-info small mb-0">
+              <i class="bi bi-info-circle"></i>
+              الولادة بتتسجل من فورم الولادات (عشان المواليد وعدد المواسم) —
+              لما تضغط حفظ هتتنقل له والبقرة مختارة.
             </div>
           </div>
+
+          <div class="col-md-6" id="resultRow" hidden>
+            <label class="form-label">{{ form.result.label.text }}</label>
+            {{ form.result(class="form-select", id="evResult") }}
+          </div>
+
+          <div class="col-md-6" data-apply>
+            <label class="form-label">{{ form.new_group_id.label.text }}</label>
+            {{ form.new_group_id(class="form-select", id="evGroup") }}
+            <div class="form-text">الحالية: {{ cow.group.name }}</div>
+          </div>
+          <div class="col-md-6" data-apply>
+            <label class="form-label">{{ form.new_status.label.text }}</label>
+            {{ form.new_status(class="form-select", id="evStatus") }}
+            <div class="form-text">الحالية: {{ cow.breeding_status_label or "—" }}</div>
+          </div>
+
           <div class="col-12">
             <label class="form-label">{{ form.notes.label.text }}</label>
             {{ form.notes(class="form-control", rows=3) }}
           </div>
         </div>
 
-        <div class="alert alert-info small mt-3 mb-0">
-          <i class="bi bi-info-circle"></i>
-          بعد الحفظ هنسألك تختار حالة إنجابية مقترحة — الحفظ ده مش هيغيّر
-          حالة البقرة تلقائياً.
+        <div class="text-muted small mt-3">
+          <i class="bi bi-magic"></i>
+          المجموعة والحالة بيتملوا تلقائي حسب نوع الإجراء — تقدر تغيّرهم قبل الحفظ.
+          "بدون تغيير" يسيب البقرة زي ما هي.
         </div>
 
         <div class="d-flex gap-2 mt-4">
@@ -63,4 +80,41 @@
     </div>
   </div>
 </div>
+
+<script>
+  const TYPE_DEFAULTS = {{ type_defaults | tojson }};
+  const evType = document.getElementById('evType');
+  const evResult = document.getElementById('evResult');
+  const evGroup = document.getElementById('evGroup');
+  const evStatus = document.getElementById('evStatus');
+  const resultRow = document.getElementById('resultRow');
+  const calvingNote = document.getElementById('calvingNote');
+
+  function setIfOption(sel, value) {
+    if ([...sel.options].some(o => o.value === value)) sel.value = value;
+    else sel.value = '';
+  }
+
+  function applyDefaults() {
+    const d = TYPE_DEFAULTS[evType.value];
+    if (!d) return;
+    resultRow.hidden = !d.has_result;
+    calvingNote.hidden = !d.is_calving;
+    document.querySelectorAll('[data-apply]').forEach(el => el.hidden = d.is_calving);
+    setIfOption(evGroup, d.group);
+    let status = d.status;
+    if (d.has_result) {
+      status = evResult.value === 'pregnant' ? d.positive
+             : evResult.value === 'not_pregnant' ? d.negative : '';
+    }
+    setIfOption(evStatus, status);
+  }
+
+  evType.addEventListener('change', applyDefaults);
+  evResult.addEventListener('change', applyDefaults);
+  // Pre-fill on first load unless the form came back with errors.
+  {% if not form.errors %}applyDefaults();{% else %}
+  resultRow.hidden = !(TYPE_DEFAULTS[evType.value] || {}).has_result;
+  {% endif %}
+</script>
 {% endblock %}

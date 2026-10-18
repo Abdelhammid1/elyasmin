@@ -277,21 +277,16 @@ class BreedingEvent(db.Model):
     """
     __tablename__ = "breeding_events"
 
-    EVENT_INSEMINATION    = "insemination"     # تلقيح
-    EVENT_PREGNANCY_CHECK = "pregnancy_check"  # جس
-    EVENT_DRYING          = "drying"           # تجفيف
-    EVENT_WAITING         = "waiting"          # انتظار
-    EVENT_CALVING         = "calving"          # ولادة
-    EVENT_WEANING         = "weaning"          # فطام
-
-    EVENT_LABELS = {
-        EVENT_INSEMINATION:    "تلقيح",
-        EVENT_PREGNANCY_CHECK: "جس",
-        EVENT_DRYING:          "تجفيف",
-        EVENT_WAITING:         "انتظار",
-        EVENT_CALVING:         "ولادة",
-        EVENT_WEANING:         "فطام",
-    }
+    # HERD-5: seeded codes of the `breeding_event_types` table. Names
+    # and the group/status each type applies live in that table.
+    EVENT_INSEMINATION      = "insemination"       # تلقيح
+    EVENT_PREGNANCY_CHECK   = "pregnancy_check"    # جس
+    EVENT_PREGNANCY_CONFIRM = "pregnancy_confirm"  # جس تأكيد
+    EVENT_DRYING            = "drying"             # تجفيف
+    EVENT_WAITING           = "waiting"            # انتظار ولادة
+    EVENT_CALVING           = "calving"            # ولادة
+    EVENT_ABORTION          = "abortion"           # طراحة
+    EVENT_WEANING           = "weaning"            # فطام
 
     RESULT_PREGNANT     = "pregnant"      # عشار
     RESULT_NOT_PREGNANT = "not_pregnant"  # مش عشار
@@ -334,7 +329,7 @@ class BreedingEvent(db.Model):
 
     @property
     def event_label(self) -> str:
-        return self.EVENT_LABELS.get(self.event_type, self.event_type)
+        return event_type_label(self.event_type)
 
     @property
     def result_label(self) -> str | None:
@@ -382,40 +377,6 @@ class BreedingStatusChange(db.Model):
     ))
     event = db.relationship("BreedingEvent")
     changed_by = db.relationship("User")
-
-
-class EventStatusSuggestion(db.Model):
-    """The editable config mapping the suggest-and-confirm flow
-    reads on every event. Row per (event_type, event_result?,
-    suggested_status) triple; one row per `event_type` (+
-    optional discriminator on the result for `pregnancy_check`)
-    is flagged `is_default=True` so the UI preselects it.
-
-    Ships seeded from the migration; a proper admin CRUD is
-    deferred to a follow-up ticket. Until then, edits are a
-    manual UPDATE on the table.
-    """
-    __tablename__ = "event_status_suggestions"
-
-    id = db.Column(db.Integer, primary_key=True)
-    event_type = db.Column(db.String(30), nullable=False, index=True)
-    # NULL when the event has no discriminator (every non-preg-check
-    # event). For pregnancy_check, holds 'pregnant' or 'not_pregnant'.
-    event_result = db.Column(db.String(20), nullable=True, index=True)
-    suggested_status = db.Column(db.String(30), nullable=False)
-    is_default = db.Column(
-        db.Boolean, nullable=False, default=False, server_default="0",
-    )
-    sort_order = db.Column(
-        db.Integer, nullable=False, default=0, server_default="0",
-    )
-
-    __table_args__ = (
-        db.UniqueConstraint(
-            "event_type", "event_result", "suggested_status",
-            name="uq_esm_event_status",
-        ),
-    )
 
 
 # ==================== HERD-3: status list ====================
@@ -482,6 +443,88 @@ def breeding_status_label(code: str | None) -> str:
     if not code:
         return "—"
     return breeding_status_map().get(code, code)
+
+
+# ==================== HERD-5: event types ====================
+
+class BreedingEventType(db.Model):
+    """HERD-5: an event type (إجراء) and what it does to the cow.
+
+    Recording an event of this type pre-fills the event form with
+    `target_group` and the status (`target_status`, or for types with
+    a result — pregnancy checks — `status_if_positive` /
+    `status_if_negative`). The user can change both before saving.
+
+    Linked to `BreedingEvent.event_type` by `code` string, like the
+    statuses. System types (the seeded ones) keep their code and can't
+    be disabled — `calving` in particular is wired to the birth form.
+    """
+    __tablename__ = "breeding_event_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(60), nullable=False)
+    sort_order = db.Column(
+        db.Integer, nullable=False, default=0, server_default="0",
+    )
+    is_active = db.Column(
+        db.Boolean, nullable=False, default=True, server_default="1",
+    )
+    is_system = db.Column(
+        db.Boolean, nullable=False, default=False, server_default="0",
+    )
+    target_group_id = db.Column(
+        db.Integer, db.ForeignKey("cattle_groups.id"), nullable=True,
+    )
+    target_status = db.Column(db.String(30), nullable=True)
+    has_result = db.Column(
+        db.Boolean, nullable=False, default=False, server_default="0",
+    )
+    status_if_positive = db.Column(db.String(30), nullable=True)
+    status_if_negative = db.Column(db.String(30), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    target_group = db.relationship("CattleGroup")
+
+    def __repr__(self) -> str:
+        return f"<BreedingEventType {self.code}>"
+
+    def default_status(self, result: str | None = None) -> str | None:
+        """Status this event sets. For result types the result picks
+        which one; with no result yet, nothing."""
+        if self.has_result:
+            if result == BreedingEvent.RESULT_PREGNANT:
+                return self.status_if_positive
+            if result == BreedingEvent.RESULT_NOT_PREGNANT:
+                return self.status_if_negative
+            return None
+        return self.target_status
+
+
+def event_type_map() -> dict[str, str]:
+    """{code: name} for every event type, inactive included. Cached
+    for the request."""
+    from flask import g, has_app_context
+    if has_app_context() and "event_type_map" in g:
+        return g.event_type_map
+    mapping = {t.code: t.name for t in BreedingEventType.query.all()}
+    if has_app_context():
+        g.event_type_map = mapping
+    return mapping
+
+
+def active_event_types() -> list[BreedingEventType]:
+    return (
+        BreedingEventType.query.filter_by(is_active=True)
+        .order_by(BreedingEventType.sort_order, BreedingEventType.id)
+        .all()
+    )
+
+
+def event_type_label(code: str | None) -> str:
+    if not code:
+        return "—"
+    return event_type_map().get(code, code)
 
 
 # ==================== HERD-2 Part 3 (PHASE 35): herd valuation ====================

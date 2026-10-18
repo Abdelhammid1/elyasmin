@@ -4,7 +4,7 @@
   2. breeding_status_label resolves a code; unknown → itself.
   3. A status added from the admin screen shows up in retro-edit.
   4. Disabling a status is refused while an active cow carries it.
-  5. A calving event's confirm page preselects "milking" (حليب).
+  5. Recording an insemination sets "insem" (ملقحة) by default.
 """
 from __future__ import annotations
 
@@ -109,29 +109,17 @@ def test_toggle_allowed_when_unused(admin_client, app):
         _cleanup(app)
 
 
-def test_calving_event_suggests_milking(admin_client, app):
-    cow_id = _seed_cow(app, status=Cow.BS_WAITING)
+def test_insemination_sets_insem_by_default(admin_client, app):
+    cow_id = _seed_cow(app, status=Cow.BS_OPEN)
     try:
         r = admin_client.post(
             f"/herd/{cow_id}/breeding/new",
-            data={"event_type": "calving",
+            data={"event_type": "insemination",
                   "event_date": date.today().isoformat()},
             follow_redirects=False,
         )
         assert r.status_code in (302, 303)
-        r = admin_client.get(r.headers["Location"])
-        body = r.get_data(as_text=True)
-        assert "حليب" in body
-        assert 'value="milking"' in body
-
         with app.app_context():
-            ev = BreedingEvent.query.filter_by(cow_id=cow_id).first()
-        r = admin_client.post(
-            f"/herd/{cow_id}/breeding/{ev.id}/confirm-status",
-            data={"new_status": "milking"},
-        )
-        assert r.status_code in (302, 303)
-        with app.app_context():
-            assert db.session.get(Cow, cow_id).breeding_status == Cow.BS_MILKING
+            assert db.session.get(Cow, cow_id).breeding_status == Cow.BS_INSEM
     finally:
         _cleanup(app)

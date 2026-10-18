@@ -25,8 +25,9 @@ from app.models.herd import (
     CowMovement,
     Death,
     CowValuation,
-    EventStatusSuggestion,
     BreedingStatus,
+    BreedingEventType,
+    active_event_types,
     breeding_status_choices,
     breeding_status_label,
 )
@@ -462,6 +463,9 @@ def create_birth():
         .all()
     )
     form.mother_id.choices = [(c.id, c.ear_tag) for c in mothers]
+    # HERD-5: the event form sends calving here with the cow picked.
+    if request.method == "GET" and request.args.get("mother_id", type=int):
+        form.mother_id.data = request.args.get("mother_id", type=int)
 
     if form.validate_on_submit():
         mother = db.session.get(Cow, form.mother_id.data)
@@ -515,20 +519,32 @@ def create_birth():
 
         # HERD-2 Part 1 (PHASE 35): mirror the calving into the
         # breeding-events log so the reproductive-cycle timeline and
-        # the season counter (Part 2) stay in sync with Birth. The
-        # dam's breeding_status is NOT auto-changed here — the
-        # suggest-confirm flow is skipped for the calving path
-        # because create_birth already runs its own multi-step UX
-        # (group choice, calf attributes). The user updates the
-        # mother's breeding_status afterward via the retro-edit
-        # screen if needed.
-        db.session.add(BreedingEvent(
+        # the season counter (Part 2) stay in sync with Birth.
+        calving_event = BreedingEvent(
             cow_id=mother.id,
             event_type=BreedingEvent.EVENT_CALVING,
             event_date=form.birth_date.data,
             birth_id=birth.id,
             created_by_id=current_user.id,
-        ))
+        )
+        db.session.add(calving_event)
+        db.session.flush()
+
+        # HERD-5: apply the "ولادة" event type's status to the dam
+        # (حليب by default). Her group is set on the next page, where
+        # the calving type's group is preselected.
+        calving_type = BreedingEventType.query.filter_by(
+            code=BreedingEvent.EVENT_CALVING).first()
+        dam_status = calving_type.target_status if calving_type else None
+        if dam_status and dam_status != mother.breeding_status:
+            db.session.add(BreedingStatusChange(
+                cow_id=mother.id,
+                from_status=mother.breeding_status,
+                to_status=dam_status,
+                changed_by_id=current_user.id,
+                event_id=calving_event.id,
+            ))
+            mother.breeding_status = dam_status
 
         # HERD-1 (PHASE 31): no auto-move to nursing. The dam stays in
         # her current group; every live calf is created in the dam's
@@ -618,9 +634,17 @@ def assign_birth_groups(birth_id: int):
     group_choices = [(g.id, g.name) for g in all_groups]
 
     nursing_id = _nursing_group_id()
+    # HERD-5: the dam goes where the "ولادة" event type says (the milk
+    # group by default). Calves keep the nursing default.
+    calving = BreedingEventType.query.filter_by(
+        code=BreedingEvent.EVENT_CALVING).first()
+    dam_target = calving.target_group_id if calving else None
 
     def _default_group_id(cow):
-        """Nursing if it exists; else the cow's current group."""
+        """Dam: calving type's group. Calves: nursing if it exists.
+        Fallback: the cow's current group."""
+        if cow.id == dam.id and dam_target:
+            return dam_target
         return nursing_id if nursing_id else cow.group_id
 
     if request.method == "POST":
@@ -733,62 +757,75 @@ def sales_list():
 # ==================== HERD-2 Part 1 (PHASE 35): breeding routes ====================
 
 
-def _suggestion_choices(event_type: str, event_result: str | None):
-    """Look up the config-driven suggestion list for an event kind.
-    Returns (choices_for_radio, default_status_or_None) where
-    choices_for_radio is a list of (value, label) tuples in sort order.
+def _group_select_choices():
+    return [("", "— بدون تغيير —")] + [(str(i), n) for i, n in _group_choices()]
 
-    Sourced from `event_status_suggestions`; the ticket said the
-    mapping must be config, not hardcoded — this reads live from the
-    table every request so admin edits take effect immediately."""
-    q = EventStatusSuggestion.query.filter_by(event_type=event_type)
-    # event_result discriminator applies only to pregnancy_check;
-    # every other event stores NULL for event_result. Query for
-    # NULL when the caller didn't pass a result, so a hand-crafted
-    # POST with a spurious result on drying/insemination doesn't
-    # miss the seed rows.
-    if event_result:
-        q = q.filter_by(event_result=event_result)
-    else:
-        q = q.filter(EventStatusSuggestion.event_result.is_(None))
-    rows = q.order_by(
-        EventStatusSuggestion.sort_order, EventStatusSuggestion.id
-    ).all()
 
-    choices = []
-    default = None
-    for r in rows:
-        label = breeding_status_label(r.suggested_status)
-        choices.append((r.suggested_status, label))
-        if r.is_default and default is None:
-            default = r.suggested_status
-    return choices, default
+def _event_type_defaults(types):
+    """{code: {...}} the event form's JS uses to pre-fill the group and
+    status when the user picks a type (or a result)."""
+    return {
+        t.code: {
+            "group": str(t.target_group_id) if t.target_group_id else "",
+            "status": t.target_status or "",
+            "has_result": bool(t.has_result),
+            "positive": t.status_if_positive or "",
+            "negative": t.status_if_negative or "",
+            "is_calving": t.code == BreedingEvent.EVENT_CALVING,
+        }
+        for t in types
+    }
 
 
 @bp.route("/<int:cow_id>/breeding/new", methods=["GET", "POST"])
 @login_required
 @write_required
 def create_breeding_event(cow_id: int):
-    """HERD-2 Part 1: record a reproductive-cycle event, then hand
-    off to the suggest-confirm page. GET renders the small form;
-    POST writes the BreedingEvent and redirects to the confirm
-    screen. Never changes `Cow.breeding_status` on this leg."""
+    """HERD-5: one-page event form. The event type pre-fills the new
+    group and status (from `breeding_event_types`); the user can
+    change either before saving. Saving writes the event, the group
+    move and the status change in one transaction.
+
+    Calving goes through the birth form instead — that's where the
+    calves and the season count are recorded."""
     cow = db.session.get(Cow, cow_id)
     if not cow or cow.is_archived:
         abort(404)
 
+    types = active_event_types()
+    by_code = {t.code: t for t in types}
+
     form = BreedingEventForm()
+    form.event_type.choices = [(t.code, t.name) for t in types]
+    form.new_group_id.choices = _group_select_choices()
+    form.new_status.choices = _status_choices()
+
     if form.validate_on_submit():
-        result = form.result.data or None
-        # Guard: `result` is meaningful only on pregnancy_check. Silently
-        # drop it if the user picked something on a different event
-        # (rare, but keeps the DB clean).
-        if form.event_type.data != BreedingEvent.EVENT_PREGNANCY_CHECK:
-            result = None
+        etype = by_code.get(form.event_type.data)
+        if etype is None:
+            flash("نوع الإجراء غير صالح.", "error")
+            return redirect(url_for("herd.create_breeding_event", cow_id=cow.id))
+
+        if etype.code == BreedingEvent.EVENT_CALVING:
+            flash("الولادة بتتسجل من فورم الولادات عشان المواليد وعدد المواسم.", "info")
+            return redirect(url_for("herd.create_birth", mother_id=cow.id))
+
+        result = (form.result.data or None) if etype.has_result else None
+
+        # "" = leave as is. A field missing from the POST entirely
+        # (scripted posts) falls back to the type's defaults.
+        if "new_group_id" in request.form:
+            group_raw = form.new_group_id.data or ""
+        else:
+            group_raw = str(etype.target_group_id or "")
+        if "new_status" in request.form:
+            new_status = form.new_status.data or None
+        else:
+            new_status = etype.default_status(result)
 
         event = BreedingEvent(
             cow_id=cow.id,
-            event_type=form.event_type.data,
+            event_type=etype.code,
             event_date=form.event_date.data,
             result=result,
             notes=form.notes.data,
@@ -796,86 +833,47 @@ def create_breeding_event(cow_id: int):
         )
         db.session.add(event)
         db.session.flush()
+
+        changed = []
+        new_group_id = int(group_raw) if group_raw.isdigit() else None
+        if new_group_id and new_group_id != cow.group_id:
+            db.session.add(CowMovement(
+                cow_id=cow.id,
+                from_group_id=cow.group_id,
+                to_group_id=new_group_id,
+                moved_on=form.event_date.data,
+                reason=f"إجراء: {etype.name}",
+                created_by_id=current_user.id,
+            ))
+            cow.group_id = new_group_id
+            changed.append(f"المجموعة → {db.session.get(CattleGroup, new_group_id).name}")
+
+        if new_status and new_status != cow.breeding_status:
+            db.session.add(BreedingStatusChange(
+                cow_id=cow.id,
+                from_status=cow.breeding_status,
+                to_status=new_status,
+                changed_by_id=current_user.id,
+                event_id=event.id,
+            ))
+            cow.breeding_status = new_status
+            changed.append(f"الحالة → {breeding_status_label(new_status)}")
+
         log_action(
             "breeding_event_recorded", "BreedingEvent", event.id,
-            details=f"cow={cow.id} type={event.event_type}",
+            details=f"cow={cow.id} type={etype.code} " + " ".join(changed),
         )
         db.session.commit()
 
-        flash("تم تسجيل الإجراء. اختار الحالة المقترحة بالأسفل.", "info")
-        return redirect(url_for(
-            "herd.confirm_breeding_status",
-            cow_id=cow.id, event_id=event.id,
-        ))
+        msg = f"تم تسجيل {etype.name}."
+        if changed:
+            msg += " " + "، ".join(changed)
+        flash(msg, "success")
+        return redirect(url_for("herd.breeding_timeline", cow_id=cow.id))
 
     return render_template(
         "herd/breeding_event_form.html", cow=cow, form=form,
-    )
-
-
-@bp.route(
-    "/<int:cow_id>/breeding/<int:event_id>/confirm-status",
-    methods=["GET", "POST"],
-)
-@login_required
-@write_required
-def confirm_breeding_status(cow_id: int, event_id: int):
-    """HERD-2 Part 1: the "suggest & confirm" step. Renders the
-    suggestions with a default preselected; user picks one (or
-    "no change") and clicks تأكيد.
-
-    On confirm: write a BreedingStatusChange row AND update
-    cow.breeding_status in the same transaction. Nothing writes to
-    breeding_status without landing here."""
-    cow = db.session.get(Cow, cow_id)
-    event = db.session.get(BreedingEvent, event_id)
-    if not cow or cow.is_archived or not event or event.cow_id != cow.id:
-        abort(404)
-
-    choices, default = _suggestion_choices(
-        event.event_type, event.result,
-    )
-
-    if request.method == "POST":
-        picked = (request.form.get("new_status") or "").strip()
-        # Special sentinel: user chose "لا تغيير" (no status change)
-        if picked == "" or picked == "__no_change__":
-            flash("تم حفظ الإجراء بدون تغيير حالة إنجابية.", "info")
-            return redirect(url_for("herd.cow_detail", cow_id=cow.id))
-
-        valid_statuses = {code for code, _ in breeding_status_choices()}
-        if picked not in valid_statuses:
-            flash("الحالة المختارة غير صالحة.", "error")
-            return render_template(
-                "herd/breeding_confirm_status.html",
-                cow=cow, event=event, choices=choices, default=default,
-            )
-
-        prior = cow.breeding_status
-        db.session.add(BreedingStatusChange(
-            cow_id=cow.id,
-            from_status=prior,
-            to_status=picked,
-            changed_by_id=current_user.id,
-            event_id=event.id,
-        ))
-        cow.breeding_status = picked
-        log_action(
-            "breeding_status_confirmed",
-            "BreedingStatusChange", 0,
-            details=f"cow={cow.id} {prior}->{picked} via event={event.id}",
-        )
-        db.session.commit()
-        flash(
-            f"تم تحديث الحالة الإنجابية إلى "
-            f"{breeding_status_label(picked)}.",
-            "success",
-        )
-        return redirect(url_for("herd.cow_detail", cow_id=cow.id))
-
-    return render_template(
-        "herd/breeding_confirm_status.html",
-        cow=cow, event=event, choices=choices, default=default,
+        type_defaults=_event_type_defaults(types),
     )
 
 
@@ -1290,3 +1288,120 @@ def toggle_status(status_id: int):
     db.session.commit()
     flash(f"تم {'تفعيل' if s.is_active else 'تعطيل'} الحالة \"{s.name}\".", "info")
     return redirect(url_for("herd.statuses_list"))
+
+
+# ==================== HERD-5: event types admin ====================
+
+@bp.route("/event-types")
+@login_required
+def event_types_list():
+    types = BreedingEventType.query.order_by(
+        BreedingEventType.sort_order, BreedingEventType.id,
+    ).all()
+    return render_template("herd/event_types.html", types=types)
+
+
+def _event_type_form(etype=None):
+    from app.forms.herd import EventTypeForm
+    form = EventTypeForm(obj=etype)
+    if etype is not None and request.method == "GET":
+        form.target_group_id.data = str(etype.target_group_id or "")
+    form.target_group_id.choices = _group_select_choices()
+    for field in (form.target_status, form.status_if_positive,
+                  form.status_if_negative):
+        field.choices = _status_choices(field.data)
+    return form
+
+
+def _apply_event_type_form(etype, form):
+    group_raw = form.target_group_id.data or ""
+    etype.name = " ".join(form.name.data.split())
+    etype.target_group_id = int(group_raw) if group_raw.isdigit() else None
+    etype.has_result = bool(form.has_result.data)
+    if etype.has_result:
+        etype.target_status = None
+        etype.status_if_positive = form.status_if_positive.data or None
+        etype.status_if_negative = form.status_if_negative.data or None
+    else:
+        etype.target_status = form.target_status.data or None
+        etype.status_if_positive = None
+        etype.status_if_negative = None
+    if form.sort_order.data is not None:
+        etype.sort_order = form.sort_order.data
+
+
+def _event_type_name_taken(name, exclude_id=None):
+    from sqlalchemy import func as _func
+    q = BreedingEventType.query.filter(
+        _func.lower(BreedingEventType.name) == " ".join(name.split()).casefold()
+    )
+    if exclude_id is not None:
+        q = q.filter(BreedingEventType.id != exclude_id)
+    return q.first() is not None
+
+
+@bp.route("/event-types/new", methods=["GET", "POST"])
+@login_required
+@write_required
+def create_event_type():
+    form = _event_type_form()
+    if form.validate_on_submit():
+        if _event_type_name_taken(form.name.data):
+            flash("الإجراء ده موجود فعلاً.", "error")
+        else:
+            last = db.session.query(db.func.max(BreedingEventType.sort_order)).scalar() or 0
+            etype = BreedingEventType(code="pending", is_active=True,
+                                      is_system=False, sort_order=last + 1)
+            _apply_event_type_form(etype, form)
+            if not form.sort_order.data:
+                etype.sort_order = last + 1
+            db.session.add(etype)
+            db.session.flush()
+            etype.code = f"custom_{etype.id}"
+            log_action("event_type_created", "BreedingEventType", etype.id,
+                       details=f"name={etype.name}")
+            db.session.commit()
+            flash(f"تم إضافة الإجراء \"{etype.name}\".", "success")
+            return redirect(url_for("herd.event_types_list"))
+    return render_template("herd/event_type_form.html", form=form,
+                           mode="new", etype=None)
+
+
+@bp.route("/event-types/<int:type_id>/edit", methods=["GET", "POST"])
+@login_required
+@write_required
+def edit_event_type(type_id: int):
+    etype = db.session.get(BreedingEventType, type_id)
+    if etype is None:
+        abort(404)
+    form = _event_type_form(etype)
+    if form.validate_on_submit():
+        if _event_type_name_taken(form.name.data, exclude_id=etype.id):
+            flash("فيه إجراء تاني بنفس الاسم.", "error")
+        else:
+            _apply_event_type_form(etype, form)
+            log_action("event_type_updated", "BreedingEventType", etype.id,
+                       details=f"name={etype.name}")
+            db.session.commit()
+            flash(f"تم حفظ الإجراء \"{etype.name}\".", "success")
+            return redirect(url_for("herd.event_types_list"))
+    return render_template("herd/event_type_form.html", form=form,
+                           mode="edit", etype=etype)
+
+
+@bp.route("/event-types/<int:type_id>/toggle", methods=["POST"])
+@login_required
+@write_required
+def toggle_event_type(type_id: int):
+    etype = db.session.get(BreedingEventType, type_id)
+    if etype is None:
+        abort(404)
+    if etype.is_system:
+        flash(f"\"{etype.name}\" إجراء أساسي — مينفعش يتعطّل (تقدر تعدّل إعداداته).", "error")
+        return redirect(url_for("herd.event_types_list"))
+    etype.is_active = not etype.is_active
+    log_action("event_type_toggled", "BreedingEventType", etype.id,
+               details=f"active={etype.is_active}")
+    db.session.commit()
+    flash(f"تم {'تفعيل' if etype.is_active else 'تعطيل'} \"{etype.name}\".", "info")
+    return redirect(url_for("herd.event_types_list"))

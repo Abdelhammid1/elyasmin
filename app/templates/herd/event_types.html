@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}أنواع الإجراءات{% endblock %}
+{% block content %}
+{# HERD-5: event types and what each one does to the cow. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clipboard-check"></i> أنواع الإجراءات</h1>
+    <p class="text-muted mb-0">
+      كل إجراء بينقل البقرة للمجموعة ويغيّر حالتها حسب الإعداد هنا —
+      وتقدر تغيّرهم في شاشة الإجراء قبل الحفظ.
+    </p>
+  </div>
+  {% if can_write %}
+  <a href="{{ url_for('herd.create_event_type') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> إضافة إجراء
+  </a>
+  {% endif %}
+</div>
+
+<div class="card mt-3">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="text-end">الترتيب</th>
+          <th>الإجراء</th>
+          <th>ينقل لمجموعة</th>
+          <th>الحالة بعده</th>
+          <th class="text-end">الوضع</th>
+          {% if can_write %}<th class="text-end">إجراءات</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in types %}
+        <tr>
+          <td dir="ltr" class="num text-end">{{ t.sort_order }}</td>
+          <td class="fw-semibold">
+            {{ t.name }}
+            {% if t.is_system %}<span class="chip chip-info small ms-1">أساسي</span>{% endif %}
+          </td>
+          <td>{{ t.target_group.name if t.target_group else "بدون تغيير" }}</td>
+          <td>
+            {% if t.has_result %}
+              عشار → <span class="chip chip-cash">{{ breeding_status_label(t.status_if_positive) }}</span>
+              · فارغة → <span class="chip chip-cash">{{ breeding_status_label(t.status_if_negative) }}</span>
+            {% elif t.target_status %}
+              <span class="chip chip-cash">{{ breeding_status_label(t.target_status) }}</span>
+            {% else %}
+              بدون تغيير
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if t.is_active %}<span class="chip chip-paid">نشط</span>
+            {% else %}<span class="chip chip-draft">معطّل</span>{% endif %}
+          </td>
+          {% if can_write %}
+          <td class="text-end" style="white-space:nowrap;">
+            <a href="{{ url_for('herd.edit_event_type', type_id=t.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="تعديل">
+              <i class="bi bi-pencil"></i>
+            </a>
+            {% if not t.is_system %}
+            <form method="post" action="{{ url_for('herd.toggle_event_type', type_id=t.id) }}"
+                  style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm {% if t.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                      title="{{ 'تعطيل' if t.is_active else 'تفعيل' }}">
+                <i class="bi bi-{{ 'toggle-on' if t.is_active else 'toggle-off' }}"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">مفيش إجراءات.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

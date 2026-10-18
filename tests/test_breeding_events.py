@@ -1,9 +1,9 @@
-"""PHASE 35 HERD-2 Part 1 regression suite.
+"""PHASE 35 HERD-2 Part 1 + HERD-5 regression suite.
 
-Locks the suggest-and-confirm contract:
-  1. Recording an event never changes `breeding_status` on its own.
-  2. Confirming a suggestion writes both a BreedingStatusChange row
-     AND updates `Cow.breeding_status` (atomic).
+  1. An event saved with group/status set to "بدون تغيير" changes
+     nothing on the cow.
+  2. An event saved with the type's defaults writes a
+     BreedingStatusChange tied to the event AND updates the cow.
   3. Retro-edit writes a status-change row with `event_id=NULL` and
      never touches the breeding_events log.
   4. `create_birth` writes a matching BreedingEvent(event_type=
@@ -54,8 +54,10 @@ def _cleanup(app):
         c = Cow.query.filter_by(ear_tag=_TEST_TAG).first()
         if c is None:
             return
+        from app.models.herd import CowMovement as _CM
         BreedingStatusChange.query.filter_by(cow_id=c.id).delete()
         BreedingEvent.query.filter_by(cow_id=c.id).delete()
+        _CM.query.filter_by(cow_id=c.id).delete()
         # If any Birth was created during a test, wipe it + its
         # calves so create_birth's cascade doesn't leave orphans.
         for b in Birth.query.filter_by(mother_id=c.id).all():
@@ -73,15 +75,19 @@ def _cleanup(app):
         db.session.commit()
 
 
-def test_recording_event_leaves_breeding_status_unchanged(admin_client, app):
+def test_event_with_no_change_leaves_cow_alone(admin_client, app):
     cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEM)
     try:
+        with app.app_context():
+            group_before = db.session.get(Cow, cow_id).group_id
         r = admin_client.post(
             f"/herd/{cow_id}/breeding/new",
             data={
                 "event_type": "pregnancy_check",
                 "event_date": date.today().isoformat(),
                 "result": "pregnant",
+                "new_group_id": "",
+                "new_status": "",
                 "notes": "test event",
             },
             follow_redirects=False,
@@ -89,14 +95,12 @@ def test_recording_event_leaves_breeding_status_unchanged(admin_client, app):
         assert r.status_code in (302, 303), r.status_code
         with app.app_context():
             c = db.session.get(Cow, cow_id)
-            # Status did NOT auto-change
             assert c.breeding_status == Cow.BS_INSEM
-            # But event WAS recorded
+            assert c.group_id == group_before
             events = BreedingEvent.query.filter_by(cow_id=cow_id).all()
             assert len(events) == 1
             assert events[0].event_type == "pregnancy_check"
             assert events[0].result == "pregnant"
-            # And no status-change row yet
             assert BreedingStatusChange.query.filter_by(
                 cow_id=cow_id
             ).count() == 0
@@ -104,11 +108,12 @@ def test_recording_event_leaves_breeding_status_unchanged(admin_client, app):
         _cleanup(app)
 
 
-def test_confirming_suggestion_writes_status_change_and_updates(admin_client, app):
+def test_event_defaults_write_status_change(admin_client, app):
+    """Fields absent from the POST → the type's defaults apply:
+    pregnancy check + pregnant → عشار (preg)."""
     cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEM)
     try:
-        # Create the event first
-        admin_client.post(
+        r = admin_client.post(
             f"/herd/{cow_id}/breeding/new",
             data={
                 "event_type": "pregnancy_check",
@@ -117,20 +122,10 @@ def test_confirming_suggestion_writes_status_change_and_updates(admin_client, ap
             },
             follow_redirects=False,
         )
-        with app.app_context():
-            event_id = BreedingEvent.query.filter_by(
-                cow_id=cow_id
-            ).first().id
-
-        # Confirm the suggested "preg" (عشار) status
-        r = admin_client.post(
-            f"/herd/{cow_id}/breeding/{event_id}/confirm-status",
-            data={"new_status": "preg"},
-            follow_redirects=False,
-        )
         assert r.status_code in (302, 303), r.status_code
 
         with app.app_context():
+            event_id = BreedingEvent.query.filter_by(cow_id=cow_id).first().id
             c = db.session.get(Cow, cow_id)
             assert c.breeding_status == Cow.BS_PREG
             changes = BreedingStatusChange.query.filter_by(

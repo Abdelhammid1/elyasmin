@@ -121,8 +121,9 @@ def create_app(config_name: str | None = None) -> Flask:
     app.jinja_env.globals["find_journal_entry_for"] = find_journal_entry_for
 
     # HERD-3: status code → Arabic name, for any template.
-    from app.models.herd import breeding_status_label
+    from app.models.herd import breeding_status_label, event_type_label
     app.jinja_env.globals["breeding_status_label"] = breeding_status_label
+    app.jinja_env.globals["event_type_label"] = event_type_label
 
     # PHASE 18 (PDF): `currency_ar` filter — maps ISO currency codes to
     # their Arabic name for the printed invoice ("EGP" → "جنيه مصري").

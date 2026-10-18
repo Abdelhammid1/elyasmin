@@ -234,6 +234,10 @@
           <a class="sidebar-item {% if request.endpoint and 'herd.' in request.endpoint and 'status' in request.endpoint and 'breeding' not in request.endpoint %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.statuses_list') }}">
             <i class="bi bi-list-check"></i> حالات القطيع</a>
+          {# HERD-5: event types + what each one applies. #}
+          <a class="sidebar-item {% if request.endpoint and 'event_type' in request.endpoint %}active{% endif %}"
+             data-section="herd" href="{{ url_for('herd.event_types_list') }}">
+            <i class="bi bi-clipboard-check"></i> أنواع الإجراءات</a>
         </div>
       </details>
 
