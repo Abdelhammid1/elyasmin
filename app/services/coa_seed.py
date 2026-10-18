@@ -91,6 +91,8 @@ DEFAULT_COA = [
     ("5",    "المصروفات",                   "Expenses",            AccountType.EXPENSE,   False, None),
     ("5010", "تكلفة الأعلاف",               "Feed Cost",           AccountType.EXPENSE,   True,  "5"),
     ("5020", "أدوية بيطرية",                "Veterinary",          AccountType.EXPENSE,   True,  "5"),
+    # HERD-8: semen straws used + cash paid per insemination.
+    ("5025", "تكاليف التلقيح",              "Insemination Cost",   AccountType.EXPENSE,   True,  "5"),
     ("5030", "أجور العمالة",                "Labour Wages",        AccountType.EXPENSE,   True,  "5"),
     ("5040", "كهرباء ومياه",                "Utilities",           AccountType.EXPENSE,   True,  "5"),
     ("5050", "صيانة",                       "Maintenance",         AccountType.EXPENSE,   True,  "5"),

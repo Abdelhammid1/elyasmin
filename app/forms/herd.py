@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from flask_wtf import FlaskForm
 from wtforms import (
@@ -184,6 +185,20 @@ class BreedingEventForm(FlaskForm):
     )
     new_group_id = SelectField("المجموعة بعد الإجراء", validators=[Optional()])
     new_status = SelectField("الحالة بعد الإجراء", validators=[Optional()])
+    # HERD-8: insemination cost (shown for تلقيح only).
+    cost_source = SelectField(
+        "تكلفة التلقيح",
+        choices=[("", "بدون تكلفة"),
+                 (BreedingEvent.COST_STOCK, "من المخزون (سائل منوي)"),
+                 (BreedingEvent.COST_CASH, "نقدي")],
+        validators=[Optional()],
+    )
+    cost_ingredient_id = SelectField("الصنف", validators=[Optional()])
+    cost_qty = DecimalField("الكمية", places=3, default=Decimal("1"),
+                            validators=[Optional(), NumberRange(min=0.001)])
+    cost_amount = DecimalField("المبلغ", places=2,
+                               validators=[Optional(), NumberRange(min=0.01)])
+    cost_account_id = SelectField("من خزنة", validators=[Optional()])
     notes = TextAreaField(
         "ملاحظات",
         validators=[Optional(), Length(max=1000)],

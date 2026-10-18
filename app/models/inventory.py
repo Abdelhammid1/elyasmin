@@ -194,6 +194,8 @@ class StockMovement(db.Model):
     # SALES-1: negative delta on a sale via SalesInvoice. `ref_id`
     # points at the sales_invoices row that caused the draw-down.
     REASON_SALE = "sale"
+    # HERD-8: semen straws used on an insemination; ref_id = breeding_events.id.
+    REASON_INSEMINATION = "insemination"
 
     id = db.Column(db.Integer, primary_key=True)
     ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), nullable=False, index=True)
@@ -226,6 +228,7 @@ class StockMovement(db.Model):
             self.REASON_MEDICINE: "صرف دواء",
             self.REASON_ADJUST: "تعديل جرد",
             self.REASON_SALE: "بيع",
+            self.REASON_INSEMINATION: "تلقيح",
         }.get(self.reason, self.reason)
 
 

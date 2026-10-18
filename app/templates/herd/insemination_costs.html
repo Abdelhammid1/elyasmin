@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}تكاليف التلقيح{% endblock %}
+{% block content %}
+{# HERD-8: inseminations in a date range with their cost. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-eyedropper"></i> تكاليف التلقيح</h1>
+    <p class="text-muted mb-0">
+      <span dir="ltr">{{ d_from }}</span> → <span dir="ltr">{{ d_to }}</span>
+    </p>
+  </div>
+  <a href="{{ url_for('herd.insemination_costs_excel', **{'from': d_from.isoformat(), 'to': d_to.isoformat()}) }}"
+     class="btn btn-outline-success no-print"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+</div>
+
+<form method="get" class="filter-row row g-2 align-items-end no-print">
+  <div class="col-md-3 col-6">
+    <label class="form-label small mb-1">من</label>
+    <input type="date" name="from" value="{{ d_from.isoformat() }}" class="form-control form-control-sm" dir="ltr">
+  </div>
+  <div class="col-md-3 col-6">
+    <label class="form-label small mb-1">إلى</label>
+    <input type="date" name="to" value="{{ d_to.isoformat() }}" class="form-control form-control-sm" dir="ltr">
+  </div>
+  <div class="col-md-2 d-grid">
+    <button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> عرض</button>
+  </div>
+</form>
+
+<div class="row g-3 my-2">
+  <div class="col-md-4 col-6"><div class="card stat-card">
+    <div class="stat-label">عدد التلقيحات</div>
+    <div class="stat-value" dir="ltr">{{ count }}</div>
+  </div></div>
+  <div class="col-md-4 col-6"><div class="card stat-card tone-brand">
+    <div class="stat-label">إجمالي التكلفة</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(total) }}</div>
+  </div></div>
+  <div class="col-md-4 col-6"><div class="card stat-card">
+    <div class="stat-label">متوسط تكلفة التلقيحة</div>
+    <div class="stat-value" dir="ltr">{{ "{:,.2f}".format(avg) }}</div>
+  </div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="p-3 pb-0"><h5>التلقيحات</h5></div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>التاريخ</th><th>البقرة</th><th>المصدر</th><th>الصنف</th>
+              <th class="text-end">الكمية</th><th class="text-end">التكلفة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in events %}
+            <tr>
+              <td dir="ltr" class="small">{{ e.event_date }}</td>
+              <td><a href="{{ url_for('herd.cow_detail', cow_id=e.cow.id) }}" dir="ltr" class="fw-bold text-decoration-none">{{ e.cow.ear_tag }}</a></td>
+              <td>{{ e.cost_source_label }}</td>
+              <td class="small">{{ e.cost_ingredient.name if e.cost_ingredient else "—" }}</td>
+              <td class="num text-end" dir="ltr">{{ e.cost_qty if e.cost_qty else "—" }}</td>
+              <td class="num text-end" dir="ltr">{{ "{:,.2f}".format(e.cost_amount or 0) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">مفيش تلقيحات في الفترة دي.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="p-3 pb-0"><h5>لكل بقرة</h5></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>البقرة</th><th class="text-end">عدد</th><th class="text-end">التكلفة</th></tr></thead>
+          <tbody>
+            {% for r in per_cow %}
+            <tr>
+              <td dir="ltr">{{ r.cow.ear_tag }}</td>
+              <td class="num text-end" dir="ltr">{{ r.count }}</td>
+              <td class="num text-end" dir="ltr">{{ "{:,.2f}".format(r.cost) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-3">—</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

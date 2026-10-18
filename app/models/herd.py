@@ -296,6 +296,11 @@ class BreedingEvent(db.Model):
         RESULT_NOT_PREGNANT: "مش عشار",
     }
 
+    # HERD-8: where an insemination's cost came from.
+    COST_STOCK = "stock"   # semen straws drawn from inventory
+    COST_CASH = "cash"     # paid from a treasury (e.g. to the vet)
+    COST_LABELS = {COST_STOCK: "من المخزون", COST_CASH: "نقدي"}
+
     id = db.Column(db.Integer, primary_key=True)
     cow_id = db.Column(
         db.Integer, db.ForeignKey("cows.id"),
@@ -326,6 +331,23 @@ class BreedingEvent(db.Model):
         lazy="dynamic",
     ))
     birth = db.relationship("Birth")
+
+    # HERD-8: insemination cost (NULL source = no cost recorded).
+    cost_source = db.Column(db.String(10), nullable=True)
+    cost_amount = db.Column(db.Numeric(12, 2), nullable=True)
+    cost_ingredient_id = db.Column(
+        db.Integer, db.ForeignKey("ingredients.id"), nullable=True,
+    )
+    cost_qty = db.Column(db.Numeric(10, 3), nullable=True)
+    cost_expense_id = db.Column(
+        db.Integer, db.ForeignKey("expenses.id"), nullable=True,
+    )
+    cost_ingredient = db.relationship("Ingredient")
+    cost_expense = db.relationship("Expense")
+
+    @property
+    def cost_source_label(self) -> str:
+        return self.COST_LABELS.get(self.cost_source, "—")
 
     @property
     def event_label(self) -> str:

@@ -242,6 +242,10 @@
           <a class="sidebar-item {% if request.endpoint and 'alert' in request.endpoint and request.endpoint.startswith('herd.') %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.herd_alerts') }}">
             <i class="bi bi-bell"></i> تنبيهات القطيع</a>
+          {# HERD-8: insemination cost report. #}
+          <a class="sidebar-item {% if request.endpoint and 'insemination_costs' in request.endpoint %}active{% endif %}"
+             data-section="herd" href="{{ url_for('herd.insemination_costs') }}">
+            <i class="bi bi-eyedropper"></i> تكاليف التلقيح</a>
         </div>
       </details>
 

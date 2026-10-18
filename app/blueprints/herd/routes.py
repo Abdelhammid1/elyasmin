@@ -803,9 +803,102 @@ def _event_type_defaults(types):
             "positive": t.status_if_positive or "",
             "negative": t.status_if_negative or "",
             "is_calving": t.code == BreedingEvent.EVENT_CALVING,
+            "has_cost": t.code == BreedingEvent.EVENT_INSEMINATION,
         }
         for t in types
     }
+
+
+SEMEN_CATEGORY = "سائل منوي"
+
+
+def _semen_items():
+    """HERD-8: inventory items in the semen category with stock left."""
+    from app.models.inventory import Ingredient
+    return (
+        Ingredient.query.filter_by(category=SEMEN_CATEGORY, is_archived=False)
+        .filter(Ingredient.current_qty > 0)
+        .order_by(Ingredient.name).all()
+    )
+
+
+def _apply_insemination_cost(event, cow, form) -> str | None:
+    """HERD-8: record the insemination's cost on `event` in the current
+    transaction. Returns an Arabic error message, or None when done (or
+    when no cost was picked).
+
+    stock — draw the straws at average cost, StockMovement, JE
+            DR 5025 / CR inventory.
+    cash  — an Expense (category insemination) paid from a treasury,
+            money out, JE DR 5025 / CR treasury.
+    """
+    from decimal import Decimal
+    from app.models.finance import Expense, TreasuryAccount
+    from app.models.inventory import Ingredient, StockMovement
+    from app.services import autoposting
+    from app.utils import accounts as acc
+    from app.utils import inventory_cost
+
+    source = form.cost_source.data or ""
+    if not source:
+        return None
+
+    if source == BreedingEvent.COST_STOCK:
+        raw = form.cost_ingredient_id.data or ""
+        ing = db.session.get(Ingredient, int(raw)) if raw.isdigit() else None
+        if ing is None:
+            return "اختار صنف السائل المنوي من المخزون."
+        qty = Decimal(str(form.cost_qty.data or 0))
+        if qty <= 0:
+            return "الكمية لازم تكون أكبر من صفر."
+        unit_cost = ing.avg_cost
+        try:
+            value = inventory_cost.withdraw(ing, qty)
+        except ValueError as e:
+            return str(e)
+        event.cost_source = BreedingEvent.COST_STOCK
+        event.cost_ingredient_id = ing.id
+        event.cost_qty = qty
+        event.cost_amount = value
+        db.session.add(StockMovement(
+            ingredient_id=ing.id, delta=-qty,
+            reason=StockMovement.REASON_INSEMINATION, ref_id=event.id,
+            unit_price_at_move=unit_cost, moved_on=event.event_date,
+            notes=f"تلقيح البقرة {cow.ear_tag}",
+            created_by_id=current_user.id,
+        ))
+        db.session.flush()
+        autoposting.on_insemination_cost(event, created_by=current_user.id)
+        return None
+
+    if source == BreedingEvent.COST_CASH:
+        amount = Decimal(str(form.cost_amount.data or 0))
+        if amount <= 0:
+            return "اكتب مبلغ التلقيح."
+        raw = form.cost_account_id.data or ""
+        account = db.session.get(TreasuryAccount, int(raw)) if raw.isdigit() else None
+        if account is None or account.is_archived:
+            return "اختار الخزنة اللي اتدفع منها."
+        expense = Expense(
+            category=Expense.CAT_INSEMINATION, amount=amount,
+            expense_date=event.event_date,
+            description=f"تلقيح البقرة {cow.ear_tag}",
+            ref_type="breeding_event", ref_id=event.id,
+            account_id=account.id, created_by_id=current_user.id,
+        )
+        db.session.add(expense)
+        db.session.flush()
+        acc.money_out(account, amount, event.event_date,
+                      ref_type="expense", ref_id=expense.id,
+                      user_id=current_user.id,
+                      notes=f"تلقيح البقرة {cow.ear_tag}")
+        autoposting.on_expense(expense, account, created_by=current_user.id)
+        event.cost_source = BreedingEvent.COST_CASH
+        event.cost_amount = amount
+        event.cost_expense_id = expense.id
+        return None
+
+    return "مصدر التكلفة غير صالح."
 
 
 @bp.route("/<int:cow_id>/breeding/new", methods=["GET", "POST"])
@@ -833,6 +926,15 @@ def create_breeding_event(cow_id: int):
         form.event_type.data = request.args.get("type")
     form.new_group_id.choices = _group_select_choices()
     form.new_status.choices = _status_choices()
+    # HERD-8: insemination cost pickers.
+    form.cost_ingredient_id.choices = [("", "— اختار —")] + [
+        (str(i.id), f"{i.name} (متوفر {i.current_qty:g} {i.unit_label})")
+        for i in _semen_items()
+    ]
+    from app.utils import accounts as _acc
+    form.cost_account_id.choices = [("", "— اختار —")] + [
+        (str(i), label) for i, label in _acc.active_choices()
+    ]
 
     if form.validate_on_submit():
         etype = by_code.get(form.event_type.data)
@@ -867,6 +969,16 @@ def create_breeding_event(cow_id: int):
         )
         db.session.add(event)
         db.session.flush()
+
+        if etype.code == BreedingEvent.EVENT_INSEMINATION:
+            cost_error = _apply_insemination_cost(event, cow, form)
+            if cost_error:
+                db.session.rollback()
+                flash(cost_error, "error")
+                return render_template(
+                    "herd/breeding_event_form.html", cow=cow, form=form,
+                    type_defaults=_event_type_defaults(types),
+                )
 
         changed = []
         new_group_id = int(group_raw) if group_raw.isdigit() else None
@@ -1531,3 +1643,72 @@ def herd_alert_settings():
         return redirect(url_for("herd.herd_alerts"))
     current = [(key, label, setting_int(key), DEFAULTS[key]) for key, label in fields]
     return render_template("herd/alert_settings.html", fields=current)
+
+
+# ==================== HERD-8: insemination cost report ====================
+
+def _insemination_cost_rows(d_from, d_to):
+    events = (
+        BreedingEvent.query
+        .filter(BreedingEvent.event_type == BreedingEvent.EVENT_INSEMINATION,
+                BreedingEvent.event_date >= d_from,
+                BreedingEvent.event_date <= d_to)
+        .order_by(BreedingEvent.event_date.desc(), BreedingEvent.id.desc())
+        .all()
+    )
+    per_cow = {}
+    for e in events:
+        row = per_cow.setdefault(e.cow_id, {"cow": e.cow, "count": 0, "cost": 0})
+        row["count"] += 1
+        row["cost"] += e.cost_amount or 0
+    return events, sorted(per_cow.values(), key=lambda r: -r["cost"])
+
+
+def _date_range_args():
+    today = date.today()
+    try:
+        d_from = date.fromisoformat(request.args.get("from") or "")
+    except ValueError:
+        d_from = today.replace(day=1)
+    try:
+        d_to = date.fromisoformat(request.args.get("to") or "")
+    except ValueError:
+        d_to = today
+    return d_from, d_to
+
+
+@bp.route("/insemination-costs")
+@login_required
+def insemination_costs():
+    """HERD-8: inseminations in a date range with their cost, totals,
+    and a per-cow summary."""
+    d_from, d_to = _date_range_args()
+    events, per_cow = _insemination_cost_rows(d_from, d_to)
+    total = sum((e.cost_amount or 0) for e in events)
+    costed = [e for e in events if e.cost_amount]
+    return render_template(
+        "herd/insemination_costs.html",
+        events=events, per_cow=per_cow, d_from=d_from, d_to=d_to,
+        total=total, count=len(events),
+        avg=(total / len(costed)) if costed else 0,
+    )
+
+
+@bp.route("/insemination-costs.xlsx")
+@login_required
+def insemination_costs_excel():
+    from app.utils.reports import excel_response
+    d_from, d_to = _date_range_args()
+    events, _ = _insemination_cost_rows(d_from, d_to)
+    rows = [
+        [e.event_date.isoformat(), e.cow.ear_tag, e.cost_source_label,
+         e.cost_ingredient.name if e.cost_ingredient else "",
+         float(e.cost_qty) if e.cost_qty else "",
+         float(e.cost_amount) if e.cost_amount else 0]
+        for e in events
+    ]
+    return excel_response(
+        "تكاليف التلقيح",
+        ["التاريخ", "البقرة", "المصدر", "الصنف", "الكمية", "التكلفة"],
+        rows, f"insemination_costs_{d_from}_{d_to}.xlsx",
+    )

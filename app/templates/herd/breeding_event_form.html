@@ -60,6 +60,39 @@
             <div class="form-text">الحالية: {{ cow.breeding_status_label or "—" }}</div>
           </div>
 
+          {# HERD-8: insemination cost — from stock (semen straws) or cash. #}
+          <div class="col-12" id="costBlock" hidden>
+            <div class="border rounded p-3">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label">{{ form.cost_source.label.text }}</label>
+                  {{ form.cost_source(class="form-select", id="costSource") }}
+                </div>
+                <div class="col-md-5" data-cost="stock">
+                  <label class="form-label">{{ form.cost_ingredient_id.label.text }}</label>
+                  {{ form.cost_ingredient_id(class="form-select") }}
+                  {% if form.cost_ingredient_id.choices|length <= 1 %}
+                  <div class="form-text text-warning">
+                    مفيش سائل منوي في المخزون — ضيفه كصنف في تصنيف "سائل منوي" واشتريه بفاتورة شراء.
+                  </div>
+                  {% endif %}
+                </div>
+                <div class="col-md-3" data-cost="stock">
+                  <label class="form-label">{{ form.cost_qty.label.text }}</label>
+                  {{ form.cost_qty(class="form-control", dir="ltr") }}
+                </div>
+                <div class="col-md-4" data-cost="cash">
+                  <label class="form-label">{{ form.cost_amount.label.text }}</label>
+                  {{ form.cost_amount(class="form-control", dir="ltr") }}
+                </div>
+                <div class="col-md-4" data-cost="cash">
+                  <label class="form-label">{{ form.cost_account_id.label.text }}</label>
+                  {{ form.cost_account_id(class="form-select") }}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="col-12">
             <label class="form-label">{{ form.notes.label.text }}</label>
             {{ form.notes(class="form-control", rows=3) }}
@@ -109,6 +142,19 @@
     }
     setIfOption(evStatus, status);
   }
+
+  const costBlock = document.getElementById('costBlock');
+  const costSource = document.getElementById('costSource');
+  function toggleCost() {
+    const d = TYPE_DEFAULTS[evType.value] || {};
+    costBlock.hidden = !d.has_cost;
+    document.querySelectorAll('[data-cost]').forEach(el => {
+      el.hidden = el.dataset.cost !== costSource.value;
+    });
+  }
+  evType.addEventListener('change', toggleCost);
+  costSource.addEventListener('change', toggleCost);
+  toggleCost();
 
   evType.addEventListener('change', applyDefaults);
   evResult.addEventListener('change', applyDefaults);

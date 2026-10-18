@@ -33,6 +33,7 @@ CODE_LABOUR_EXPENSE  = "5030"
 CODE_OPENING_EQUITY  = "3090"    # equity offset for backfilled openings
 CODE_MEDICINE_INVENTORY = "1220" # مخزون الأدوية (matched spec already)
 CODE_MEDICINE_EXPENSE   = "5020" # أدوية بيطرية
+CODE_INSEMINATION_EXPENSE = "5025"  # تكاليف التلقيح (HERD-8)
 
 # Expense-category → COA-code mapping, one place instead of a switch spread
 # across every autoposting callsite.
@@ -45,6 +46,7 @@ EXPENSE_CODE_BY_CATEGORY = {
     Expense.CAT_SUPPLIER_PAYMENT: None,   # mirror of a payment — no JE here
     Expense.CAT_WORKER_WAGE:      None,   # mirror of a payment — no JE here
     Expense.CAT_OTHER:            "5080",
+    Expense.CAT_INSEMINATION:     "5025",   # HERD-8
 }
 
 # The COA code for a raw-material inventory account, by ingredient category.
@@ -770,5 +772,42 @@ def on_purchase_return(ret, *, created_by=None):
         entry_date=ret.return_date,
         source_type="PurchaseReturn",
         source_id=ret.id,
+        created_by=created_by,
+    )
+
+
+# ==================== HERD-8 — insemination cost (stock path) ====================
+
+def on_insemination_cost(event, *, created_by=None):
+    """Semen straws drawn from stock for an insemination.
+
+        DR 5025 تكاليف التلقيح   (event.cost_amount)  [cost_center = cow's group]
+        CR inventory leaf for the item's category (default 1200)
+
+    Idempotent by (BreedingEvent, event.id). The cash path doesn't come
+    here — it goes through an Expense row and `on_expense`.
+    """
+    _delete_prior_je("BreedingEvent", event.id)
+    amount = _d(event.cost_amount)
+    if event.cost_source != "stock" or amount <= 0 or event.cost_ingredient is None:
+        return None
+
+    ing = event.cost_ingredient
+    expense = _code(CODE_INSEMINATION_EXPENSE)
+    inventory = _code(INVENTORY_CODE_BY_CATEGORY.get(ing.category, INVENTORY_DEFAULT_CODE))
+    dr_line = {"account_id": expense.id, "debit": amount,
+               "memo": f"تلقيح البقرة {event.cow.ear_tag} — {ing.name}"}
+    if event.cow.group_id:
+        dr_line["cost_center_id"] = event.cow.group_id
+    return post_journal(
+        description=f"تكلفة تلقيح — البقرة {event.cow.ear_tag}",
+        lines=[
+            dr_line,
+            {"account_id": inventory.id, "credit": amount,
+             "memo": f"سحب {event.cost_qty} {ing.unit_label} {ing.name}"},
+        ],
+        entry_date=event.event_date,
+        source_type="BreedingEvent",
+        source_id=event.id,
         created_by=created_by,
     )

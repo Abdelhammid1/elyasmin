@@ -146,6 +146,7 @@ class Expense(db.Model):
     CAT_SUPPLIER_PAYMENT = "supplier_payment"
     CAT_WORKER_WAGE = "worker_wage"
     CAT_OTHER = "other"
+    CAT_INSEMINATION = "insemination"  # HERD-8: cash paid per insemination
 
     id = db.Column(db.Integer, primary_key=True)
     # EXP-CAT (PHASE 39): width bumped 40 → 80 so long Arabic
@@ -177,6 +178,7 @@ class Expense(db.Model):
         CAT_SUPPLIER_PAYMENT: "دفعة مورد",
         CAT_WORKER_WAGE: "أجور عمالة",
         CAT_OTHER: "أخرى",
+        CAT_INSEMINATION: "تكاليف التلقيح",
     }
 
     @property
