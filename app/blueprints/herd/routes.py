@@ -10,7 +10,6 @@ from app.forms.herd import (
     BreedingEventForm,
     CowForm,
     CowMoveForm,
-    CowSearchForm,
     DeathForm,
     GroupForm,
 )
@@ -182,42 +181,74 @@ def archive_group(group_id: int):
 @bp.route("/")
 @login_required
 def list_cows():
-    """PHASE 22: adds KPI aggregates for the top strip (total / male /
-    female / avg age)."""
-    form = CowSearchForm(request.args, meta={"csrf": False})
-    form.group_id.choices = _group_choices(include_all=True)
+    """HERD-6: the parlor-report columns, combined filters (group /
+    status / season, each multi-pick) and sortable headers. KPIs are
+    computed on the filtered set."""
+    from app.services.herd_list import (
+        LIFE_CHOICES, build_herd_rows, read_filters,
+    )
+    filters = read_filters(request.args)
+    sort = request.args.get("sort") or "tag"
+    direction = "desc" if request.args.get("dir") == "desc" else "asc"
+    rows = build_herd_rows(filters, sort, direction)
 
-    query = Cow.query.filter_by(is_archived=False)
-
-    q = (form.q.data or "").strip()
-    if q:
-        query = query.filter(Cow.ear_tag.ilike(f"%{q}%"))
-
-    if form.group_id.data and form.group_id.data > 0:
-        query = query.filter_by(group_id=form.group_id.data)
-
-    status = form.status.data or "active"
-    if status != "all":
-        query = query.filter_by(status=status)
-
-    cows = query.order_by(Cow.ear_tag).all()
-
-    # KPIs computed on the currently filtered set — the counts move with
-    # the filter so the operator always knows what he's looking at.
-    total_count = len(cows)
-    male_count = sum(1 for c in cows if c.gender == "male")
-    female_count = sum(1 for c in cows if c.gender == "female")
+    cows = [r["cow"] for r in rows]
     ages = [c.age_months for c in cows if c.age_months is not None]
-    avg_age = round(sum(ages) / len(ages), 1) if ages else 0
+
+    # Season options: every season in the unfiltered-by-season set
+    # plus whatever is already picked.
+    season_base = build_herd_rows({**filters, "season": []}) if filters["season"] else rows
+    season_options = [
+        (s, f"الموسم {s}")
+        for s in sorted({r["season"] for r in season_base} | set(filters["season"]))
+    ]
 
     return render_template(
         "herd/list.html",
-        cows=cows, form=form, q=q,
-        total_count=total_count,
-        male_count=male_count,
-        female_count=female_count,
-        avg_age=avg_age,
+        rows=rows, filters=filters, sort=sort, direction=direction,
+        life_choices=LIFE_CHOICES,
+        group_options=_group_choices(),
+        status_options=[("none", "بدون حالة")] + breeding_status_choices(),
+        season_options=season_options,
+        print_mode=bool(request.args.get("print")),
+        today_iso=date.today().isoformat(),
+        total_count=len(cows),
+        male_count=sum(1 for c in cows if c.gender == "male"),
+        female_count=sum(1 for c in cows if c.gender == "female"),
+        avg_age=round(sum(ages) / len(ages), 1) if ages else 0,
     )
+
+
+@bp.route("/export.xlsx")
+@login_required
+def export_cows_excel():
+    """HERD-6: the filtered herd list as Excel (same args as the page)."""
+    from app.services.herd_list import (
+        EXPORT_HEADERS, build_herd_rows, export_row, read_filters,
+    )
+    from app.utils.reports import excel_response
+    rows = build_herd_rows(
+        read_filters(request.args),
+        request.args.get("sort") or "tag",
+        "desc" if request.args.get("dir") == "desc" else "asc",
+    )
+    return excel_response(
+        "القطيع", EXPORT_HEADERS, [export_row(r) for r in rows],
+        f"herd_{date.today().isoformat()}.xlsx",
+    )
+
+
+@bp.route("/export.pdf")
+@login_required
+def export_cows_pdf():
+    """HERD-6: the filtered herd list as PDF — renders the list page in
+    print mode through the shared Chromium pipeline."""
+    from urllib.parse import urlencode
+    from app.utils.reports import pdf_from_current_page
+    pairs = [(k, v) for k, v in request.args.items(multi=True) if k != "print"]
+    pairs.append(("print", "1"))
+    target = url_for("herd.list_cows", _external=True) + "?" + urlencode(pairs)
+    return pdf_from_current_page(target, f"herd_{date.today().isoformat()}.pdf")
 
 
 # ---------- Cow detail ----------

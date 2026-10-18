@@ -88,6 +88,9 @@ class Setting(db.Model):
     # fat_adj = 0 so no existing price moves until the client sets his rate.
     KEY_QUALITY_FAT_REF = "quality_fat_ref"                 # fat % the bonus starts above
     KEY_QUALITY_FAT_ADJ = "quality_fat_adj"                 # + EGP per +1% fat above the ref
+    # HERD-6: days from insemination to expected calving (herd list +
+    # alerts). Default 280.
+    KEY_GESTATION_DAYS = "gestation_days"
 
     key = db.Column(db.String(80), primary_key=True)
     value = db.Column(db.String(255), nullable=False)

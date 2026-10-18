@@ -1,13 +1,56 @@
 {% extends "base.html" %}
 {% block title %}القطيع{% endblock %}
 {% block content %}
+{# HERD-6: parlor-report columns, combined filters (group / status /
+   season — each multi-pick), sortable headers, Excel + PDF export of
+   exactly what's shown. #}
+
+{% set base_args = dict(q=filters.q, life=filters.life, group=filters.group,
+                        status=filters.status, season=filters.season) %}
+{% macro sort_link(key, label) -%}
+  {%- set next_dir = 'desc' if (sort == key and direction == 'asc') else 'asc' -%}
+  <a href="{{ url_for('herd.list_cows', sort=key, dir=next_dir, **base_args) }}"
+     class="text-decoration-none text-reset">
+    {{ label }}{% if sort == key %} <i class="bi bi-caret-{{ 'up' if direction == 'asc' else 'down' }}-fill small"></i>{% endif %}
+  </a>
+{%- endmacro %}
+{% macro multi_pick(name, label, options, picked) -%}
+  <div class="dropdown">
+    <label class="form-label small mb-1 d-block">{{ label }}</label>
+    <button class="form-select form-select-sm text-start" type="button"
+            data-bs-toggle="dropdown" data-bs-auto-close="outside">
+      {% if picked %}{{ picked|length }} مختار{% else %}الكل{% endif %}
+    </button>
+    <div class="dropdown-menu p-2" style="max-height: 280px; overflow-y: auto; min-width: 200px;">
+      {% for value, text in options %}
+      <label class="dropdown-item d-flex align-items-center gap-2 py-1">
+        <input type="checkbox" class="form-check-input m-0" name="{{ name }}" value="{{ value }}"
+               {% if value in picked %}checked{% endif %}>
+        <span>{{ text }}</span>
+      </label>
+      {% else %}
+      <div class="text-muted small px-2">مفيش</div>
+      {% endfor %}
+    </div>
+  </div>
+{%- endmacro %}
 
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
   <div>
     <h1><i class="bi bi-heart-pulse"></i> القطيع</h1>
-    <p class="text-muted mb-0">كل رأس بيانها الشخصية والصحية.</p>
+    <p class="text-muted mb-0">
+      {% if print_mode %}
+        تقرير القطيع — <span dir="ltr">{{ today_iso }}</span> · {{ total_count }} رأس
+      {% else %}
+        كل رأس بيانها الشخصية والإنجابية.
+      {% endif %}
+    </p>
   </div>
-  <div class="d-flex gap-2 flex-wrap">
+  <div class="d-flex gap-2 flex-wrap no-print">
+    <a href="{{ url_for('herd.export_cows_excel', sort=sort, dir=direction, **base_args) }}"
+       class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    <a href="{{ url_for('herd.export_cows_pdf', sort=sort, dir=direction, **base_args) }}"
+       class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
     <a href="{{ url_for('herd.groups') }}" class="btn btn-outline-secondary">
       <i class="bi bi-diagram-3"></i> المجموعات
     </a>
@@ -15,8 +58,6 @@
     <a href="{{ url_for('herd.create_birth') }}" class="btn btn-outline-primary">
       <i class="bi bi-egg"></i> تسجيل ولادة
     </a>
-    {% endif %}
-    {% if can_write %}
     <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary">
       <i class="bi bi-plus-lg"></i> إضافة بقرة
     </a>
@@ -26,7 +67,7 @@
 
 <div class="row g-3 mb-3">
   <div class="col-md-3 col-6"><div class="card stat-card">
-    <div class="stat-label">إجمالي القطيع</div>
+    <div class="stat-label">عدد الرؤوس</div>
     <div class="stat-value" dir="ltr">{{ "{:,}".format(total_count) }}</div>
   </div></div>
   <div class="col-md-3 col-6"><div class="card stat-card">
@@ -43,76 +84,91 @@
   </div></div>
 </div>
 
-<form method="get" class="filter-row row g-2 align-items-end">
-  <div class="col-md-4">
-    {{ form.q.label(class="form-label small mb-1") }}
-    {{ form.q(class="form-control form-control-sm", placeholder="رقم الأذن") }}
+<form method="get" class="filter-row row g-2 align-items-end no-print">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <input type="hidden" name="dir" value="{{ direction }}">
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-1">رقم الأذن</label>
+    <input type="search" name="q" value="{{ filters.q }}" placeholder="رقم الأذن"
+           class="form-control form-control-sm" dir="ltr">
   </div>
-  <div class="col-md-3">
-    {{ form.group_id.label(class="form-label small mb-1") }}
-    {{ form.group_id(class="form-select form-select-sm") }}
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-1">الوضع</label>
+    <select name="life" class="form-select form-select-sm">
+      {% for value, text in life_choices %}
+        <option value="{{ value }}" {% if filters.life == value %}selected{% endif %}>{{ text }}</option>
+      {% endfor %}
+    </select>
   </div>
-  <div class="col-md-3">
-    {{ form.status.label(class="form-label small mb-1") }}
-    {{ form.status(class="form-select form-select-sm") }}
-  </div>
-  <div class="col-md-2 d-grid">
-    {{ form.submit(class="btn btn-primary btn-sm") }}
+  <div class="col-md-2 col-6">{{ multi_pick('group', 'المجموعة', group_options, filters.group) }}</div>
+  <div class="col-md-2 col-6">{{ multi_pick('status', 'الحالة', status_options, filters.status) }}</div>
+  <div class="col-md-2 col-6">{{ multi_pick('season', 'الموسم', season_options, filters.season) }}</div>
+  <div class="col-md-2 col-6 d-flex gap-2">
+    <button class="btn btn-primary btn-sm flex-grow-1"><i class="bi bi-funnel"></i> فلتر</button>
+    <a href="{{ url_for('herd.list_cows') }}" class="btn btn-outline-secondary btn-sm">مسح</a>
   </div>
 </form>
 
 <div class="card">
-  {% if cows %}
+  {% if rows %}
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
-          <th>رقم الأذن</th>
-          <th class="text-center">الجنس</th>
-          <th>المجموعة</th>
-          <th class="text-center">العمر (شهر)</th>
-          <th class="text-center">الحالة</th>
-          <th class="text-center">الوضع</th>
-          <th class="text-end">إجراءات</th>
+          <th>{{ sort_link('tag', 'رقم الأذن') }}</th>
+          <th class="text-center no-print">الجنس</th>
+          <th>{{ sort_link('group', 'المجموعة') }}</th>
+          <th class="text-center">{{ sort_link('age', 'العمر (سنة)') }}</th>
+          <th class="text-center">{{ sort_link('status', 'الحالة') }}</th>
+          <th class="text-center">{{ sort_link('season', 'الموسم') }}</th>
+          <th class="text-center">{{ sort_link('last_calving', 'آخر ولادة') }}</th>
+          <th class="text-center">{{ sort_link('dim', 'أيام الحليب') }}</th>
+          <th class="text-center">{{ sort_link('last_insem', 'آخر تلقيح') }}</th>
+          <th class="text-center">{{ sort_link('days_preg', 'أيام العشار') }}</th>
+          <th class="text-center">{{ sort_link('expected', 'الولادة المتوقعة') }}</th>
+          {% if filters.life != 'active' %}<th class="text-center">الوضع</th>{% endif %}
+          <th class="text-end no-print">إجراءات</th>
         </tr>
       </thead>
       <tbody>
-        {% for cow in cows %}
+        {% for r in rows %}
+        {% set cow = r.cow %}
         <tr>
           <td>
             <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"
-               class="fw-bold font-monospace text-decoration-none text-body">{{ cow.ear_tag }}</a>
+               class="fw-bold font-monospace text-decoration-none text-body" dir="ltr">{{ r.tag }}</a>
           </td>
-          <td class="text-center">
+          <td class="text-center no-print">
             {% if cow.gender == 'female' %}
-              <span class="chip" style="background: #f5e6ff; color: #a855f7;">♀ أنثى</span>
+              <span class="chip" style="background: #f5e6ff; color: #a855f7;">♀</span>
             {% else %}
-              <span class="chip" style="background: #dbeafe; color: #2563eb;">♂ ذكر</span>
+              <span class="chip" style="background: #dbeafe; color: #2563eb;">♂</span>
             {% endif %}
           </td>
-          <td class="small">{{ cow.group.name }}</td>
-          <td class="text-center" dir="ltr">{{ cow.age_months if cow.age_months is not none else "—" }}</td>
-          {# HERD-4: breeding status; the lifecycle column is now "الوضع". #}
+          <td class="small">{{ r.group }}</td>
+          <td class="text-center" dir="ltr">{{ r.age if r.age is not none else "—" }}</td>
           <td class="text-center">
-            {% if cow.breeding_status %}<span class="chip chip-cash">{{ cow.breeding_status_label }}</span>{% else %}—{% endif %}
+            {% if r.status %}<span class="chip chip-cash">{{ r.status }}</span>{% else %}—{% endif %}
           </td>
+          <td class="text-center" dir="ltr">{{ r.season }}</td>
+          <td class="text-center small" dir="ltr">{{ r.last_calving or "—" }}</td>
+          <td class="text-center" dir="ltr">{{ r.dim if r.dim is not none else "—" }}</td>
+          <td class="text-center small" dir="ltr">{{ r.last_insem or "—" }}</td>
+          <td class="text-center" dir="ltr">{{ r.days_preg if r.days_preg is not none else "—" }}</td>
+          <td class="text-center small" dir="ltr">{{ r.expected or "—" }}</td>
+          {% if filters.life != 'active' %}
           <td class="text-center">
-            {% if cow.status == "active" %}
-              <span class="chip chip-paid"><i class="bi bi-check-circle"></i> نشطة</span>
-            {% elif cow.status == "sold" %}
-              <span class="chip chip-cash"><i class="bi bi-cash-coin"></i> مباعة</span>
-            {% else %}
-              <span class="chip chip-unpaid"><i class="bi bi-x-circle"></i> نافقة</span>
-            {% endif %}
+            {% if cow.status == "active" %}<span class="chip chip-paid">نشطة</span>
+            {% elif cow.status == "sold" %}<span class="chip chip-cash">مباعة</span>
+            {% else %}<span class="chip chip-unpaid">نافقة</span>{% endif %}
           </td>
-          <td class="text-end">
+          {% endif %}
+          <td class="text-end no-print" style="white-space:nowrap;">
             <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"
                class="btn btn-sm btn-outline-primary" title="فتح"><i class="bi bi-eye"></i></a>
-            {% if cow.status == "active" %}
-            {% if can_write %}
-            <a href="{{ url_for('herd.move_cow', cow_id=cow.id) }}"
-               class="btn btn-sm btn-outline-secondary" title="نقل"><i class="bi bi-arrow-left-right"></i></a>
-            {% endif %}
+            {% if cow.status == "active" and can_write %}
+            <a href="{{ url_for('herd.create_breeding_event', cow_id=cow.id) }}"
+               class="btn btn-sm btn-outline-info" title="تسجيل إجراء"><i class="bi bi-clipboard-plus"></i></a>
             {% endif %}
           </td>
         </tr>
@@ -123,9 +179,9 @@
   {% else %}
   <div class="text-center py-5 text-muted">
     <i class="bi bi-inbox display-4"></i>
-    <p class="mt-3">مفيش نتائج مطابقة — جرّب تشيل الفلاتر أو ابحث بكلمة تانية.</p>
+    <p class="mt-3">مفيش نتائج مطابقة — جرّب تشيل الفلاتر أو ابحث برقم تاني.</p>
     {% if can_write %}
-    <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary">
+    <a href="{{ url_for('herd.create_cow') }}" class="btn btn-primary no-print">
       <i class="bi bi-plus-lg"></i> إضافة بقرة
     </a>
     {% endif %}

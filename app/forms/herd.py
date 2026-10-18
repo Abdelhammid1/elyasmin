@@ -151,25 +151,6 @@ class DeathForm(FlaskForm):
 # on_sales_invoice for each cow line.
 
 
-class CowSearchForm(FlaskForm):
-    q = StringField("بحث برقم الأذن", validators=[Optional()])
-    group_id = SelectField("المجموعة", coerce=int, validators=[Optional()])
-    status = SelectField(
-        "الوضع",  # lifecycle; "الحالة" is now the breeding status (HERD-4)
-        choices=[
-            ("active", "نشط"),
-            ("sold", "مباع"),
-            ("dead", "نافق"),
-            ("all", "الكل"),
-        ],
-        default="active",
-    )
-    submit = SubmitField("بحث")
-
-    class Meta:
-        csrf = False
-
-
 # ==================== HERD-2 Part 1 (PHASE 35): breeding form ====================
 
 from app.models.herd import BreedingEvent
