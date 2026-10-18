@@ -238,6 +238,10 @@
           <a class="sidebar-item {% if request.endpoint and 'event_type' in request.endpoint %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.event_types_list') }}">
             <i class="bi bi-clipboard-check"></i> أنواع الإجراءات</a>
+          {# HERD-7: pregnancy check / drying / waiting alerts. #}
+          <a class="sidebar-item {% if request.endpoint and 'alert' in request.endpoint and request.endpoint.startswith('herd.') %}active{% endif %}"
+             data-section="herd" href="{{ url_for('herd.herd_alerts') }}">
+            <i class="bi bi-bell"></i> تنبيهات القطيع</a>
         </div>
       </details>
 

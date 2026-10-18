@@ -828,6 +828,9 @@ def create_breeding_event(cow_id: int):
 
     form = BreedingEventForm()
     form.event_type.choices = [(t.code, t.name) for t in types]
+    # HERD-7: alert buttons open the form with the type picked.
+    if request.method == "GET" and request.args.get("type") in by_code:
+        form.event_type.data = request.args.get("type")
     form.new_group_id.choices = _group_select_choices()
     form.new_status.choices = _status_choices()
 
@@ -1436,3 +1439,95 @@ def toggle_event_type(type_id: int):
     db.session.commit()
     flash(f"تم {'تفعيل' if etype.is_active else 'تعطيل'} \"{etype.name}\".", "info")
     return redirect(url_for("herd.event_types_list"))
+
+
+# ==================== HERD-7: herd alerts ====================
+
+@bp.route("/alerts")
+@login_required
+def herd_alerts():
+    """Cows that need a pregnancy check, drying, or a move to waiting.
+    `?rule=check|dry|waiting` shows one list (used by the dashboard
+    tiles and the per-list PDF)."""
+    from app.services.herd_alerts import RULES, build_alerts, thresholds
+    rule = request.args.get("rule")
+    if rule not in RULES:
+        rule = None
+    alerts = build_alerts()
+    return render_template(
+        "herd/alerts.html",
+        alerts=alerts, rules=RULES, thresholds=thresholds(),
+        only=rule, print_mode=bool(request.args.get("print")),
+        today_iso=date.today().isoformat(),
+    )
+
+
+@bp.route("/alerts.xlsx")
+@login_required
+def herd_alerts_excel():
+    from app.services.herd_alerts import RULES, build_alerts
+    from app.utils.reports import excel_response
+    rule = request.args.get("rule")
+    if rule not in RULES:
+        abort(404)
+    meta = RULES[rule]
+    rows = [
+        [r["tag"], r["group"], r["status"],
+         r["last_insem"].isoformat() if r["last_insem"] else "",
+         r["days"], r["expected"].isoformat() if r["expected"] else ""]
+        for r in build_alerts()[rule]
+    ]
+    return excel_response(
+        meta["title"],
+        ["رقم الأذن", "المجموعة", "الحالة", "آخر تلقيح", meta["days_label"],
+         "الولادة المتوقعة"],
+        rows, f"herd_alert_{rule}_{date.today().isoformat()}.xlsx",
+    )
+
+
+@bp.route("/alerts.pdf")
+@login_required
+def herd_alerts_pdf():
+    from app.services.herd_alerts import RULES
+    from app.utils.reports import pdf_from_current_page
+    rule = request.args.get("rule")
+    args = {"print": 1}
+    if rule in RULES:
+        args["rule"] = rule
+    target = url_for("herd.herd_alerts", _external=True, **args)
+    return pdf_from_current_page(
+        target, f"herd_alerts_{rule or 'all'}_{date.today().isoformat()}.pdf",
+    )
+
+
+@bp.route("/alert-settings", methods=["GET", "POST"])
+@login_required
+@write_required
+def herd_alert_settings():
+    """Day thresholds for the alerts + gestation length (used by the
+    herd list's expected calving date too)."""
+    from app.models.finance import Setting
+    from app.services.herd_alerts import DEFAULTS, setting_int
+    fields = [
+        (Setting.KEY_HERD_ALERT_CHECK_DAYS, "الجس بعد التلقيح بـ (يوم)"),
+        (Setting.KEY_HERD_ALERT_DRY_DAYS, "التجفيف بعد التلقيح بـ (يوم)"),
+        (Setting.KEY_HERD_ALERT_WAITING_DAYS, "النقل للانتظار قبل الولادة بـ (يوم)"),
+        (Setting.KEY_GESTATION_DAYS, "مدة الحمل (يوم)"),
+    ]
+    if request.method == "POST":
+        values = {}
+        for key, label in fields:
+            raw = (request.form.get(key) or "").strip()
+            if not raw.isdigit() or not (1 <= int(raw) <= 400):
+                flash(f"{label}: لازم رقم من 1 لـ 400.", "error")
+                return redirect(url_for("herd.herd_alert_settings"))
+            values[key] = raw
+        for key, raw in values.items():
+            Setting.set(key, raw)
+        log_action("herd_alert_settings_saved", "Setting", 0,
+                   details=" ".join(f"{k}={v}" for k, v in values.items()))
+        db.session.commit()
+        flash("تم حفظ إعدادات التنبيهات.", "success")
+        return redirect(url_for("herd.herd_alerts"))
+    current = [(key, label, setting_int(key), DEFAULTS[key]) for key, label in fields]
+    return render_template("herd/alert_settings.html", fields=current)

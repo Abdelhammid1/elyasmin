@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}إعدادات تنبيهات القطيع{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-gear"></i> إعدادات تنبيهات القطيع</h1>
+    <p class="text-muted mb-0">الأيام اللي التنبيهات بتتحسب بيها. مدة الحمل بتتستخدم كمان في تاريخ الولادة المتوقعة في شاشة القطيع.</p>
+  </div>
+  <a href="{{ url_for('herd.herd_alerts') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للتنبيهات
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for key, label, value, default in fields %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ key }}">{{ label }}</label>
+          <input type="number" min="1" max="400" class="form-control" dir="ltr"
+                 id="{{ key }}" name="{{ key }}" value="{{ value }}" required>
+          <div class="form-text">الافتراضي: {{ default }}</div>
+        </div>
+        {% endfor %}
+        <div class="d-flex gap-2 mt-4">
+          <button class="btn btn-primary"><i class="bi bi-check-lg"></i> حفظ</button>
+          <a href="{{ url_for('herd.herd_alerts') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

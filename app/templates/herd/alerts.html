@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}تنبيهات القطيع{% endblock %}
+{% block content %}
+{# HERD-7: cows that need a pregnancy check, drying, or a move to
+   waiting. Each row opens the event form with the right type picked;
+   recording it changes the status and the cow drops off the list. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-bell"></i> تنبيهات القطيع</h1>
+    <p class="text-muted mb-0">
+      {% if print_mode %}<span dir="ltr">{{ today_iso }}</span>{% else %}
+      الأبقار اللي محتاجة إجراء — سجّل الإجراء والبقرة هتخرج من القائمة لوحدها.
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap no-print">
+    {% if only %}
+    <a href="{{ url_for('herd.herd_alerts') }}" class="btn btn-outline-secondary">كل التنبيهات</a>
+    {% endif %}
+    {% if can_write %}
+    <a href="{{ url_for('herd.herd_alert_settings') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-gear"></i> إعدادات التنبيهات
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3 no-print">
+  {% for key, meta in rules.items() %}
+  <div class="col-md-4">
+    <a href="{{ url_for('herd.herd_alerts', rule=key) }}" class="text-decoration-none">
+      <div class="card stat-card {% if alerts[key] %}tone-warning{% endif %}">
+        <div class="stat-label">{{ meta.title }}</div>
+        <div class="stat-value" dir="ltr">{{ alerts[key]|length }}</div>
+        <small class="text-muted">{{ meta.hint.format(n=thresholds[key]) }}</small>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+{% for key, meta in rules.items() if not only or only == key %}
+<div class="card mb-3" id="{{ key }}">
+  <div class="d-flex justify-content-between align-items-center p-3 pb-2 flex-wrap gap-2">
+    <h5 class="mb-0">
+      {{ meta.title }}
+      <span class="chip {% if alerts[key] %}chip-overdue{% else %}chip-paid{% endif %}">{{ alerts[key]|length }}</span>
+    </h5>
+    <div class="d-flex gap-2 no-print">
+      <a href="{{ url_for('herd.herd_alerts_excel', rule=key) }}"
+         class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+      <a href="{{ url_for('herd.herd_alerts_pdf', rule=key) }}"
+         class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+    </div>
+  </div>
+  <div class="text-muted small px-3 pb-2">{{ meta.hint.format(n=thresholds[key]) }}</div>
+  {% if alerts[key] %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>رقم الأذن</th>
+          <th>المجموعة</th>
+          <th class="text-center">الحالة</th>
+          <th class="text-center">آخر تلقيح</th>
+          <th class="text-center">{{ meta.days_label }}</th>
+          <th class="text-center">الولادة المتوقعة</th>
+          {% if can_write %}<th class="text-end no-print"></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in alerts[key] %}
+        <tr>
+          <td>
+            <a href="{{ url_for('herd.cow_detail', cow_id=r.cow.id) }}"
+               class="fw-bold font-monospace text-decoration-none text-body" dir="ltr">{{ r.tag }}</a>
+          </td>
+          <td class="small">{{ r.group }}</td>
+          <td class="text-center"><span class="chip chip-cash">{{ r.status }}</span></td>
+          <td class="text-center small" dir="ltr">{{ r.last_insem or "—" }}</td>
+          <td class="text-center fw-bold" dir="ltr">{{ r.days }}</td>
+          <td class="text-center small" dir="ltr">{{ r.expected or "—" }}</td>
+          {% if can_write %}
+          <td class="text-end no-print">
+            <a href="{{ url_for('herd.create_breeding_event', cow_id=r.cow.id, type=meta.event_type) }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-clipboard-plus"></i> {{ meta.action }}
+            </a>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted px-3 pb-3 mb-0">مفيش أبقار محتاجة الإجراء ده دلوقتي.</p>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

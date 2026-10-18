@@ -91,6 +91,10 @@ class Setting(db.Model):
     # HERD-6: days from insemination to expected calving (herd list +
     # alerts). Default 280.
     KEY_GESTATION_DAYS = "gestation_days"
+    # HERD-7: alert thresholds (days). Defaults 40 / 210 / 20.
+    KEY_HERD_ALERT_CHECK_DAYS = "herd_alert_check_days"      # insemination → pregnancy check
+    KEY_HERD_ALERT_DRY_DAYS = "herd_alert_dry_days"          # pregnant → drying
+    KEY_HERD_ALERT_WAITING_DAYS = "herd_alert_waiting_days"  # before calving → waiting
 
     key = db.Column(db.String(80), primary_key=True)
     value = db.Column(db.String(255), nullable=False)

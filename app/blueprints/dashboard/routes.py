@@ -435,6 +435,10 @@ def index():
     overdue_customers_total = sum((r["amount"] for r in overdue_customers), Decimal("0"))
     overdue_suppliers_total = sum((r["amount"] for r in overdue_suppliers), Decimal("0"))
 
+    # ---------------- HERD-7: herd alerts ----------------
+    from app.services.herd_alerts import alert_counts
+    herd_alerts = alert_counts()
+
     # ---------------- trend + breakdown ----------------
     trend_6m = _trend_6m(today)
     expense_breakdown = _expense_breakdown(d_from, d_to)
@@ -459,6 +463,7 @@ def index():
         tank_count=tank_count,
         avg_feed_cost=avg_feed_cost,
         active_workers_count=active_workers_count,
+        herd_alerts=herd_alerts,
         # attention
         overdue_customers=overdue_customers,
         overdue_suppliers=overdue_suppliers,

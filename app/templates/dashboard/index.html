@@ -166,6 +166,27 @@
         <span class="font-label-sm text-label-sm text-tertiary font-semibold">منها {{ milking_group_count }} في الحليب</span>
       </a>
 
+      {# HERD-7: herd alerts — one tile per rule, red when there's work to do. #}
+      {% for key, label, icon, ok_text in [
+           ('check', 'محتاجة جس', 'bi-search-heart', 'مفيش ملقحة متأخرة'),
+           ('dry', 'محتاجة تجفيف', 'bi-moisture', 'مفيش عشار محتاجة تجفيف'),
+           ('waiting', 'محتاجة انتظار', 'bi-hourglass-split', 'مفيش ولادة قريبة')] %}
+      <a href="{{ url_for('herd.herd_alerts', rule=key) }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+          <i class="bi {{ icon }} text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold {% if herd_alerts[key] %}text-error{% else %}text-on-surface{% endif %}">{{ herd_alerts[key] }}</span>
+        </div>
+        {% if herd_alerts[key] %}
+        <span class="font-label-sm text-label-sm text-error font-semibold">⚠ افتح القائمة</span>
+        {% else %}
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">{{ ok_text }}</span>
+        {% endif %}
+      </a>
+      {% endfor %}
+
       <a href="{{ url_for('milk.list_deliveries') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
         <div class="flex items-center justify-between">
           <span class="font-label-md text-label-md text-on-surface-variant">لبن أمس</span>
