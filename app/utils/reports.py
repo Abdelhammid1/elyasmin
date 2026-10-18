@@ -5,9 +5,23 @@
   file so the user doesn't need to use browser print → save-as-PDF.
 """
 from io import BytesIO
+from urllib.parse import urlsplit
 
-from flask import Response, request
+from flask import Response, current_app, request
 from openpyxl import Workbook
+
+# Text starting with one of these is run as a formula by Excel /
+# LibreOffice (e.g. an ear tag typed as "=HYPERLINK(...)").
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe_cell(value):
+    """Neutralise spreadsheet formula injection: text that would be read
+    as a formula gets a leading apostrophe so it stays plain text.
+    Numbers, dates and None pass through unchanged."""
+    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+        return "'" + value
+    return value
 
 
 def excel_response(sheet_name: str, headers: list[str], rows: list[list], filename: str) -> Response:
@@ -15,9 +29,9 @@ def excel_response(sheet_name: str, headers: list[str], rows: list[list], filena
     ws = wb.active
     ws.title = sheet_name[:30]
     ws.sheet_view.rightToLeft = True
-    ws.append(headers)
+    ws.append([_safe_cell(h) for h in headers])
     for r in rows:
-        ws.append(r)
+        ws.append([_safe_cell(v) for v in r])
     # Basic column width
     for i, _ in enumerate(headers, start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = 20
@@ -32,13 +46,30 @@ def excel_response(sheet_name: str, headers: list[str], rows: list[list], filena
     )
 
 
+def local_render_url(target_url: str) -> tuple[str, str]:
+    """(url, cookie_domain): `target_url`'s path + query on the fixed
+    PDF_RENDER_BASE_URL. Scheme and host of `target_url` are dropped."""
+    parts = urlsplit(target_url)
+    base = current_app.config.get("PDF_RENDER_BASE_URL", "http://127.0.0.1:5001").rstrip("/")
+    url = base + (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
+    return url, urlsplit(base).hostname or "127.0.0.1"
+
+
 def pdf_from_current_page(target_url: str, filename: str) -> Response:
     """Render an authenticated in-app page to PDF via headless Chromium.
 
     The route calling this must pass a signed URL back to itself; the PDF
     renderer needs to authenticate via the same session cookie.
+
+    Only the path + query of `target_url` are used. Callers build it with
+    `url_for(..., _external=True)`, whose host comes from the request's
+    Host header — a spoofed Host would otherwise make Chromium fetch an
+    arbitrary URL (SSRF) and hand the result back as a PDF. The page is
+    always loaded from the fixed PDF_RENDER_BASE_URL instead.
     """
     from playwright.sync_api import sync_playwright
+
+    target_url, cookie_domain = local_render_url(target_url)
 
     # Copy the caller's session cookie so Playwright can log in
     session_cookie = request.cookies.get("session")
@@ -52,10 +83,10 @@ def pdf_from_current_page(target_url: str, filename: str) -> Response:
         cookies = []
         if session_cookie:
             cookies.append({"name": "session", "value": session_cookie,
-                            "domain": "127.0.0.1", "path": "/"})
+                            "domain": cookie_domain, "path": "/"})
         if remember_cookie:
             cookies.append({"name": "remember_token", "value": remember_cookie,
-                            "domain": "127.0.0.1", "path": "/"})
+                            "domain": cookie_domain, "path": "/"})
         if cookies:
             ctx.add_cookies(cookies)
 

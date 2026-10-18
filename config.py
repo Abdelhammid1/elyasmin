@@ -29,6 +29,12 @@ class Config:
     LANGUAGE = "ar"
     TIMEZONE = "Africa/Cairo"
 
+    # Where headless Chromium loads in-app pages for PDF export. Fixed,
+    # never taken from the request's Host header (that would let a
+    # spoofed Host make the server fetch any URL). Must match how the
+    # app is reachable locally; the session cookie is sent to this host.
+    PDF_RENDER_BASE_URL = os.getenv("PDF_RENDER_BASE_URL", "http://127.0.0.1:5001")
+
     # ---------- In-app AI assistant (DeepSeek) ----------
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
     # NOTE: "deepseek-chat" was deprecated on 2026-07-24 and is gone from the
