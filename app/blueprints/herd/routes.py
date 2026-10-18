@@ -26,6 +26,9 @@ from app.models.herd import (
     Death,
     CowValuation,
     EventStatusSuggestion,
+    BreedingStatus,
+    breeding_status_choices,
+    breeding_status_label,
 )
 from app.utils.audit import log_action
 from app.utils.decorators import write_required
@@ -728,9 +731,7 @@ def _suggestion_choices(event_type: str, event_result: str | None):
     choices = []
     default = None
     for r in rows:
-        label = Cow.BREEDING_STATUS_LABELS.get(
-            r.suggested_status, r.suggested_status
-        )
+        label = breeding_status_label(r.suggested_status)
         choices.append((r.suggested_status, label))
         if r.is_default and default is None:
             default = r.suggested_status
@@ -815,7 +816,7 @@ def confirm_breeding_status(cow_id: int, event_id: int):
             flash("تم حفظ الإجراء بدون تغيير حالة إنجابية.", "info")
             return redirect(url_for("herd.cow_detail", cow_id=cow.id))
 
-        valid_statuses = set(Cow.BREEDING_STATUS_LABELS.keys())
+        valid_statuses = {code for code, _ in breeding_status_choices()}
         if picked not in valid_statuses:
             flash("الحالة المختارة غير صالحة.", "error")
             return render_template(
@@ -840,7 +841,7 @@ def confirm_breeding_status(cow_id: int, event_id: int):
         db.session.commit()
         flash(
             f"تم تحديث الحالة الإنجابية إلى "
-            f"{Cow.BREEDING_STATUS_LABELS[picked]}.",
+            f"{breeding_status_label(picked)}.",
             "success",
         )
         return redirect(url_for("herd.cow_detail", cow_id=cow.id))
@@ -892,7 +893,7 @@ def retro_breeding_status(cow_id: int):
         picked = (request.form.get("new_status") or "").strip()
         reason = (request.form.get("reason") or "").strip() or None
 
-        valid_statuses = set(Cow.BREEDING_STATUS_LABELS.keys())
+        valid_statuses = {code for code, _ in breeding_status_choices()}
         # Allow clearing to NULL via a sentinel
         if picked in ("", "__clear__"):
             new_val = None
@@ -929,7 +930,7 @@ def retro_breeding_status(cow_id: int):
 
     all_status_choices = [
         ("__clear__", "— بدون حالة —"),
-    ] + list(Cow.BREEDING_STATUS_LABELS.items())
+    ] + breeding_status_choices()
     return render_template(
         "herd/breeding_retro_edit.html",
         cow=cow, all_status_choices=all_status_choices,
@@ -1151,3 +1152,114 @@ def valuation_report():
         "herd/valuation_report.html",
         rows=rows, total=total, target=target, is_today=is_today,
     )
+
+
+# ==================== HERD-3: status list admin ====================
+
+@bp.route("/statuses")
+@login_required
+def statuses_list():
+    """The client's status list (STATUS.txt + milking), with how many
+    active cows carry each one."""
+    statuses = BreedingStatus.query.order_by(
+        BreedingStatus.sort_order, BreedingStatus.id,
+    ).all()
+    rows = [{"s": s, "count": s.cow_count} for s in statuses]
+    return render_template("herd/statuses.html", rows=rows)
+
+
+def _status_name_taken(name: str, exclude_id: int | None = None) -> bool:
+    from sqlalchemy import func as _func
+    q = BreedingStatus.query.filter(
+        _func.lower(BreedingStatus.name) == name.casefold()
+    )
+    if exclude_id is not None:
+        q = q.filter(BreedingStatus.id != exclude_id)
+    return q.first() is not None
+
+
+@bp.route("/statuses/new", methods=["GET", "POST"])
+@login_required
+@write_required
+def create_status():
+    if request.method == "POST":
+        name = " ".join((request.form.get("name") or "").split())
+        if not name:
+            flash("اسم الحالة مطلوب.", "error")
+        elif len(name) > 60:
+            flash("الاسم طويل — حد أقصى 60 حرف.", "error")
+        elif _status_name_taken(name):
+            flash(f"الحالة \"{name}\" موجودة فعلاً.", "error")
+        else:
+            last = db.session.query(db.func.max(BreedingStatus.sort_order)).scalar() or 0
+            s = BreedingStatus(name=name, code="pending", sort_order=last + 1,
+                               is_active=True)
+            db.session.add(s)
+            db.session.flush()
+            # Code is generated, never typed: cows store it, so it must
+            # stay stable even if the name is renamed later.
+            s.code = f"custom_{s.id}"
+            log_action("breeding_status_created", "BreedingStatus", s.id,
+                       details=f"name={name}")
+            db.session.commit()
+            flash(f"تم إضافة الحالة \"{name}\".", "success")
+            return redirect(url_for("herd.statuses_list"))
+        return render_template("herd/status_form.html", mode="new",
+                               status=None, name_val=name)
+    return render_template("herd/status_form.html", mode="new",
+                           status=None, name_val="")
+
+
+@bp.route("/statuses/<int:status_id>/edit", methods=["GET", "POST"])
+@login_required
+@write_required
+def edit_status(status_id: int):
+    s = db.session.get(BreedingStatus, status_id)
+    if s is None:
+        abort(404)
+    if request.method == "POST":
+        name = " ".join((request.form.get("name") or "").split())
+        sort_raw = (request.form.get("sort_order") or "").strip()
+        if not name:
+            flash("اسم الحالة مطلوب.", "error")
+        elif len(name) > 60:
+            flash("الاسم طويل — حد أقصى 60 حرف.", "error")
+        elif _status_name_taken(name, exclude_id=s.id):
+            flash(f"الحالة \"{name}\" موجودة على صف تاني.", "error")
+        else:
+            old = s.name
+            s.name = name
+            if sort_raw.lstrip("-").isdigit():
+                s.sort_order = int(sort_raw)
+            log_action("breeding_status_renamed", "BreedingStatus", s.id,
+                       details=f"{old} → {name}")
+            db.session.commit()
+            flash(f"تم تعديل الحالة \"{name}\".", "success")
+            return redirect(url_for("herd.statuses_list"))
+        return render_template("herd/status_form.html", mode="edit",
+                               status=s, name_val=name)
+    return render_template("herd/status_form.html", mode="edit",
+                           status=s, name_val=s.name)
+
+
+@bp.route("/statuses/<int:status_id>/toggle", methods=["POST"])
+@login_required
+@write_required
+def toggle_status(status_id: int):
+    """Disable / re-enable. A disabled status drops out of every
+    picker but still labels history. Refused while active cows carry
+    it — they'd be stuck with a status nobody can pick."""
+    s = db.session.get(BreedingStatus, status_id)
+    if s is None:
+        abort(404)
+    if s.is_active:
+        n = s.cow_count
+        if n:
+            flash(f"مينفعش تعطّل \"{s.name}\" — فيه {n} بقرة عليها الحالة دي.", "error")
+            return redirect(url_for("herd.statuses_list"))
+    s.is_active = not s.is_active
+    log_action("breeding_status_toggled", "BreedingStatus", s.id,
+               details=f"active={s.is_active}")
+    db.session.commit()
+    flash(f"تم {'تفعيل' if s.is_active else 'تعطيل'} الحالة \"{s.name}\".", "info")
+    return redirect(url_for("herd.statuses_list"))

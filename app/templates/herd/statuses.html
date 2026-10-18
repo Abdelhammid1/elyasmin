@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}حالات القطيع{% endblock %}
+{% block content %}
+{# HERD-3: the client's status list. Code is fixed once created
+   (cows store it); name and order are editable. A status carried
+   by active cows can't be disabled. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-list-check"></i> حالات القطيع</h1>
+    <p class="text-muted mb-0">
+      الحالات اللي بتظهر لكل بقرة وفي شاشة الإجراءات. الحالة المعطّلة
+      بتختفي من الاختيارات، بس بتفضل ظاهرة في السجل القديم.
+    </p>
+  </div>
+  {% if can_write %}
+  <a href="{{ url_for('herd.create_status') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> إضافة حالة
+  </a>
+  {% endif %}
+</div>
+
+<div class="card mt-3">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="text-end">الترتيب</th>
+          <th>الحالة</th>
+          <th>الكود</th>
+          <th class="text-end">عدد الأبقار</th>
+          <th class="text-end">الوضع</th>
+          {% if can_write %}<th class="text-end">إجراءات</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td dir="ltr" class="num text-end">{{ r.s.sort_order }}</td>
+          <td class="fw-semibold">{{ r.s.name }}</td>
+          <td dir="ltr" class="text-muted small">{{ r.s.code }}</td>
+          <td dir="ltr" class="num text-end">{{ r.count }}</td>
+          <td class="text-end">
+            {% if r.s.is_active %}
+              <span class="chip chip-paid">نشطة</span>
+            {% else %}
+              <span class="chip chip-draft">معطّلة</span>
+            {% endif %}
+          </td>
+          {% if can_write %}
+          <td class="text-end" style="white-space:nowrap;">
+            <a href="{{ url_for('herd.edit_status', status_id=r.s.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="تعديل">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="{{ url_for('herd.toggle_status', status_id=r.s.id) }}"
+                  style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm {% if r.s.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                      title="{{ 'تعطيل' if r.s.is_active else 'تفعيل' }}">
+                <i class="bi bi-{{ 'toggle-on' if r.s.is_active else 'toggle-off' }}"></i>
+              </button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">مفيش حالات.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -90,11 +90,11 @@
           <tr>
             <td dir="ltr">{{ c.changed_at.strftime('%Y-%m-%d') }}</td>
             <td>
-              {% set fl = cow.BREEDING_STATUS_LABELS.get(c.from_status, c.from_status or "—") %}
+              {% set fl = breeding_status_label(c.from_status) %}
               <span class="chip chip-draft">{{ fl }}</span>
             </td>
             <td>
-              {% set tl = cow.BREEDING_STATUS_LABELS.get(c.to_status, c.to_status or "—") %}
+              {% set tl = breeding_status_label(c.to_status) %}
               <span class="chip chip-paid">{{ tl }}</span>
             </td>
             <td class="small text-muted">

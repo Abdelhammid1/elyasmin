@@ -74,7 +74,7 @@ def _cleanup(app):
 
 
 def test_recording_event_leaves_breeding_status_unchanged(admin_client, app):
-    cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEMINATED)
+    cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEM)
     try:
         r = admin_client.post(
             f"/herd/{cow_id}/breeding/new",
@@ -90,7 +90,7 @@ def test_recording_event_leaves_breeding_status_unchanged(admin_client, app):
         with app.app_context():
             c = db.session.get(Cow, cow_id)
             # Status did NOT auto-change
-            assert c.breeding_status == Cow.BS_INSEMINATED
+            assert c.breeding_status == Cow.BS_INSEM
             # But event WAS recorded
             events = BreedingEvent.query.filter_by(cow_id=cow_id).all()
             assert len(events) == 1
@@ -105,7 +105,7 @@ def test_recording_event_leaves_breeding_status_unchanged(admin_client, app):
 
 
 def test_confirming_suggestion_writes_status_change_and_updates(admin_client, app):
-    cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEMINATED)
+    cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEM)
     try:
         # Create the event first
         admin_client.post(
@@ -122,30 +122,30 @@ def test_confirming_suggestion_writes_status_change_and_updates(admin_client, ap
                 cow_id=cow_id
             ).first().id
 
-        # Confirm the suggested "pregnant" status
+        # Confirm the suggested "preg" (عشار) status
         r = admin_client.post(
             f"/herd/{cow_id}/breeding/{event_id}/confirm-status",
-            data={"new_status": "pregnant"},
+            data={"new_status": "preg"},
             follow_redirects=False,
         )
         assert r.status_code in (302, 303), r.status_code
 
         with app.app_context():
             c = db.session.get(Cow, cow_id)
-            assert c.breeding_status == Cow.BS_PREGNANT
+            assert c.breeding_status == Cow.BS_PREG
             changes = BreedingStatusChange.query.filter_by(
                 cow_id=cow_id
             ).all()
             assert len(changes) == 1
-            assert changes[0].from_status == Cow.BS_INSEMINATED
-            assert changes[0].to_status == Cow.BS_PREGNANT
+            assert changes[0].from_status == Cow.BS_INSEM
+            assert changes[0].to_status == Cow.BS_PREG
             assert changes[0].event_id == event_id
     finally:
         _cleanup(app)
 
 
 def test_retro_edit_writes_change_without_touching_events(admin_client, app):
-    cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEMINATED)
+    cow_id = _seed_cow(app, breeding_status=Cow.BS_INSEM)
     try:
         # Record a real event first (untouched by the retro edit)
         admin_client.post(
@@ -182,7 +182,7 @@ def test_retro_edit_writes_change_without_touching_events(admin_client, app):
                 cow_id=cow_id, event_id=None,
             ).all()
             assert len(retro) == 1
-            assert retro[0].from_status == Cow.BS_INSEMINATED
+            assert retro[0].from_status == Cow.BS_INSEM
             assert retro[0].to_status == Cow.BS_DRY
             assert "التصحيح" in (retro[0].reason or "")
     finally:

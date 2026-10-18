@@ -55,29 +55,24 @@ class Cow(db.Model):
     STATUS_SOLD = "sold"
     STATUS_DEAD = "dead"
 
-    # HERD-2 Part 1: reproductive-cycle statuses. Order chosen so the
-    # UI dropdown reads roughly cow-then-heifer.
-    BS_INSEMINATED   = "inseminated"    # ملقحة
-    BS_PREGNANT      = "pregnant"       # عشار
-    BS_DRY           = "dry"            # جفاف
-    BS_WAITING       = "waiting"        # انتظار
-    BS_NURSING       = "nursing"        # رضيع
-    BS_HEIFER_SMALL  = "heifer_small"   # عجلة صغيرة
-    BS_HEIFER_GROWN  = "heifer_grown"   # عجلة نامية
-    BS_HEIFER_INSEM  = "heifer_insem"   # عجلة ملقحة
-    BS_HEIFER_PREG   = "heifer_preg"    # عجلة عشار
-
-    BREEDING_STATUS_LABELS = {
-        BS_INSEMINATED:  "ملقحة",
-        BS_PREGNANT:     "عشار",
-        BS_DRY:          "جفاف",
-        BS_WAITING:      "انتظار",
-        BS_NURSING:      "رضيع",
-        BS_HEIFER_SMALL: "عجلة صغيرة",
-        BS_HEIFER_GROWN: "عجلة نامية",
-        BS_HEIFER_INSEM: "عجلة ملقحة",
-        BS_HEIFER_PREG:  "عجلة عشار",
-    }
+    # HERD-3: reproductive / lifecycle status codes from the client's
+    # list (STATUS.txt) + "milking" for a cow that has calved. The
+    # names live in the `breeding_statuses` table (editable from
+    # /herd/statuses); these constants are the seeded codes so
+    # routes and tests can reference them.
+    BS_CALF      = "calf"       # عجلة رضيعة
+    BS_B_CALF    = "b_calf"     # عجل رضيع
+    BS_WEANING   = "weaning"    # فطام
+    BS_HEIFER    = "heifer"     # عجلة نامية
+    BS_FATTENING = "fattening"  # تسمين
+    BS_INSEM     = "insem"      # ملقحة
+    BS_PREG      = "preg"       # عشار
+    BS_PREG2     = "preg2"      # عشار مؤكد
+    BS_DRY       = "dry"        # جفاف
+    BS_WAITING   = "waiting"    # انتظار
+    BS_MILKING   = "milking"    # حليب
+    BS_ABORT     = "abort"      # طراحة
+    BS_OPEN      = "open"       # فارغة
 
     id = db.Column(db.Integer, primary_key=True)
     ear_tag = db.Column(db.String(50), unique=True, nullable=False, index=True)
@@ -147,13 +142,11 @@ class Cow(db.Model):
 
     @property
     def breeding_status_label(self) -> str | None:
-        """HERD-2 Part 1: Arabic label for the reproductive status,
-        or None when unset (males, calves, unrecorded cows)."""
+        """Arabic name of the status (from `breeding_statuses`), or
+        None when unset."""
         if not self.breeding_status:
             return None
-        return self.BREEDING_STATUS_LABELS.get(
-            self.breeding_status, self.breeding_status
-        )
+        return breeding_status_label(self.breeding_status)
 
     @property
     def season_count(self) -> int:
@@ -423,6 +416,72 @@ class EventStatusSuggestion(db.Model):
             name="uq_esm_event_status",
         ),
     )
+
+
+# ==================== HERD-3: status list ====================
+
+class BreedingStatus(db.Model):
+    """HERD-3: the client's status list (STATUS.txt + "milking").
+
+    Linked to `Cow.breeding_status` by `code` string (no FK), the
+    same way IngredientCategory links by name — so the history
+    table and the suggestion table keep their plain string columns.
+    `code` never changes once created; `name` is editable.
+    """
+    __tablename__ = "breeding_statuses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(60), nullable=False)
+    sort_order = db.Column(
+        db.Integer, nullable=False, default=0, server_default="0",
+    )
+    is_active = db.Column(
+        db.Boolean, nullable=False, default=True, server_default="1",
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<BreedingStatus {self.code}>"
+
+    @property
+    def cow_count(self) -> int:
+        return Cow.query.filter_by(
+            breeding_status=self.code,
+            status=Cow.STATUS_ACTIVE,
+            is_archived=False,
+        ).count()
+
+
+def breeding_status_map() -> dict[str, str]:
+    """{code: name} for every status, inactive included (so old
+    history rows still get a label). Cached for the request — the
+    herd list renders hundreds of rows."""
+    from flask import g, has_app_context
+    if has_app_context() and "breeding_status_map" in g:
+        return g.breeding_status_map
+    mapping = {s.code: s.name for s in BreedingStatus.query.all()}
+    if has_app_context():
+        g.breeding_status_map = mapping
+    return mapping
+
+
+def breeding_status_choices() -> list[tuple[str, str]]:
+    """[(code, name)] of active statuses, in list order — for pickers."""
+    rows = (
+        BreedingStatus.query.filter_by(is_active=True)
+        .order_by(BreedingStatus.sort_order, BreedingStatus.id)
+        .all()
+    )
+    return [(s.code, s.name) for s in rows]
+
+
+def breeding_status_label(code: str | None) -> str:
+    """Arabic name for a status code; the code itself if unknown,
+    an em-dash if empty."""
+    if not code:
+        return "—"
+    return breeding_status_map().get(code, code)
 
 
 # ==================== HERD-2 Part 3 (PHASE 35): herd valuation ====================

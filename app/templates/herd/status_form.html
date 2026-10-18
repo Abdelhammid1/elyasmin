@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ 'تعديل' if mode == 'edit' else 'إضافة' }} حالة{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1>
+      <i class="bi bi-list-check"></i>
+      {{ 'تعديل حالة — ' ~ status.name if mode == 'edit' else 'إضافة حالة جديدة' }}
+    </h1>
+    {% if mode == 'edit' and status.cow_count > 0 %}
+    <p class="text-muted small mb-0">
+      <i class="bi bi-info-circle"></i>
+      {{ status.cow_count }} بقرة عليها الحالة دي — تغيير الاسم هيظهر عندهم كلهم.
+    </p>
+    {% endif %}
+  </div>
+  <a href="{{ url_for('herd.statuses_list') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للحالات
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mb-3">
+          <label class="form-label">اسم الحالة</label>
+          <input type="text" name="name" class="form-control"
+                 value="{{ name_val or '' }}" required maxlength="60">
+        </div>
+
+        {% if mode == 'edit' %}
+        <div class="mb-3">
+          <label class="form-label">الترتيب في القائمة</label>
+          <input type="number" name="sort_order" class="form-control" dir="ltr"
+                 value="{{ status.sort_order }}">
+          <div class="form-text">الكود <span dir="ltr">{{ status.code }}</span> ثابت ومش بيتغير.</div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2 mt-4">
+          <button class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {{ 'حفظ التعديل' if mode == 'edit' else 'إضافة' }}
+          </button>
+          <a href="{{ url_for('herd.statuses_list') }}" class="btn btn-outline-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

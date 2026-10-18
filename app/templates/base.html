@@ -230,6 +230,10 @@
           <a class="sidebar-item {% if request.endpoint and 'valuation' in request.endpoint %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.valuation_bulk') }}">
             <i class="bi bi-cash-stack"></i> تقييم القطيع</a>
+          {# HERD-3: client's status list. #}
+          <a class="sidebar-item {% if request.endpoint and 'herd.' in request.endpoint and 'status' in request.endpoint and 'breeding' not in request.endpoint %}active{% endif %}"
+             data-section="herd" href="{{ url_for('herd.statuses_list') }}">
+            <i class="bi bi-list-check"></i> حالات القطيع</a>
         </div>
       </details>
 
