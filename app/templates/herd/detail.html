@@ -130,6 +130,50 @@
 </div>
 {% endif %}
 
+{# VET-1 #}
+<div class="card p-3 mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0"><i class="bi bi-journal-medical"></i> السجل البيطري</h5>
+    {% if can_write and cow.status == "active" and not cow.is_archived %}
+    <a href="{{ url_for('vet.create_record', cow_id=cow.id) }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-plus-lg"></i> تحصين / مرض / علاج
+    </a>
+    {% endif %}
+  </div>
+  {% if vet_records %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>التاريخ</th><th>النوع</th><th>التحصين / المرض</th><th>الجرعة الجاية</th><th>الدواء</th><th>ملاحظات</th>{% if can_write %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for r in vet_records %}
+        <tr>
+          <td dir="ltr">{{ r.record_date }}</td>
+          <td><span class="chip chip-cash">{{ r.kind_label }}</span>{% if r.batch %} <small class="text-muted">جماعي</small>{% endif %}</td>
+          <td>{{ r.item.name if r.item else "—" }}</td>
+          <td dir="ltr">{{ r.next_due or "—" }}</td>
+          <td class="small">{% if r.dispense %}{{ r.dispense.ingredient.name }} <span dir="ltr">× {{ r.dispense.qty }}</span>{% else %}—{% endif %}</td>
+          <td class="small text-muted">{{ r.notes or "" }}</td>
+          {% if can_write %}
+          <td class="text-end">
+            {% if not r.dispense_id %}
+            <form method="post" action="{{ url_for('vet.delete_record', record_id=r.id) }}"
+                  data-confirm="حذف السجل ده؟" onsubmit="return confirm(this.dataset.confirm);">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-outline-danger" title="حذف"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted small mb-0">مفيش سجلات بيطرية.</p>
+  {% endif %}
+</div>
+
 {% if milk_records %}
 <div class="card p-3 mt-3">
   {# HERD-11 #}

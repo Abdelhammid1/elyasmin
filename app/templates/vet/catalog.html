@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}قوائم البيطري{% endblock %}
+{% block content %}
+{# VET-1: the editable vaccine / disease lists. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-list-ul"></i> قوائم البيطري</h1>
+    <p class="text-muted mb-0">التحصينات (ومدة تكرار كل واحد) والأمراض اللي بتظهر في السجل البيطري. الموقوف مش بيظهر في الإدخال، وسجلاته القديمة باقية.</p>
+  </div>
+  <a href="{{ url_for('vet.records_list') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> السجل البيطري</a>
+</div>
+
+<form method="post" class="card p-3 mb-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-2 col-6">
+      <label class="form-label small mb-1">النوع</label>
+      <select name="kind" class="form-select form-select-sm">
+        {% for code, label in kinds.items() %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5 col-6">
+      <label class="form-label small mb-1">الاسم</label>
+      <input type="text" name="name" maxlength="120" class="form-control form-control-sm" required>
+    </div>
+    <div class="col-md-3 col-6">
+      <label class="form-label small mb-1">يتكرر كل (يوم) — للتحصين</label>
+      <input type="number" name="repeat_days" min="1" max="3650" class="form-control form-control-sm" dir="ltr">
+    </div>
+    <div class="col-md-2 col-6">
+      <button class="btn btn-primary btn-sm w-100"><i class="bi bi-plus-lg"></i> إضافة</button>
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>النوع</th><th>الاسم</th><th>يتكرر كل (يوم)</th><th class="text-center">الحالة</th><th></th></tr></thead>
+      <tbody>
+        {% for i in items %}
+        <tr {% if not i.is_active %}class="text-muted"{% endif %}>
+          <td><span class="chip chip-cash">{{ i.kind_label }}</span></td>
+          <td colspan="2">
+            <form method="post" action="{{ url_for('vet.catalog_update', item_id=i.id) }}" class="d-flex gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="text" name="name" value="{{ i.name }}" maxlength="120" class="form-control form-control-sm" required>
+              {% if i.kind == 'vaccine' %}
+              <input type="number" name="repeat_days" value="{{ i.repeat_days or '' }}" min="1" max="3650"
+                     class="form-control form-control-sm" style="width: 110px;" dir="ltr" placeholder="مرة واحدة">
+              {% endif %}
+              <button class="btn btn-sm btn-outline-primary" title="حفظ"><i class="bi bi-check2"></i></button>
+            </form>
+          </td>
+          <td class="text-center">{% if i.is_active %}<span class="chip chip-paid">شغال</span>{% else %}<span class="chip chip-unpaid">موقوف</span>{% endif %}</td>
+          <td class="text-end">
+            <form method="post" action="{{ url_for('vet.catalog_update', item_id=i.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="toggle">
+              <button class="btn btn-sm btn-outline-secondary">{% if i.is_active %}إيقاف{% else %}تفعيل{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

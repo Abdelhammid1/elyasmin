@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}التحصينات المستحقة{% endblock %}
+{% block content %}
+{# VET-1: latest dose per cow + vaccine whose next dose is due. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-bell"></i> التحصينات المستحقة</h1>
+    <p class="text-muted mb-0">الجرعات اللي ميعادها فات أو جاي خلال {{ days }} يوم.</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('vet.due_excel') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    {% if can_write %}
+    <a href="{{ url_for('vet.group_vaccination') }}" class="btn btn-primary"><i class="bi bi-shield-plus"></i> تحصين جماعي</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if can_write %}
+<form method="post" action="{{ url_for('vet.due_settings') }}" class="d-flex gap-2 align-items-end mb-3 no-print">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div>
+    <label class="form-label small mb-1" for="days">نبّه قبل الميعاد بـ (يوم)</label>
+    <input type="number" min="0" max="365" name="days" id="days" value="{{ days }}"
+           class="form-control form-control-sm" style="width: 110px;" dir="ltr">
+  </div>
+  <button class="btn btn-sm btn-outline-primary">حفظ</button>
+</form>
+{% endif %}
+
+{% if by_vaccine %}
+<div class="row g-3 mb-3">
+  {% for (item_id, name), n in by_vaccine %}
+  <div class="col-md-3 col-6"><div class="card stat-card tone-warning">
+    <div class="stat-label">{{ name }}</div>
+    <div class="stat-value" dir="ltr">{{ n }}</div>
+  </div></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr>
+        <th>رقم الأذن</th><th>المجموعة</th><th>التحصين</th>
+        <th class="text-center">آخر جرعة</th><th class="text-center">الجرعة الجاية</th>
+        <th class="text-center">باقي</th><th class="text-end no-print"></th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><a href="{{ url_for('herd.cow_detail', cow_id=r.cow.id) }}" class="fw-bold font-monospace text-body" dir="ltr">{{ r.tag }}</a></td>
+          <td class="small">{{ r.group }}</td>
+          <td>{{ r.vaccine }}</td>
+          <td class="text-center small" dir="ltr">{{ r.last }}</td>
+          <td class="text-center small" dir="ltr">{{ r.next_due }}</td>
+          <td class="text-center">
+            {% if r.days < 0 %}<span class="chip chip-unpaid">متأخر {{ -r.days }} يوم</span>
+            {% elif r.days == 0 %}<span class="chip chip-cash">النهارده</span>
+            {% else %}<span dir="ltr">{{ r.days }}</span> يوم{% endif %}
+          </td>
+          <td class="text-end no-print" style="white-space:nowrap;">
+            {% if can_write %}
+            <a href="{{ url_for('vet.create_record', cow_id=r.cow.id, kind='vaccination', item_id=r.item_id) }}"
+               class="btn btn-sm btn-outline-primary" title="تسجيل الجرعة"><i class="bi bi-plus-lg"></i></a>
+            <a href="{{ url_for('vet.group_vaccination', item_id=r.item_id, group=r.group_id) }}"
+               class="btn btn-sm btn-outline-secondary" title="تحصين المجموعة كلها"><i class="bi bi-people"></i></a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-4 text-center text-muted">مفيش جرعات مستحقة.</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}تحصين جماعي{% endblock %}
+{% block content %}
+{# VET-1: one vaccine for every active cow in the picked groups. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-shield-plus"></i> تحصين جماعي</h1>
+    <p class="text-muted mb-0">بيتسجل سجل تحصين لكل بقرة نشطة في المجموعات اللي هتختارها.</p>
+  </div>
+  <a href="{{ url_for('vet.due_list') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-bell"></i> التحصينات المستحقة
+  </a>
+</div>
+
+<form method="post" class="card p-4" id="group-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3">
+    <div class="col-md-5">
+      <label class="form-label" for="item_id">التحصين</label>
+      <select name="item_id" id="item_id" class="form-select" required>
+        <option value="">— اختار —</option>
+        {% for v in vaccines %}
+        <option value="{{ v.id }}" {% if form.get('item_id') == v.id|string %}selected{% endif %}>
+          {{ v.name }}{% if v.repeat_days %} (كل {{ v.repeat_days }} يوم){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 col-6">
+      <label class="form-label" for="record_date">التاريخ</label>
+      <input type="date" name="record_date" id="record_date" class="form-control" dir="ltr"
+             value="{{ form.get('record_date') or today_iso }}" max="{{ today_iso }}" required>
+    </div>
+    <div class="col-md-4 col-6">
+      <label class="form-label" for="next_due">الجرعة الجاية</label>
+      <input type="date" name="next_due" id="next_due" class="form-control" dir="ltr"
+             value="{{ form.get('next_due', '') }}">
+      <small class="text-muted">فاضية = من مدة تكرار التحصين.</small>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">المجموعات</label>
+      <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
+        {% for g in groups %}
+        <div class="form-check">
+          <input class="form-check-input refresh" type="checkbox" name="group" value="{{ g.id }}"
+                 id="g{{ g.id }}" {% if g.id in group_ids %}checked{% endif %}>
+          <label class="form-check-label" for="g{{ g.id }}">{{ g.name }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">الحالة <small class="text-muted">(اختياري — من غير اختيار = كل الحالات)</small></label>
+      <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
+        {% for code, label in status_options %}
+        <div class="form-check">
+          <input class="form-check-input refresh" type="checkbox" name="status" value="{{ code }}"
+                 id="s{{ code }}" {% if code in statuses %}checked{% endif %}>
+          <label class="form-check-label" for="s{{ code }}">{{ label }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="col-12">
+      <fieldset class="border rounded p-3">
+        <legend class="float-none w-auto px-2 small mb-0">دواء / لقاح من المخزن (اختياري)</legend>
+        <div class="row g-2">
+          <div class="col-md-8">
+            <select name="ingredient_id" class="form-select form-select-sm">
+              <option value="">— من غير صرف من المخزن —</option>
+              {% for m in medicines %}
+              <option value="{{ m.id }}" {% if form.get('ingredient_id') == m.id|string %}selected{% endif %}>
+                {{ m.name }} — رصيد: {{ m.current_qty }} {{ m.unit_label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <input type="text" name="qty" class="form-control form-control-sm" dir="ltr"
+                   placeholder="الكمية لكل رأس" value="{{ form.get('qty', '') }}">
+          </div>
+        </div>
+        <small class="text-muted">بيتصرف لكل مجموعة: الكمية لكل رأس × عدد الأبقار فيها.</small>
+      </fieldset>
+    </div>
+
+    <div class="col-12">
+      <label class="form-label" for="notes">ملاحظات</label>
+      <textarea name="notes" id="notes" rows="2" class="form-control">{{ form.get('notes', '') }}</textarea>
+    </div>
+  </div>
+
+  <div class="alert {% if targets %}alert-info{% else %}alert-light{% endif %} mt-3 mb-3">
+    {% if group_ids %}
+      <strong dir="ltr">{{ targets|length }}</strong> بقرة نشطة هيتسجل لها التحصين.
+      {% if targets %}<div class="small text-muted mt-1" dir="ltr">{{ targets[:40]|map(attribute='ear_tag')|join(", ") }}{% if targets|length > 40 %} …{% endif %}</div>{% endif %}
+    {% else %}
+      اختار مجموعة أو أكتر عشان تشوف عدد الأبقار.
+    {% endif %}
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" {% if not targets %}disabled{% endif %}>
+      <i class="bi bi-check2"></i> تسجيل التحصين
+    </button>
+    <noscript><button formmethod="get" class="btn btn-outline-secondary">تحديث العدد</button></noscript>
+  </div>
+</form>
+
+<script>
+(function () {
+  // Refresh the head count when groups / statuses change (GET keeps the
+  // rest of the form filled in).
+  const form = document.getElementById('group-form');
+  form.querySelectorAll('.refresh').forEach(cb => cb.addEventListener('change', () => {
+    const params = new URLSearchParams(new FormData(form));
+    params.delete('csrf_token');
+    window.location.search = params.toString();
+  }));
+})();
+</script>
+{% endblock %}

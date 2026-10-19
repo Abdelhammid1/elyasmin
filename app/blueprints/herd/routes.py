@@ -287,6 +287,14 @@ def cow_detail(cow_id: int):
     milk_avg = (round(sum(float(r.kg) for r in milk_records) / len(milk_records), 1)
                 if milk_records else None)
 
+    # VET-1
+    from app.models.vet import VetRecord
+    vet_records = (
+        VetRecord.query.filter_by(cow_id=cow.id)
+        .order_by(VetRecord.record_date.desc(), VetRecord.id.desc())
+        .all()
+    )
+
     return render_template(
         "herd/detail.html",
         cow=cow,
@@ -296,6 +304,7 @@ def cow_detail(cow_id: int):
         dispenses=dispenses,
         milk_records=milk_records,
         milk_avg=milk_avg,
+        vet_records=vet_records,
     )
 
 

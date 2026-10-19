@@ -246,6 +246,18 @@
           <a class="sidebar-item {% if request.endpoint and 'insemination_costs' in request.endpoint %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.insemination_costs') }}">
             <i class="bi bi-eyedropper"></i> تكاليف التلقيح</a>
+          {# VET-1: vet records. #}
+          <a class="sidebar-item {% if request.endpoint in ('vet.records_list', 'vet.create_record', 'vet.group_vaccination') %}active{% endif %}"
+             data-section="herd" href="{{ url_for('vet.records_list') }}">
+            <i class="bi bi-journal-medical"></i> السجل البيطري</a>
+          <a class="sidebar-item {% if request.endpoint == 'vet.due_list' %}active{% endif %}"
+             data-section="herd" href="{{ url_for('vet.due_list') }}">
+            <i class="bi bi-shield-plus"></i> تحصينات مستحقة</a>
+          {% if current_user.is_admin %}
+          <a class="sidebar-item {% if request.endpoint == 'vet.catalog' %}active{% endif %}"
+             data-section="herd" href="{{ url_for('vet.catalog') }}">
+            <i class="bi bi-list-ul"></i> قوائم البيطري</a>
+          {% endif %}
         </div>
       </details>
 

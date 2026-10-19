@@ -48,6 +48,7 @@ from app.models.finance import (
 from app.models.labor import Attendance, Worker, WorkerPayment
 from app.models.checks import Check
 from app.models.assets import DepreciationPosting, FixedAsset
+from app.models.vet import VetCatalogItem, VetRecord
 
 __all__ = [
     "User", "LoginAttempt",
@@ -66,4 +67,5 @@ __all__ = [
     "Worker", "Attendance", "WorkerPayment",
     "Check",
     "FixedAsset", "DepreciationPosting",
+    "VetCatalogItem", "VetRecord",
 ]

@@ -417,7 +417,7 @@ def on_purchase_invoice(invoice, *, created_by=None):
 def on_medicine_dispense(dispense, *, created_by=None):
     """Ledger effect of a vet-medicine dispense.
 
-        DR 5400 أدوية بيطرية   (dispense.total_cost)   [cost_center = group_id]
+        DR 5020 أدوية بيطرية   (dispense.total_cost)   [cost_center = group_id]
         CR 1220 مخزون الأدوية
 
     Idempotent by (source_type='MedicineDispense', source_id=dispense.id) —

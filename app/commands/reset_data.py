@@ -32,7 +32,7 @@ from app.extensions import db
 
 KEEP = frozenset({
     "users", "settings", "company_profile", "coa_accounts", "accounts",
-    "cattle_groups", "breeding_statuses", "breeding_event_types",
+    "cattle_groups", "breeding_statuses", "breeding_event_types", "vet_catalog_items",
     "expense_categories", "ingredient_categories",
 })
 
@@ -40,6 +40,7 @@ WIPE = frozenset({
     # herd
     "cows", "cow_movements", "births", "calves", "deaths", "animal_sales",
     "breeding_events", "breeding_status_changes", "cow_valuations", "cow_milk_records",
+    "vet_records",
     # inventory / feed / medicine
     "ingredients", "ingredient_units", "stock_movements", "medicine_lots",
     "medicine_dispenses", "feed_recipes", "feed_recipe_lines", "feed_runs",

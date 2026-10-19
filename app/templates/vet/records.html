@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}السجل البيطري{% endblock %}
+{% block content %}
+{# VET-1: every vet record in a date range. #}
+{% set args = {"from": filters["from"].isoformat(), "to": filters.to.isoformat(), "kind": filters.kind, "item": filters.item, "q": filters.q} %}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-journal-medical"></i> السجل البيطري</h1>
+    <p class="text-muted mb-0">التحصينات والأمراض والعلاجات. التسجيل لبقرة واحدة من صفحة البقرة.</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('vet.records_excel', **args) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    <a href="{{ url_for('vet.due_list') }}" class="btn btn-outline-secondary"><i class="bi bi-bell"></i> المستحقة</a>
+    {% if can_write %}
+    <a href="{{ url_for('vet.group_vaccination') }}" class="btn btn-primary"><i class="bi bi-shield-plus"></i> تحصين جماعي</a>
+    {% endif %}
+  </div>
+</div>
+
+<form method="get" class="filter-row row g-2 align-items-end mb-3">
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-1">من</label>
+    <input type="date" name="from" value="{{ args['from'] }}" class="form-control form-control-sm" dir="ltr">
+  </div>
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-1">إلى</label>
+    <input type="date" name="to" value="{{ args.to }}" class="form-control form-control-sm" dir="ltr">
+  </div>
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-1">النوع</label>
+    <select name="kind" class="form-select form-select-sm">
+      <option value="">الكل</option>
+      {% for code, label in kinds.items() %}
+      <option value="{{ code }}" {% if filters.kind == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-1">التحصين / المرض</label>
+    <select name="item" class="form-select form-select-sm">
+      <option value="">الكل</option>
+      {% for i in items %}
+      <option value="{{ i.id }}" {% if filters.item == i.id|string %}selected{% endif %}>{{ i.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-1">رقم الأذن</label>
+    <input type="search" name="q" value="{{ filters.q }}" class="form-control form-control-sm" dir="ltr">
+  </div>
+  <div class="col-md-2 col-6">
+    <button class="btn btn-primary btn-sm w-100"><i class="bi bi-funnel"></i> فلتر</button>
+  </div>
+</form>
+
+<div class="card">
+  {% if records %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr>
+        <th>التاريخ</th><th>رقم الأذن</th><th>النوع</th><th>التحصين / المرض</th>
+        <th class="text-center">الجرعة الجاية</th><th>الدواء</th><th>ملاحظات</th>
+      </tr></thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="small" dir="ltr">{{ r.record_date }}</td>
+          <td><a href="{{ url_for('herd.cow_detail', cow_id=r.cow_id) }}" class="fw-bold font-monospace text-body" dir="ltr">{{ r.cow.ear_tag }}</a></td>
+          <td><span class="chip chip-cash">{{ r.kind_label }}</span>{% if r.batch %} <small class="text-muted">جماعي</small>{% endif %}</td>
+          <td>{{ r.item.name if r.item else "—" }}</td>
+          <td class="text-center small" dir="ltr">{{ r.next_due or "—" }}</td>
+          <td class="small">{% if r.dispense %}{{ r.dispense.ingredient.name }} <span dir="ltr">× {{ r.dispense.qty }}</span>{% else %}—{% endif %}</td>
+          <td class="small text-muted">{{ r.notes or "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-4 text-center text-muted">مفيش سجلات في الفترة دي.</div>
+  {% endif %}
+</div>
+{% endblock %}

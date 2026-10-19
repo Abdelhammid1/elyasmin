@@ -187,6 +187,22 @@
       </a>
       {% endfor %}
 
+      {# VET-1: vaccine doses due. #}
+      <a href="{{ url_for('vet.due_list') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">تحصينات مستحقة</span>
+          <i class="bi bi-shield-plus text-[18px] text-primary"></i>
+        </div>
+        <div class="my-1.5">
+          <span class="font-headline-lg text-headline-lg font-bold {% if vet_due %}text-error{% else %}text-on-surface{% endif %}">{{ vet_due }}</span>
+        </div>
+        {% if vet_due %}
+        <span class="font-label-sm text-label-sm text-error font-semibold">⚠ افتح القائمة</span>
+        {% else %}
+        <span class="font-label-sm text-label-sm text-tertiary font-semibold">مفيش جرعات مستحقة</span>
+        {% endif %}
+      </a>
+
       <a href="{{ url_for('milk.list_deliveries') }}" class="p-space-sm rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors no-underline">
         <div class="flex items-center justify-between">
           <span class="font-label-md text-label-md text-on-surface-variant">لبن أمس</span>

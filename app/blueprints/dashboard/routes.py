@@ -438,6 +438,9 @@ def index():
     # ---------------- HERD-7: herd alerts ----------------
     from app.services.herd_alerts import alert_counts
     herd_alerts = alert_counts()
+    # VET-1: vaccine doses due.
+    from app.services.vet_due import due_count
+    vet_due = due_count()
 
     # ---------------- trend + breakdown ----------------
     trend_6m = _trend_6m(today)
@@ -464,6 +467,7 @@ def index():
         avg_feed_cost=avg_feed_cost,
         active_workers_count=active_workers_count,
         herd_alerts=herd_alerts,
+        vet_due=vet_due,
         # attention
         overdue_customers=overdue_customers,
         overdue_suppliers=overdue_suppliers,

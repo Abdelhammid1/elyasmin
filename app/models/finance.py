@@ -97,6 +97,8 @@ class Setting(db.Model):
     KEY_HERD_ALERT_WAITING_DAYS = "herd_alert_waiting_days"  # before calving → waiting
     # HERD-11: days the herd list's milk average looks back over. Default 7.
     KEY_MILK_AVG_DAYS = "milk_avg_days"
+    # VET-1: show vaccine doses due within this many days. Default 7.
+    KEY_VET_DUE_DAYS = "vet_due_days"
 
     key = db.Column(db.String(80), primary_key=True)
     value = db.Column(db.String(255), nullable=False)

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}سجل بيطري — {{ cow.ear_tag }}{% endblock %}
+{% block content %}
+{# VET-1: one vaccination / disease / treatment for one cow. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-bandaid"></i> سجل بيطري — <span dir="ltr">{{ cow.ear_tag }}</span></h1>
+    <p class="text-muted mb-0">{{ cow.group.name if cow.group else "" }}{% if cow.breeding_status %} · {{ cow.breeding_status_label }}{% endif %}</p>
+  </div>
+  <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للبقرة
+  </a>
+</div>
+
+{% set kind = form.get('kind') or 'vaccination' %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <form method="post" class="card p-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="mb-3">
+        <label class="form-label">النوع</label>
+        <div class="d-flex gap-3 flex-wrap">
+          {% for code, label in kinds.items() %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="kind" id="kind_{{ code }}"
+                   value="{{ code }}" {% if kind == code %}checked{% endif %}>
+            <label class="form-check-label" for="kind_{{ code }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mb-3" data-for="vaccination">
+        <label class="form-label" for="vaccine_id">التحصين</label>
+        <select id="vaccine_id" class="form-select item-select" data-kind="vaccination">
+          <option value="">— اختار —</option>
+          {% for v in vaccines %}
+          <option value="{{ v.id }}" {% if form.get('item_id') == v.id|string %}selected{% endif %}>
+            {{ v.name }}{% if v.repeat_days %} (كل {{ v.repeat_days }} يوم){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-3" data-for="disease treatment">
+        <label class="form-label" for="disease_id">المرض <small class="text-muted" data-for="treatment">(اختياري في العلاج)</small></label>
+        <select id="disease_id" class="form-select item-select" data-kind="disease treatment">
+          <option value="">— اختار —</option>
+          {% for d in diseases %}
+          <option value="{{ d.id }}" {% if form.get('item_id') == d.id|string %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <input type="hidden" name="item_id" id="item_id" value="{{ form.get('item_id', '') }}">
+
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label" for="record_date">التاريخ</label>
+          <input type="date" name="record_date" id="record_date" class="form-control" dir="ltr"
+                 value="{{ form.get('record_date') or today_iso }}" max="{{ today_iso }}" required>
+        </div>
+        <div class="col-6" data-for="vaccination">
+          <label class="form-label" for="next_due">الجرعة الجاية</label>
+          <input type="date" name="next_due" id="next_due" class="form-control" dir="ltr"
+                 value="{{ form.get('next_due', '') }}">
+          <small class="text-muted">بتتملى من مدة تكرار التحصين — تقدر تغيرها أو تسيبها فاضية.</small>
+        </div>
+      </div>
+
+      <fieldset class="border rounded p-3 mb-3">
+        <legend class="float-none w-auto px-2 small mb-0">دواء من المخزن (اختياري)</legend>
+        <div class="row g-2">
+          <div class="col-8">
+            <select name="ingredient_id" class="form-select form-select-sm">
+              <option value="">— من غير دواء —</option>
+              {% for m in medicines %}
+              <option value="{{ m.id }}" {% if form.get('ingredient_id') == m.id|string %}selected{% endif %}>
+                {{ m.name }} — رصيد: {{ m.current_qty }} {{ m.unit_label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-4">
+            <input type="text" name="qty" class="form-control form-control-sm" dir="ltr"
+                   placeholder="الكمية" value="{{ form.get('qty', '') }}">
+          </div>
+        </div>
+        <small class="text-muted">بيتسجل صرف دواء عادي (المخزن والقيد) ومربوط بالسجل ده. الكمية بالوحدة الأساسية للدواء.</small>
+      </fieldset>
+
+      <div class="mb-3">
+        <label class="form-label" for="notes">ملاحظات</label>
+        <textarea name="notes" id="notes" rows="2" class="form-control">{{ form.get('notes', '') }}</textarea>
+      </div>
+      <div><button class="btn btn-primary"><i class="bi bi-check2"></i> حفظ</button></div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const repeat = {{ repeat|tojson }};
+  const radios = document.querySelectorAll('input[name="kind"]');
+  const hidden = document.getElementById('item_id');
+  const dateIn = document.getElementById('record_date');
+  const nextIn = document.getElementById('next_due');
+  const vaccine = document.getElementById('vaccine_id');
+  let nextTouched = !!nextIn.value;
+  nextIn.addEventListener('input', () => { nextTouched = true; });
+
+  function kind() { return document.querySelector('input[name="kind"]:checked').value; }
+  function sync() {
+    const k = kind();
+    document.querySelectorAll('[data-for]').forEach(el => {
+      el.style.display = el.dataset.for.split(' ').includes(k) ? '' : 'none';
+    });
+    const sel = document.querySelector(`.item-select[data-kind~="${k}"]`);
+    hidden.value = sel ? sel.value : '';
+  }
+  function fillNext() {
+    const days = repeat[vaccine.value];
+    if (nextTouched || !days || !dateIn.value) return;
+    const d = new Date(dateIn.value + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    // local date, not toISOString() — that shifts a day east of UTC
+    const pad = n => String(n).padStart(2, '0');
+    nextIn.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  radios.forEach(r => r.addEventListener('change', sync));
+  document.querySelectorAll('.item-select').forEach(s => s.addEventListener('change', () => { sync(); fillNext(); }));
+  dateIn.addEventListener('change', fillNext);
+  sync();
+})();
+</script>
+{% endblock %}
