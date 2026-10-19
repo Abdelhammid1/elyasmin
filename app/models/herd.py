@@ -175,6 +175,11 @@ class CowMovement(db.Model):
     reason = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    # HERD-10: the event that made this move (NULL for manual moves), so
+    # deleting the event can undo it.
+    event_id = db.Column(
+        db.Integer, db.ForeignKey("breeding_events.id"), nullable=True, index=True,
+    )
 
     cow = db.relationship("Cow", back_populates="movements")
     from_group = db.relationship("CattleGroup", foreign_keys=[from_group_id])

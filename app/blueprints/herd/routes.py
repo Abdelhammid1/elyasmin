@@ -990,6 +990,7 @@ def create_breeding_event(cow_id: int):
                 moved_on=form.event_date.data,
                 reason=f"إجراء: {etype.name}",
                 created_by_id=current_user.id,
+                event_id=event.id,
             ))
             cow.group_id = new_group_id
             changed.append(f"المجموعة → {db.session.get(CattleGroup, new_group_id).name}")
@@ -1021,6 +1022,32 @@ def create_breeding_event(cow_id: int):
         "herd/breeding_event_form.html", cow=cow, form=form,
         type_defaults=_event_type_defaults(types),
     )
+
+
+@bp.route("/<int:cow_id>/breeding/<int:event_id>/delete", methods=["POST"])
+@login_required
+@write_required
+def delete_breeding_event(cow_id: int, event_id: int):
+    """HERD-10: delete an event and undo what it did (status, group,
+    insemination cost)."""
+    from app.services.breeding_delete import DeleteRefused, delete_breeding_event as _delete
+    event = db.session.get(BreedingEvent, event_id)
+    if event is None or event.cow_id != cow_id:
+        abort(404)
+    label = event.event_label
+    try:
+        undone = _delete(event)
+    except DeleteRefused as e:
+        flash(str(e), "error")
+        return redirect(url_for("herd.breeding_timeline", cow_id=cow_id))
+    log_action("breeding_event_deleted", "BreedingEvent", event_id,
+               details=f"cow={cow_id} type={label} " + " | ".join(undone))
+    db.session.commit()
+    msg = f"تم حذف {label}."
+    if undone:
+        msg += " " + "، ".join(undone)
+    flash(msg, "success")
+    return redirect(url_for("herd.breeding_timeline", cow_id=cow_id))
 
 
 @bp.route("/<int:cow_id>/breeding")

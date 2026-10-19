@@ -44,6 +44,7 @@
             <th>الإجراء</th>
             <th>النتيجة</th>
             <th>ملاحظات</th>
+            {% if can_write %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -58,7 +59,24 @@
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
-            <td class="small text-muted">{{ e.notes or "" }}</td>
+            <td class="small text-muted">
+              {{ e.notes or "" }}
+              {% if e.cost_amount %}<div>التكلفة: <span dir="ltr">{{ "{:,.2f}".format(e.cost_amount) }}</span> ({{ e.cost_source_label }})</div>{% endif %}
+            </td>
+            {% if can_write %}
+            <td class="text-end">
+              {# HERD-10: delete undoes the event's status/group change and cost. #}
+              {% if not e.birth_id %}
+              <form method="post" class="d-inline"
+                    action="{{ url_for('herd.delete_breeding_event', cow_id=cow.id, event_id=e.id) }}"
+                    data-confirm="حذف {{ e.event_label }}؟ هيرجّع الحالة والمجموعة لو الإجراء ده آخر تغيير، وهيرجّع التكلفة (المخزون أو الخزنة)."
+                    onsubmit="return confirm(this.dataset.confirm);">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" title="حذف"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
