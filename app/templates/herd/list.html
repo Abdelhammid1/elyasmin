@@ -146,6 +146,7 @@
           <td>
             <a href="{{ url_for('herd.cow_detail', cow_id=cow.id) }}"
                class="fw-bold font-monospace text-decoration-none text-body" dir="ltr">{{ r.tag }}</a>
+            {% if r.withdrawal_until %}<span class="chip chip-unpaid ms-1" title="لبنها ممنوع لحد {{ r.withdrawal_until }}">سحب</span>{% endif %}
           </td>
           <td class="text-center no-print">
             {% if cow.gender == 'female' %}

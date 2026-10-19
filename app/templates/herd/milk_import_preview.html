@@ -63,6 +63,13 @@
   </div></div>
 </div>
 
+{% if preview.held_kg %}
+<div class="alert alert-danger small">
+  <i class="bi bi-droplet-half"></i>
+  <strong dir="ltr">{{ preview.held_kg }}</strong> كجم من أبقار في فترة سحب اللبن — اللبن ده لازم يترمي، مش يتورد.
+  ({{ preview.matched|selectattr("held")|map(attribute="tag")|join(", ") }})
+</div>
+{% endif %}
 {% if preview.unknown %}
 <div class="alert alert-light small">
   <strong>مش في القطيع:</strong>
@@ -87,6 +94,7 @@
           <td class="text-center" dir="ltr">{{ m.kg }}</td>
           <td class="small">
             {% if m.exists %}<span class="chip chip-cash">متسجل قبل كده</span>{% endif %}
+            {% if m.held %}<span class="chip chip-unpaid">فترة سحب</span>{% endif %}
             {% if m.suspicious %}<span class="chip chip-unpaid">رقم كبير — اتأكد</span>{% endif %}
           </td>
         </tr>

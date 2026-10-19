@@ -59,3 +59,21 @@ def build_due(today: date | None = None, days: int | None = None) -> list[dict]:
 
 def due_count() -> int:
     return len(build_due())
+
+
+def in_withdrawal(today: date | None = None,
+                  cow_ids: list[int] | None = None) -> dict[int, date]:
+    """VET-2: active cows whose milk is still in a withdrawal period →
+    the last day of it (the latest one if several overlap)."""
+    from sqlalchemy import func
+    from app.extensions import db
+    today = today or date.today()
+    q = (db.session.query(VetRecord.cow_id, func.max(VetRecord.withdrawal_until))
+         .join(Cow, Cow.id == VetRecord.cow_id)
+         .filter(VetRecord.withdrawal_until >= today,
+                 Cow.is_archived.is_(False), Cow.status == Cow.STATUS_ACTIVE))
+    if cow_ids is not None:
+        if not cow_ids:
+            return {}
+        q = q.filter(VetRecord.cow_id.in_(cow_ids))
+    return {cid: until for cid, until in q.group_by(VetRecord.cow_id)}

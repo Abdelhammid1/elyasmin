@@ -197,3 +197,50 @@ def test_delete(admin_client, app):
             assert db.session.get(VetRecord, linked_id) is not None
     finally:
         _cleanup(app)
+
+
+def test_milk_withdrawal(admin_client, app):
+    """VET-2: a treatment with withdrawal days holds the cow's milk."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from app.services.herd_list import build_herd_rows
+    from app.services.vet_due import in_withdrawal
+    _cleanup(app)
+    s = _seed(app)
+    cow = s["cows"][0]
+    today = date.today()
+    try:
+        r = admin_client.post(f"/vet/cow/{cow}/new", data={
+            "kind": "treatment", "item_id": str(s["dis"]), "record_date": today.isoformat(),
+            "withdrawal_days": "3"})
+        assert r.status_code in (302, 303), r.data[:300]
+        with app.app_context():
+            rec = VetRecord.query.filter_by(cow_id=cow).one()
+            assert rec.withdrawal_until == today + timedelta(days=3)
+            assert in_withdrawal(today)[cow] == today + timedelta(days=3)
+            assert cow not in in_withdrawal(today + timedelta(days=4))
+            row = [x for x in build_herd_rows({"q": _P + "0"}) if x["cow"].id == cow][0]
+            assert row["withdrawal_until"] == today + timedelta(days=3)
+        assert "فترة سحب" in admin_client.get("/vet/due").get_data(as_text=True)
+        assert "لبنها ممنوع" in admin_client.get(f"/herd/{cow}").get_data(as_text=True)
+        # over 90 days refused
+        r = admin_client.post(f"/vet/cow/{cow}/new", data={
+            "kind": "treatment", "record_date": today.isoformat(), "withdrawal_days": "120"})
+        assert r.status_code == 200
+
+        # the daily milk import flags her milk
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["Num", "Milk"])
+        ws.append([_P + "0", 18.5])
+        ws.append([_P + "1", 20])
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        r = admin_client.post("/herd/milk-import", data={
+            "file": (buf, "milk.xlsx"), "record_date": today.isoformat()},
+            content_type="multipart/form-data")
+        body = admin_client.get(r.headers["Location"]).get_data(as_text=True)
+        assert "18.50" in body and "لازم يترمي" in body
+    finally:
+        _cleanup(app)

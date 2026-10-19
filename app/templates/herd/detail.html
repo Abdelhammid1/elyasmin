@@ -12,6 +12,10 @@
       {% if cow.breeding_status %}
         <span class="chip chip-cash ms-1">{{ cow.breeding_status_label }}</span>
       {% endif %}
+      {# VET-2 #}
+      {% if withdrawal_until %}
+        <span class="chip chip-unpaid ms-1"><i class="bi bi-droplet-half"></i> لبنها ممنوع لحد <span dir="ltr">{{ withdrawal_until }}</span></span>
+      {% endif %}
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
@@ -152,7 +156,10 @@
           <td>{{ r.item.name if r.item else "—" }}</td>
           <td dir="ltr">{{ r.next_due or "—" }}</td>
           <td class="small">{% if r.dispense %}{{ r.dispense.ingredient.name }} <span dir="ltr">× {{ r.dispense.qty }}</span>{% else %}—{% endif %}</td>
-          <td class="small text-muted">{{ r.notes or "" }}</td>
+          <td class="small text-muted">
+            {% if r.withdrawal_until %}<span class="chip chip-unpaid">سحب لحد <span dir="ltr">{{ r.withdrawal_until }}</span></span>{% endif %}
+            {{ r.notes or "" }}
+          </td>
           {% if can_write %}
           <td class="text-end">
             {% if not r.dispense_id %}

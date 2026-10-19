@@ -52,6 +52,22 @@ def _read_medicine(form) -> tuple[Ingredient | None, Decimal | None, str | None]
     return ing, qty, None
 
 
+def _read_withdrawal(form) -> tuple[int, str | None]:
+    """VET-2: milk withdrawal days (0 = none)."""
+    raw = (form.get("withdrawal_days") or "").strip()
+    if not raw:
+        return 0, None
+    if not raw.isdigit() or int(raw) > 90:
+        return 0, "فترة سحب اللبن لازم رقم أيام من 0 لـ 90."
+    return int(raw), None
+
+
+def _withdrawal_until(on: date, days: int) -> date | None:
+    # "3 days" = the milk of the 3 days after the treatment is thrown
+    # away, so the last held day is on + 3.
+    return on + timedelta(days=days) if days else None
+
+
 def _repeat_map(items) -> dict[int, int]:
     return {i.id: i.repeat_days for i in items if i.repeat_days}
 
@@ -158,13 +174,15 @@ def create_record(cow_id: int):
             elif item and item.repeat_days:
                 next_due = on + timedelta(days=item.repeat_days)
         ing, qty, med_error = _read_medicine(form)
-        error = error or med_error
+        w_days, w_error = _read_withdrawal(form)
+        error = error or med_error or w_error
         if error or on is None:
             flash(error or "اختار تاريخ صحيح.", "error")
             return render_template("vet/record_form.html", **ctx)
 
         rec = VetRecord(cow_id=cow.id, kind=kind, item_id=item.id if item else None,
                         record_date=on, next_due=next_due,
+                        withdrawal_until=_withdrawal_until(on, w_days),
                         notes=(form.get("notes") or "").strip()[:1000] or None,
                         created_by_id=current_user.id)
         if ing is not None:
@@ -183,7 +201,9 @@ def create_record(cow_id: int):
                    details=f"cow={cow.id} kind={kind} item={rec.item_id} dispense={rec.dispense_id}")
         db.session.commit()
         flash(f"تم تسجيل {rec.kind_label}"
-              + (f" — الجرعة الجاية {next_due.isoformat()}" if next_due else "") + ".", "success")
+              + (f" — الجرعة الجاية {next_due.isoformat()}" if next_due else "")
+              + (f" — اللبن ممنوع لحد {rec.withdrawal_until.isoformat()}"
+                 if rec.withdrawal_until else "") + ".", "success")
         return redirect(url_for("herd.cow_detail", cow_id=cow.id))
     return render_template("vet/record_form.html", **ctx)
 
@@ -257,7 +277,8 @@ def group_vaccination():
             elif item.repeat_days:
                 next_due = on + timedelta(days=item.repeat_days)
         ing, per_head, med_error = _read_medicine(form)
-        error = error or med_error
+        w_days, w_error = _read_withdrawal(form)
+        error = error or med_error or w_error
         if error or item is None or on is None:
             flash(error or "اختار التحصين والتاريخ.", "error")
             return render_template("vet/group_form.html", **ctx)
@@ -266,7 +287,7 @@ def group_vaccination():
         notes = (form.get("notes") or "").strip()[:1000] or None
         # One group dispense per group, linked to every record of that group.
         dispense_for: dict[int, int] = {}
-        if ing is not None:
+        if ing is not None and per_head is not None:
             by_group: dict[int, int] = {}
             for c in targets:
                 by_group[c.group_id] = by_group.get(c.group_id, 0) + 1
@@ -283,6 +304,7 @@ def group_vaccination():
         for c in targets:
             db.session.add(VetRecord(cow_id=c.id, kind=VetRecord.KIND_VACCINATION,
                                      item_id=item.id, record_date=on, next_due=next_due,
+                                     withdrawal_until=_withdrawal_until(on, w_days),
                                      dispense_id=dispense_for.get(c.group_id), batch=batch,
                                      notes=notes, created_by_id=current_user.id))
         log_action("vet_group_vaccination", "VetRecord", 0,
@@ -316,13 +338,21 @@ def due_settings():
 @bp.route("/due")
 @login_required
 def due_list():
-    from app.services.vet_due import build_due, due_window_days
+    from app.services.vet_due import build_due, due_window_days, in_withdrawal
     rows = build_due()
+    today = date.today()
+    held = in_withdrawal(today)
+    withdrawal = sorted(
+        ({"cow": db.session.get(Cow, cid), "until": until, "days": (until - today).days}
+         for cid, until in held.items()),
+        key=lambda x: (x["until"], x["cow"].ear_tag),
+    )
     by_vaccine: dict[tuple[int, str], int] = {}
     for r in rows:
         key = (r["item_id"], r["vaccine"])
         by_vaccine[key] = by_vaccine.get(key, 0) + 1
     return render_template("vet/due.html", rows=rows, days=due_window_days(),
+                           withdrawal=withdrawal,
                            by_vaccine=sorted(by_vaccine.items(), key=lambda kv: kv[0][1]))
 
 

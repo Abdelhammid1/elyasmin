@@ -287,8 +287,10 @@ def cow_detail(cow_id: int):
     milk_avg = (round(sum(float(r.kg) for r in milk_records) / len(milk_records), 1)
                 if milk_records else None)
 
-    # VET-1
+    # VET-1 / VET-2
     from app.models.vet import VetRecord
+    from app.services.vet_due import in_withdrawal
+    withdrawal_until = in_withdrawal(cow_ids=[cow.id]).get(cow.id)
     vet_records = (
         VetRecord.query.filter_by(cow_id=cow.id)
         .order_by(VetRecord.record_date.desc(), VetRecord.id.desc())
@@ -305,6 +307,7 @@ def cow_detail(cow_id: int):
         milk_records=milk_records,
         milk_avg=milk_avg,
         vet_records=vet_records,
+        withdrawal_until=withdrawal_until,
     )
 
 

@@ -220,7 +220,7 @@
           <a class="sidebar-item {% if request.endpoint and request.endpoint.startswith('herd') and 'group' not in (request.endpoint or '') and 'birth' not in (request.endpoint or '') %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.list_cows') }}">
             <i class="bi bi-heart-pulse"></i> الأبقار</a>
-          <a class="sidebar-item {% if 'group' in (request.endpoint or '') %}active{% endif %}"
+          <a class="sidebar-item {% if (request.endpoint or '').startswith('herd.') and 'group' in request.endpoint %}active{% endif %}"
              data-section="herd" href="{{ url_for('herd.groups') }}">
             <i class="bi bi-diagram-3"></i> المجموعات</a>
           <a class="sidebar-item {% if 'birth' in (request.endpoint or '') %}active{% endif %}"

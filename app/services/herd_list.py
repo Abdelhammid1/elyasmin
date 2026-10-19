@@ -111,6 +111,9 @@ def build_herd_rows(filters: dict, sort: str = "tag", direction: str = "asc",
     insems = {}
     calvings = {}
     milk = {}
+    # VET-2: cows whose milk is held after a treatment.
+    from app.services.vet_due import in_withdrawal
+    held = in_withdrawal(today, ids)
     if ids:
         # HERD-11: average over the days that have a record in the window.
         since = today - timedelta(days=milk_avg_days())
@@ -171,6 +174,7 @@ def build_herd_rows(filters: dict, sort: str = "tag", direction: str = "asc",
             "days_preg": days_preg,
             "expected": expected,
             "avg_milk": milk.get(c.id),
+            "withdrawal_until": held.get(c.id),
         })
 
     seasons = filters.get("season") or []

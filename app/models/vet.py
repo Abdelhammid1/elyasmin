@@ -69,6 +69,8 @@ class VetRecord(db.Model):
     next_due = db.Column(db.Date, nullable=True, index=True)
     dispense_id = db.Column(db.Integer, db.ForeignKey("medicine_dispenses.id"),
                             nullable=True, index=True)
+    # VET-2: milk must be thrown away until this day (inclusive).
+    withdrawal_until = db.Column(db.Date, nullable=True, index=True)
     # Shared by every record of one group vaccination.
     batch = db.Column(db.String(32), nullable=True, index=True)
     notes = db.Column(db.Text, nullable=True)

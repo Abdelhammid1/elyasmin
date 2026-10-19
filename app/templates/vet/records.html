@@ -71,7 +71,10 @@
           <td>{{ r.item.name if r.item else "—" }}</td>
           <td class="text-center small" dir="ltr">{{ r.next_due or "—" }}</td>
           <td class="small">{% if r.dispense %}{{ r.dispense.ingredient.name }} <span dir="ltr">× {{ r.dispense.qty }}</span>{% else %}—{% endif %}</td>
-          <td class="small text-muted">{{ r.notes or "" }}</td>
+          <td class="small text-muted">
+            {% if r.withdrawal_until %}<span class="chip chip-unpaid">سحب لحد <span dir="ltr">{{ r.withdrawal_until }}</span></span>{% endif %}
+            {{ r.notes or "" }}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

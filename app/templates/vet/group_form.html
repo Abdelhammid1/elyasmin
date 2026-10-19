@@ -87,6 +87,11 @@
       </fieldset>
     </div>
 
+    <div class="col-md-4">
+      <label class="form-label" for="withdrawal_days">فترة سحب اللبن (يوم)</label>
+      <input type="number" min="0" max="90" name="withdrawal_days" id="withdrawal_days"
+             class="form-control" dir="ltr" value="{{ form.get('withdrawal_days', '') }}">
+    </div>
     <div class="col-12">
       <label class="form-label" for="notes">ملاحظات</label>
       <textarea name="notes" id="notes" rows="2" class="form-control">{{ form.get('notes', '') }}</textarea>

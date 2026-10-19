@@ -69,6 +69,14 @@
         </div>
       </div>
 
+      <div class="mb-3" data-for="vaccination treatment">
+        <label class="form-label" for="withdrawal_days">فترة سحب اللبن (يوم)</label>
+        <input type="number" min="0" max="90" name="withdrawal_days" id="withdrawal_days"
+               class="form-control" dir="ltr" style="max-width: 160px;"
+               value="{{ form.get('withdrawal_days', '') }}">
+        <small class="text-muted">لو الدواء أو التحصين ليه فترة سحب: لبن البقرة يترمي الأيام دي، وبتظهر عليها علامة.</small>
+      </div>
+
       <fieldset class="border rounded p-3 mb-3">
         <legend class="float-none w-auto px-2 small mb-0">دواء من المخزن (اختياري)</legend>
         <div class="row g-2">

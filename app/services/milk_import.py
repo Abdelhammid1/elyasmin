@@ -132,6 +132,7 @@ class Preview:
     duplicates: list[str] = field(default_factory=list)
     bad: list[str] = field(default_factory=list)
     blank: int = 0
+    held_kg: Decimal = Decimal("0")   # VET-2: milk of cows in withdrawal
 
     @property
     def existing_count(self) -> int:
@@ -163,13 +164,19 @@ def build_preview(sheet: MilkSheet, tag_col: int, milk_col: int,
             out.unknown.append(tag)
             continue
         out.matched.append({"tag": tag, "cow_id": cows[tag], "kg": str(kg.quantize(Decimal("0.01"))),
-                            "exists": False, "suspicious": kg > SUSPICIOUS_KG})
+                            "exists": False, "held": False,
+                            "suspicious": kg > SUSPICIOUS_KG})
     if out.matched:
         have = {cid for (cid,) in db.session.query(CowMilkRecord.cow_id).filter(
             CowMilkRecord.record_date == record_date,
             CowMilkRecord.cow_id.in_([m["cow_id"] for m in out.matched]))}
+        from app.services.vet_due import in_withdrawal
+        held = in_withdrawal(record_date, [m["cow_id"] for m in out.matched])
         for m in out.matched:
             m["exists"] = m["cow_id"] in have
+            m["held"] = m["cow_id"] in held
+            if m["held"]:
+                out.held_kg += Decimal(m["kg"])
     return out
 
 
