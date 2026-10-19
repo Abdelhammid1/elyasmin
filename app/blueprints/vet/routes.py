@@ -52,11 +52,12 @@ def _read_medicine(form) -> tuple[Ingredient | None, Decimal | None, str | None]
     return ing, qty, None
 
 
-def _read_withdrawal(form) -> tuple[int, str | None]:
-    """VET-2: milk withdrawal days (0 = none)."""
+def _read_withdrawal(form, ing: Ingredient | None = None) -> tuple[int, str | None]:
+    """VET-2: milk withdrawal days (0 = none). Left blank → the
+    medicine's own withdrawal days, if it has any."""
     raw = (form.get("withdrawal_days") or "").strip()
     if not raw:
-        return 0, None
+        return (ing.withdrawal_days or 0) if ing is not None else 0, None
     if not raw.isdigit() or int(raw) > 90:
         return 0, "فترة سحب اللبن لازم رقم أيام من 0 لـ 90."
     return int(raw), None
@@ -174,7 +175,7 @@ def create_record(cow_id: int):
             elif item and item.repeat_days:
                 next_due = on + timedelta(days=item.repeat_days)
         ing, qty, med_error = _read_medicine(form)
-        w_days, w_error = _read_withdrawal(form)
+        w_days, w_error = _read_withdrawal(form, ing)
         error = error or med_error or w_error
         if error or on is None:
             flash(error or "اختار تاريخ صحيح.", "error")
@@ -277,7 +278,7 @@ def group_vaccination():
             elif item.repeat_days:
                 next_due = on + timedelta(days=item.repeat_days)
         ing, per_head, med_error = _read_medicine(form)
-        w_days, w_error = _read_withdrawal(form)
+        w_days, w_error = _read_withdrawal(form, ing)
         error = error or med_error or w_error
         if error or item is None or on is None:
             flash(error or "اختار التحصين والتاريخ.", "error")

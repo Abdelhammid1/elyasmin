@@ -954,10 +954,17 @@ def create_breeding_event(cow_id: int):
     form.new_group_id.choices = _group_select_choices()
     form.new_status.choices = _status_choices()
     # HERD-8: insemination cost pickers.
+    semen = _semen_items()
     form.cost_ingredient_id.choices = [("", "— اختار —")] + [
         (str(i.id), f"{i.name} (متوفر {i.current_qty:g} {i.unit_label})")
-        for i in _semen_items()
+        for i in semen
     ]
+    # Decided default: semen comes from stock when there is some (cost
+    # per straw + stock count stay right). Still changeable on the form.
+    if request.method == "GET" and semen:
+        form.cost_source.data = BreedingEvent.COST_STOCK
+        if len(semen) == 1:
+            form.cost_ingredient_id.data = str(semen[0].id)
     from app.utils import accounts as _acc
     form.cost_account_id.choices = [("", "— اختار —")] + [
         (str(i), label) for i, label in _acc.active_choices()
@@ -1827,10 +1834,26 @@ def herd_import_upload():
 @admin_required
 def herd_import_preview(token: str):
     """Step 2: map parlor groups / statuses to ours, then import."""
+    from app.models.finance import Setting
     from app.services.herd_import import default_status_for, import_rows
     path, result = _load_import(token)
     group_choices = _group_choices()
     status_choices = [("", "— بدون حالة —")] + breeding_status_choices()
+
+    # The mapping picked last time is pre-selected (still changeable).
+    valid_group_ids = {gid for gid, _ in group_choices}
+    valid_status_codes = {code for code, _ in status_choices}
+    saved_group: dict[str, int] = {}
+    for g in result.groups:
+        raw = Setting.get(Setting.PREFIX_PARLOR_GROUP + g)
+        if raw.isdigit() and int(raw) in valid_group_ids:
+            saved_group[g] = int(raw)
+
+    def status_default(s: str) -> str:
+        row = db.session.get(Setting, Setting.PREFIX_PARLOR_STATUS + s)
+        if row is not None and row.value in valid_status_codes:
+            return row.value
+        return default_status_for(s)
 
     if request.method == "POST":
         valid_groups = {gid for gid, _ in group_choices}
@@ -1850,6 +1873,10 @@ def herd_import_preview(token: str):
                 picked = request.form.get(f"status_{s}", "")
                 status_map[s] = picked if picked in valid_status else ""
             imported = import_rows(result.rows, group_map, status_map, current_user.id)
+            for g, gid in group_map.items():
+                Setting.set(Setting.PREFIX_PARLOR_GROUP + g, str(gid))
+            for s, code in status_map.items():
+                Setting.set(Setting.PREFIX_PARLOR_STATUS + s, code)
             log_action("herd_imported", "Cow", 0,
                        details=f"imported={imported} duplicates={len(result.duplicates)} "
                                f"existing={len(result.existing)}")
@@ -1861,7 +1888,7 @@ def herd_import_preview(token: str):
     return render_template(
         "herd/import_preview.html", token=token, result=result,
         group_choices=group_choices, status_choices=status_choices,
-        default_status=default_status_for, sample=result.rows[:20],
+        default_status=status_default, saved_group=saved_group, sample=result.rows[:20],
     )
 
 

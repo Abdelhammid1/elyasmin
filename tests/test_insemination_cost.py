@@ -184,3 +184,17 @@ def test_report_and_excel(admin_client, app):
         assert any(row[1] == _TAG and row[5] == 100 for row in rows)
     finally:
         _cleanup(app)
+
+
+def test_form_defaults_to_stock(admin_client, app):
+    """Decided default: with semen in stock the form opens on "from stock"."""
+    import re
+    _cleanup(app)
+    cow_id, ing_id = _seed(app)
+    try:
+        body = admin_client.get(f"/herd/{cow_id}/breeding/new").get_data(as_text=True)
+        assert re.search(r'<option selected value="stock">', body)
+        assert re.search(rf'<option selected value="{ing_id}">', body) or \
+            f'value="{ing_id}"' in body   # several semen items → none pre-picked
+    finally:
+        _cleanup(app)

@@ -244,3 +244,45 @@ def test_milk_withdrawal(admin_client, app):
         assert "18.50" in body and "لازم يترمي" in body
     finally:
         _cleanup(app)
+
+
+def test_withdrawal_from_medicine(admin_client, app):
+    """Decided default: a medicine's withdrawal days fill in when the
+    field is left blank; a typed value wins."""
+    _cleanup(app)
+    s = _seed(app)
+    cow = s["cows"][0]
+    today = date.today()
+    try:
+        with app.app_context():
+            db.session.get(Ingredient, s["ing"]).withdrawal_days = 4
+            db.session.commit()
+        form = admin_client.get(f"/vet/cow/{cow}/new").get_data(as_text=True)
+        assert 'data-withdrawal="4"' in form
+        admin_client.post(f"/vet/cow/{cow}/new", data={
+            "kind": "treatment", "record_date": today.isoformat(),
+            "ingredient_id": str(s["ing"]), "qty": "1", "withdrawal_days": ""})
+        admin_client.post(f"/vet/cow/{s['cows'][1]}/new", data={
+            "kind": "treatment", "record_date": today.isoformat(),
+            "ingredient_id": str(s["ing"]), "qty": "1", "withdrawal_days": "1"})
+        with app.app_context():
+            a = VetRecord.query.filter_by(cow_id=cow).one()
+            b = VetRecord.query.filter_by(cow_id=s["cows"][1]).one()
+            assert a.withdrawal_until == today + timedelta(days=4)
+            assert b.withdrawal_until == today + timedelta(days=1)
+    finally:
+        _cleanup(app)
+
+
+def test_inventory_form_saves_withdrawal(admin_client, app):
+    _cleanup(app)
+    s = _seed(app)
+    try:
+        r = admin_client.post(f"/inventory/{s['ing']}/edit", data={
+            "name": _MED, "category": "medicine", "unit": "piece", "min_qty": "0",
+            "withdrawal_days": "5", "notes": ""})
+        assert r.status_code in (302, 303), r.data[:400]
+        with app.app_context():
+            assert db.session.get(Ingredient, s["ing"]).withdrawal_days == 5
+    finally:
+        _cleanup(app)

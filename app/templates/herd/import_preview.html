@@ -45,7 +45,7 @@
     <div class="col-lg-6">
       <div class="card p-3 h-100">
         <h5>المجموعات</h5>
-        <p class="small text-muted">رقم المجموعة في برنامج المحلب ← المجموعة عندنا (مطلوب).</p>
+        <p class="small text-muted">رقم المجموعة في برنامج المحلب ← المجموعة عندنا (مطلوب). الاختيار بيتحفظ للاستيراد الجاي.</p>
         {% for g in result.groups %}
         <div class="row g-2 align-items-center mb-2">
           <div class="col-4 fw-bold">مجموعة <span dir="ltr">{{ g or "—" }}</span></div>
@@ -53,7 +53,7 @@
             <select name="group_{{ g }}" class="form-select form-select-sm" required>
               <option value="">— اختار —</option>
               {% for gid, gname in group_choices %}
-              <option value="{{ gid }}">{{ gname }}</option>
+              <option value="{{ gid }}" {% if saved_group.get(g) == gid %}selected{% endif %}>{{ gname }}</option>
               {% endfor %}
             </select>
           </div>

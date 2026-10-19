@@ -171,6 +171,8 @@ def create_ingredient():
                 unit=form.unit.data,
                 min_qty=form.min_qty.data or Decimal("0"),
                 notes=form.notes.data,
+                withdrawal_days=(form.withdrawal_days.data or None)
+                if cat == Ingredient.CATEGORY_MEDICINE else None,
                 created_by_id=current_user.id,
             )
             # TC-4.1: seed the opening stock if provided
@@ -274,6 +276,8 @@ def edit_ingredient(ingredient_id: int):
         ing.unit = form.unit.data
         ing.min_qty = form.min_qty.data or Decimal("0")
         ing.notes = form.notes.data
+        ing.withdrawal_days = ((form.withdrawal_days.data or None)
+                               if cat == Ingredient.CATEGORY_MEDICINE else None)
 
         # TICKET-2: sync alt units — delete removed rows, upsert current
         submitted = _parse_alt_units(request.form)

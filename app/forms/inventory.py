@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import DecimalField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import DecimalField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 from app.models.inventory import Ingredient
@@ -36,6 +36,11 @@ class IngredientForm(FlaskForm):
         places=3,
         default=0,
         validators=[Optional(), NumberRange(min=0, message="لا يمكن أن يكون سالباً.")],
+    )
+    # Medicines only: default milk withdrawal days after use.
+    withdrawal_days = IntegerField(
+        "فترة سحب اللبن (يوم)",
+        validators=[Optional(), NumberRange(min=0, max=90, message="من 0 لـ 90 يوم.")],
     )
     # TC-4.1: allow entering initial stock at creation time
     initial_qty = DecimalField(

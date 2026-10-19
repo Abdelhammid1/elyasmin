@@ -75,6 +75,9 @@ class Ingredient(db.Model):
     avg_cost = db.Column(db.Numeric(12, 4), nullable=False, default=Decimal("0"))
 
     notes = db.Column(db.Text, nullable=True)
+    # VET-2 follow-up: medicines — default milk withdrawal days after use
+    # (filled into the vet record form). NULL = none.
+    withdrawal_days = db.Column(db.Integer, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)

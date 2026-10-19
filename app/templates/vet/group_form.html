@@ -72,7 +72,7 @@
             <select name="ingredient_id" class="form-select form-select-sm">
               <option value="">— من غير صرف من المخزن —</option>
               {% for m in medicines %}
-              <option value="{{ m.id }}" {% if form.get('ingredient_id') == m.id|string %}selected{% endif %}>
+              <option value="{{ m.id }}" data-withdrawal="{{ m.withdrawal_days or '' }}" {% if form.get('ingredient_id') == m.id|string %}selected{% endif %}>
                 {{ m.name }} — رصيد: {{ m.current_qty }} {{ m.unit_label }}
               </option>
               {% endfor %}
@@ -124,6 +124,21 @@
     params.delete('csrf_token');
     window.location.search = params.toString();
   }));
+})();
+</script>
+<script>
+(function () {
+  // Picking a medicine fills its withdrawal days (unless typed already).
+  const med = document.querySelector('select[name="ingredient_id"]');
+  const days = document.getElementById('withdrawal_days');
+  if (!med || !days) return;
+  let typed = !!days.value;
+  days.addEventListener('input', () => { typed = true; });
+  med.addEventListener('change', () => {
+    if (typed) return;
+    const opt = med.options[med.selectedIndex];
+    days.value = (opt && opt.dataset.withdrawal) || '';
+  });
 })();
 </script>
 {% endblock %}

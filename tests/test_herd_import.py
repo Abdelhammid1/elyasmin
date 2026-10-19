@@ -165,3 +165,35 @@ def test_bad_upload_and_token(admin_client, app):
     assert r.status_code == 200 and "xlsx" in r.get_data(as_text=True)
     assert admin_client.get("/herd/import/" + "../" * 5 + "x").status_code == 404
     assert admin_client.get("/herd/import/" + "z" * 32).status_code == 404
+
+
+def test_mapping_remembered(admin_client, app):
+    """Decided default: the parlor group / status mapping picked on one
+    import is pre-selected on the next."""
+    from app.models.finance import Setting
+    keys = [Setting.PREFIX_PARLOR_GROUP + "1", Setting.PREFIX_PARLOR_GROUP + "8",
+            Setting.PREFIX_PARLOR_STATUS + "Insem"]
+    with app.app_context():
+        before = {k: Setting.get(k, None) for k in keys}
+    _cleanup(app)
+    milk, nursing = _groups(app)
+    try:
+        admin_client.post(_upload(admin_client), data={
+            "group_1": str(milk), "group_8": str(nursing),
+            "status_Preg2": "preg2", "status_Insem": "open", "status_B-Clf": "b_calf",
+        })
+        _cleanup(app)   # same tags importable again
+        body = admin_client.get(_upload(admin_client)).get_data(as_text=True)
+        assert re.search(rf'<option value="{milk}"\s+selected', body)
+        assert re.search(rf'<option value="{nursing}"\s+selected', body)
+        assert re.search(r'<option value="open"\s+selected', body)   # not the default insem
+    finally:
+        _cleanup(app)
+        with app.app_context():
+            for k, v in before.items():
+                row = db.session.get(Setting, k)
+                if v is None and row is not None:
+                    db.session.delete(row)
+                elif v is not None:
+                    Setting.set(k, v)
+            db.session.commit()

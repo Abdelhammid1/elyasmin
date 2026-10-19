@@ -99,6 +99,11 @@ class Setting(db.Model):
     KEY_MILK_AVG_DAYS = "milk_avg_days"
     # VET-1: show vaccine doses due within this many days. Default 7.
     KEY_VET_DUE_DAYS = "vet_due_days"
+    # Remembered parlor → app mapping from the last herd import, one row
+    # per code: "parlor_group:<n>" → group id, "parlor_status:<code>" →
+    # status code ("" = no status).
+    PREFIX_PARLOR_GROUP = "parlor_group:"
+    PREFIX_PARLOR_STATUS = "parlor_status:"
 
     key = db.Column(db.String(80), primary_key=True)
     value = db.Column(db.String(255), nullable=False)
