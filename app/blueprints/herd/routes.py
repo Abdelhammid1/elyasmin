@@ -1031,8 +1031,9 @@ def delete_breeding_event(cow_id: int, event_id: int):
     """HERD-10: delete an event and undo what it did (status, group,
     insemination cost)."""
     from app.services.breeding_delete import DeleteRefused, delete_breeding_event as _delete
+    cow = db.session.get(Cow, cow_id)
     event = db.session.get(BreedingEvent, event_id)
-    if event is None or event.cow_id != cow_id:
+    if not cow or cow.is_archived or event is None or event.cow_id != cow.id:
         abort(404)
     label = event.event_label
     try:
