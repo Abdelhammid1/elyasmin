@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}معاينة استيراد القطيع{% endblock %}
+{% block content %}
+{# HERD-9 step 2: map parlor groups / statuses, check the rows, import. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-file-earmark-check"></i> معاينة الاستيراد</h1>
+    <p class="text-muted mb-0">مفيش حاجة اتحفظت لسه — راجع وبعدين اضغط استيراد.</p>
+  </div>
+  <a href="{{ url_for('herd.herd_import_upload') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> ملف تاني
+  </a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat-card">
+    <div class="stat-label">صفوف في الملف</div>
+    <div class="stat-value" dir="ltr">{{ result.total }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card tone-brand">
+    <div class="stat-label">هتتسجل</div>
+    <div class="stat-value" dir="ltr">{{ result.rows|length }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if result.duplicates %}tone-warning{% endif %}">
+    <div class="stat-label">مكررة في الملف</div>
+    <div class="stat-value" dir="ltr">{{ result.duplicates|length }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if result.existing %}tone-warning{% endif %}">
+    <div class="stat-label">موجودة في النظام</div>
+    <div class="stat-value" dir="ltr">{{ result.existing|length }}</div>
+  </div></div>
+</div>
+
+{% if result.duplicates or result.existing %}
+<div class="alert alert-warning small">
+  {% if result.duplicates %}<div>مكررة (اتسجل أول ظهور بس): <span dir="ltr">{{ result.duplicates|join(', ') }}</span></div>{% endif %}
+  {% if result.existing %}<div>موجودة فعلًا ومش هتتغير: <span dir="ltr">{{ result.existing|join(', ') }}</span></div>{% endif %}
+</div>
+{% endif %}
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card p-3 h-100">
+        <h5>المجموعات</h5>
+        <p class="small text-muted">رقم المجموعة في برنامج المحلب ← المجموعة عندنا (مطلوب).</p>
+        {% for g in result.groups %}
+        <div class="row g-2 align-items-center mb-2">
+          <div class="col-4 fw-bold">مجموعة <span dir="ltr">{{ g or "—" }}</span></div>
+          <div class="col-8">
+            <select name="group_{{ g }}" class="form-select form-select-sm" required>
+              <option value="">— اختار —</option>
+              {% for gid, gname in group_choices %}
+              <option value="{{ gid }}">{{ gname }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card p-3 h-100">
+        <h5>الحالات</h5>
+        <p class="small text-muted">كود الحالة في برنامج المحلب ← الحالة عندنا. "عجل رضيع" بيتسجل ذكر، والباقي إناث.</p>
+        {% for s in result.statuses %}
+        {% set d = default_status(s) %}
+        <div class="row g-2 align-items-center mb-2">
+          <div class="col-4 fw-bold" dir="ltr">{{ s or "(فاضي)" }}</div>
+          <div class="col-8">
+            <select name="status_{{ s }}" class="form-select form-select-sm">
+              {% for code, name in status_choices %}
+              <option value="{{ code }}" {% if code == d %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="p-3 pb-0"><h5>أول {{ sample|length }} صف</h5></div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr><th>الرقم</th><th>الميلاد</th><th>المجموعة</th><th>الحالة</th>
+              <th>الموسم</th><th>آخر ولادة</th><th>آخر تلقيح</th></tr>
+        </thead>
+        <tbody>
+          {% for r in sample %}
+          <tr>
+            <td dir="ltr" class="fw-bold">{{ r.tag }}</td>
+            <td dir="ltr" class="small">{{ r.birth or "—" }}</td>
+            <td dir="ltr">{{ r.group }}</td>
+            <td dir="ltr">{{ r.status }}</td>
+            <td dir="ltr">{{ r.lactation }}</td>
+            <td dir="ltr" class="small">{{ r.last_calving or "—" }}</td>
+            <td dir="ltr" class="small">{{ r.last_insem or "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-primary" {% if not result.rows %}disabled{% endif %}>
+      <i class="bi bi-check-lg"></i> استيراد {{ result.rows|length }} رأس
+    </button>
+    <a href="{{ url_for('herd.list_cows') }}" class="btn btn-outline-secondary">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

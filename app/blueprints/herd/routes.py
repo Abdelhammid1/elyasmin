@@ -31,7 +31,7 @@ from app.models.herd import (
     breeding_status_label,
 )
 from app.utils.audit import log_action
-from app.utils.decorators import write_required
+from app.utils.decorators import admin_required, write_required
 
 bp = Blueprint("herd", __name__, template_folder="../../templates/herd")
 
@@ -1711,4 +1711,99 @@ def insemination_costs_excel():
         "تكاليف التلقيح",
         ["التاريخ", "البقرة", "المصدر", "الصنف", "الكمية", "التكلفة"],
         rows, f"insemination_costs_{d_from}_{d_to}.xlsx",
+    )
+
+
+# ==================== HERD-9: import from the parlor's Excel ====================
+
+_IMPORT_TOKEN_CHARS = set("0123456789abcdef")
+
+
+def _import_path(token: str):
+    """instance/imports/<token>.json — token must be our 32 hex chars, so
+    a crafted URL can't reach any other file."""
+    from pathlib import Path
+    from flask import current_app
+    if len(token) != 32 or not set(token) <= _IMPORT_TOKEN_CHARS:
+        abort(404)
+    folder = Path(current_app.instance_path) / "imports"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{token}.json"
+
+
+def _load_import(token: str):
+    import json
+    from app.services.herd_import import ParseResult
+    path = _import_path(token)
+    if not path.exists():
+        abort(404)
+    return path, ParseResult.from_json(json.loads(path.read_text(encoding="utf-8")))
+
+
+@bp.route("/import", methods=["GET", "POST"])
+@login_required
+@admin_required
+def herd_import_upload():
+    """Step 1: upload the parlor's ALL HERD export."""
+    import json
+    import secrets
+    from app.services.herd_import import ImportError_, check_upload, parse_workbook
+    if request.method == "POST":
+        f = request.files.get("file")
+        if f is None or not f.filename:
+            flash("اختار ملف الإكسيل.", "error")
+            return render_template("herd/import_upload.html")
+        try:
+            check_upload(f)
+            result = parse_workbook(f.stream)
+        except ImportError_ as e:
+            flash(str(e), "error")
+            return render_template("herd/import_upload.html")
+        token = secrets.token_hex(16)
+        _import_path(token).write_text(json.dumps(result.to_json(), ensure_ascii=False),
+                                       encoding="utf-8")
+        return redirect(url_for("herd.herd_import_preview", token=token))
+    return render_template("herd/import_upload.html")
+
+
+@bp.route("/import/<token>", methods=["GET", "POST"])
+@login_required
+@admin_required
+def herd_import_preview(token: str):
+    """Step 2: map parlor groups / statuses to ours, then import."""
+    from app.services.herd_import import default_status_for, import_rows
+    path, result = _load_import(token)
+    group_choices = _group_choices()
+    status_choices = [("", "— بدون حالة —")] + breeding_status_choices()
+
+    if request.method == "POST":
+        valid_groups = {gid for gid, _ in group_choices}
+        group_map, missing = {}, []
+        for g in result.groups:
+            raw = request.form.get(f"group_{g}", "")
+            if raw.isdigit() and int(raw) in valid_groups:
+                group_map[g] = int(raw)
+            else:
+                missing.append(g)
+        if missing:
+            flash("لازم تختار مجموعة لكل رقم مجموعة في الملف: " + "، ".join(missing), "error")
+        else:
+            valid_status = {code for code, _ in status_choices}
+            status_map = {}
+            for s in result.statuses:
+                picked = request.form.get(f"status_{s}", "")
+                status_map[s] = picked if picked in valid_status else ""
+            imported = import_rows(result.rows, group_map, status_map, current_user.id)
+            log_action("herd_imported", "Cow", 0,
+                       details=f"imported={imported} duplicates={len(result.duplicates)} "
+                               f"existing={len(result.existing)}")
+            db.session.commit()
+            path.unlink(missing_ok=True)
+            return render_template("herd/import_done.html", imported=imported,
+                                   duplicates=result.duplicates, existing=result.existing)
+
+    return render_template(
+        "herd/import_preview.html", token=token, result=result,
+        group_choices=group_choices, status_choices=status_choices,
+        default_status=default_status_for, sample=result.rows[:20],
     )

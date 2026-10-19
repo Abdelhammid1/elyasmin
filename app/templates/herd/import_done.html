@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}تم الاستيراد{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-check-circle"></i> تم الاستيراد</h1>
+</div>
+
+<div class="card p-4">
+  <p class="fs-5 mb-2">اتسجل <strong dir="ltr">{{ imported }}</strong> رأس.</p>
+  {% if duplicates %}
+  <p class="small text-muted mb-1">مكررة في الملف واتخطت: <span dir="ltr">{{ duplicates|join(', ') }}</span></p>
+  {% endif %}
+  {% if existing %}
+  <p class="small text-muted mb-1">كانت موجودة واتخطت: <span dir="ltr">{{ existing|join(', ') }}</span></p>
+  {% endif %}
+  <div class="mt-3">
+    <a href="{{ url_for('herd.list_cows') }}" class="btn btn-primary">
+      <i class="bi bi-heart-pulse"></i> عرض القطيع
+    </a>
+  </div>
+</div>
+{% endblock %}

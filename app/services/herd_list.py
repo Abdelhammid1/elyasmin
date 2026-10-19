@@ -102,6 +102,7 @@ def build_herd_rows(filters: dict, sort: str = "tag", direction: str = "asc",
     ids = [c.id for c in cows]
     births = {}
     insems = {}
+    calvings = {}
     if ids:
         for mother_id, n, last in (
             db.session.query(Birth.mother_id, func.count(Birth.id),
@@ -110,17 +111,27 @@ def build_herd_rows(filters: dict, sort: str = "tag", direction: str = "asc",
             .group_by(Birth.mother_id)
         ):
             births[mother_id] = (n, last)
-        for cow_id, last in (
-            db.session.query(BreedingEvent.cow_id, func.max(BreedingEvent.event_date))
+        for cow_id, etype, last in (
+            db.session.query(BreedingEvent.cow_id, BreedingEvent.event_type,
+                             func.max(BreedingEvent.event_date))
             .filter(BreedingEvent.cow_id.in_(ids),
-                    BreedingEvent.event_type == BreedingEvent.EVENT_INSEMINATION)
-            .group_by(BreedingEvent.cow_id)
+                    BreedingEvent.event_type.in_([BreedingEvent.EVENT_INSEMINATION,
+                                                  BreedingEvent.EVENT_CALVING]))
+            .group_by(BreedingEvent.cow_id, BreedingEvent.event_type)
         ):
-            insems[cow_id] = last
+            if etype == BreedingEvent.EVENT_INSEMINATION:
+                insems[cow_id] = last
+            else:
+                calvings[cow_id] = last
 
     rows = []
     for c in cows:
-        n_births, last_calving = births.get(c.id, (0, None))
+        n_births, last_birth = births.get(c.id, (0, None))
+        # HERD-9: a calving event without a Birth row (imported from the
+        # parlor) still counts as the last calving. create_birth writes
+        # both for the same date, so taking the latest never double-counts.
+        last_calving = max((d for d in (last_birth, calvings.get(c.id)) if d),
+                           default=None)
         last_insem = insems.get(c.id)
         season = n_births + (c.season_count_offset or 0)
         days_preg = expected = None

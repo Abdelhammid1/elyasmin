@@ -54,6 +54,11 @@
     <a href="{{ url_for('herd.groups') }}" class="btn btn-outline-secondary">
       <i class="bi bi-diagram-3"></i> المجموعات
     </a>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('herd.herd_import_upload') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-file-earmark-arrow-up"></i> استيراد من إكسيل
+    </a>
+    {% endif %}
     {% if can_write %}
     <a href="{{ url_for('herd.create_birth') }}" class="btn btn-outline-primary">
       <i class="bi bi-egg"></i> تسجيل ولادة
