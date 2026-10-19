@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -21,6 +21,7 @@ from app.models.herd import (
     Calf,
     CattleGroup,
     Cow,
+    CowMilkRecord,
     CowMovement,
     Death,
     CowValuation,
@@ -185,7 +186,7 @@ def list_cows():
     status / season, each multi-pick) and sortable headers. KPIs are
     computed on the filtered set."""
     from app.services.herd_list import (
-        LIFE_CHOICES, build_herd_rows, read_filters,
+        LIFE_CHOICES, build_herd_rows, milk_avg_days, read_filters,
     )
     filters = read_filters(request.args)
     sort = request.args.get("sort") or "tag"
@@ -212,6 +213,7 @@ def list_cows():
         season_options=season_options,
         print_mode=bool(request.args.get("print")),
         today_iso=date.today().isoformat(),
+        milk_days=milk_avg_days(),
         total_count=len(cows),
         male_count=sum(1 for c in cows if c.gender == "male"),
         female_count=sum(1 for c in cows if c.gender == "female"),
@@ -274,6 +276,17 @@ def cow_detail(cow_id: int):
         .all()
     )
 
+    # HERD-11: last 30 days of milk.
+    since = date.today() - timedelta(days=30)
+    milk_records = (
+        CowMilkRecord.query.filter(CowMilkRecord.cow_id == cow.id,
+                                   CowMilkRecord.record_date > since)
+        .order_by(CowMilkRecord.record_date.desc())
+        .all()
+    )
+    milk_avg = (round(sum(float(r.kg) for r in milk_records) / len(milk_records), 1)
+                if milk_records else None)
+
     return render_template(
         "herd/detail.html",
         cow=cow,
@@ -281,6 +294,8 @@ def cow_detail(cow_id: int):
         death=death,
         sale=sale,
         dispenses=dispenses,
+        milk_records=milk_records,
+        milk_avg=milk_avg,
     )
 
 
@@ -1653,6 +1668,7 @@ def herd_alert_settings():
         (Setting.KEY_HERD_ALERT_DRY_DAYS, "التجفيف بعد التلقيح بـ (يوم)"),
         (Setting.KEY_HERD_ALERT_WAITING_DAYS, "النقل للانتظار قبل الولادة بـ (يوم)"),
         (Setting.KEY_GESTATION_DAYS, "مدة الحمل (يوم)"),
+        (Setting.KEY_MILK_AVG_DAYS, "متوسط الحليب في القطيع على آخر (يوم)"),
     ]
     if request.method == "POST":
         values = {}
@@ -1834,4 +1850,112 @@ def herd_import_preview(token: str):
         "herd/import_preview.html", token=token, result=result,
         group_choices=group_choices, status_choices=status_choices,
         default_status=default_status_for, sample=result.rows[:20],
+    )
+
+
+# ==================== HERD-11: per-cow daily milk import ====================
+
+def _load_milk_import(token: str):
+    import json
+    from app.services.milk_import import MilkSheet
+    path = _import_path(token)
+    if not path.exists():
+        abort(404)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        sheet = MilkSheet.from_json(data)
+        record_date = date.fromisoformat(data["date"])
+    except (KeyError, ValueError):
+        abort(404)
+    return path, sheet, record_date
+
+
+def _col_arg(source, name: str, width: int) -> int | None:
+    raw = (source.get(name) or "").strip()
+    return int(raw) if raw.isdigit() and int(raw) < width else None
+
+
+@bp.route("/milk-import", methods=["GET", "POST"])
+@login_required
+@write_required
+def milk_import_upload():
+    """Step 1: the parlor's daily milk sheet + which day it is for."""
+    import json
+    import secrets
+    from app.services.milk_import import ImportError_, check_upload, parse_sheet
+    today = date.today()
+    picked = request.form.get("record_date") or today.isoformat()
+    if request.method == "POST":
+        try:
+            record_date = date.fromisoformat(picked)
+        except ValueError:
+            record_date = None
+        f = request.files.get("file")
+        if record_date is None or record_date > today:
+            flash("اختار تاريخ صحيح (مش في المستقبل).", "error")
+        elif f is None or not f.filename:
+            flash("اختار ملف الإكسيل.", "error")
+        else:
+            try:
+                check_upload(f)
+                sheet = parse_sheet(f.stream)
+            except ImportError_ as e:
+                flash(str(e), "error")
+            else:
+                token = secrets.token_hex(16)
+                data = sheet.to_json() | {"date": record_date.isoformat()}
+                _import_path(token).write_text(json.dumps(data, ensure_ascii=False),
+                                               encoding="utf-8")
+                return redirect(url_for("herd.milk_import_preview", token=token))
+    return render_template("herd/milk_import_upload.html", picked=picked,
+                           today_iso=today.isoformat())
+
+
+@bp.route("/milk-import/<token>", methods=["GET", "POST"])
+@login_required
+@write_required
+def milk_import_preview(token: str):
+    """Step 2: check / change the tag and milk columns, then save."""
+    from app.services.milk_import import build_preview, guess_columns, import_milk
+    path, sheet, record_date = _load_milk_import(token)
+    width = len(sheet.headers)
+    source = request.form if request.method == "POST" else request.args
+    guess_tag, guess_milk = guess_columns(sheet.headers)
+    tag_col = _col_arg(source, "tag_col", width)
+    milk_col = _col_arg(source, "milk_col", width)
+    tag_col = guess_tag if tag_col is None else tag_col
+    milk_col = guess_milk if milk_col is None else milk_col
+
+    preview = None
+    if milk_col is not None and milk_col != tag_col:
+        preview = build_preview(sheet, tag_col, milk_col, record_date)
+
+    if request.method == "POST":
+        if preview is None:
+            flash("اختار عمود الحليب (ومختلف عن عمود الرقم).", "error")
+        elif not preview.matched:
+            flash("مفيش ولا بقرة من الملف اتعرفت — راجع الأعمدة.", "error")
+        else:
+            overwrite = request.form.get("overwrite") == "1"
+            added, updated, skipped = import_milk(preview.matched, record_date,
+                                                  overwrite, current_user.id)
+            log_action("milk_imported", "CowMilkRecord", 0,
+                       details=f"date={record_date} added={added} updated={updated} "
+                               f"skipped={skipped} unknown={len(preview.unknown)}")
+            db.session.commit()
+            path.unlink(missing_ok=True)
+            msg = f"حليب يوم {record_date}: اتسجل {added}"
+            if updated:
+                msg += f"، اتعدل {updated}"
+            if skipped:
+                msg += f"، اتساب {skipped} (كان متسجل قبل كده)"
+            if preview.unknown:
+                msg += f"، {len(preview.unknown)} رقم مش في القطيع"
+            flash(msg + ".", "success")
+            return redirect(url_for("herd.list_cows", sort="avg_milk", dir="desc"))
+
+    return render_template(
+        "herd/milk_import_preview.html", token=token, headers=sheet.headers,
+        record_date=record_date, tag_col=tag_col, milk_col=milk_col,
+        preview=preview, sample=preview.matched[:20] if preview else [],
     )

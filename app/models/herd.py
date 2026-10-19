@@ -605,3 +605,25 @@ class CowValuation(db.Model):
         """Positive = gain, negative = loss."""
         return (Decimal(str(self.value or 0))
                 - Decimal(str(self.prior_value or 0)))
+
+
+class CowMilkRecord(db.Model):
+    """HERD-11: one cow's milk for one day, from the parlor's daily
+    Excel (or typed in). Feeds the herd list's average."""
+    __tablename__ = "cow_milk_records"
+    __table_args__ = (
+        db.UniqueConstraint("cow_id", "record_date", name="uq_cow_milk_day"),
+    )
+
+    SOURCE_IMPORT = "import"
+    SOURCE_MANUAL = "manual"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cow_id = db.Column(db.Integer, db.ForeignKey("cows.id"), nullable=False, index=True)
+    record_date = db.Column(db.Date, nullable=False, index=True)
+    kg = db.Column(db.Numeric(8, 2), nullable=False)
+    source = db.Column(db.String(20), nullable=False, default=SOURCE_IMPORT)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    cow = db.relationship("Cow")

@@ -130,6 +130,25 @@
 </div>
 {% endif %}
 
+{% if milk_records %}
+<div class="card p-3 mt-3">
+  {# HERD-11 #}
+  <h5><i class="bi bi-droplet"></i> الحليب — آخر 30 يوم
+    <small class="text-muted">متوسط <span dir="ltr">{{ milk_avg }}</span> كجم في {{ milk_records|length }} يوم</small>
+  </h5>
+  <div class="table-responsive" style="max-height: 320px;">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>التاريخ</th><th class="text-center">الحليب (كجم)</th></tr></thead>
+      <tbody>
+        {% for r in milk_records %}
+        <tr><td dir="ltr">{{ r.record_date }}</td><td class="text-center" dir="ltr">{{ r.kg }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 {% if cow.notes %}
 <div class="card p-3 mt-3">
   <h5>ملاحظات عامة</h5>

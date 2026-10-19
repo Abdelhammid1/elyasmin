@@ -39,7 +39,7 @@ KEEP = frozenset({
 WIPE = frozenset({
     # herd
     "cows", "cow_movements", "births", "calves", "deaths", "animal_sales",
-    "breeding_events", "breeding_status_changes", "cow_valuations",
+    "breeding_events", "breeding_status_changes", "cow_valuations", "cow_milk_records",
     # inventory / feed / medicine
     "ingredients", "ingredient_units", "stock_movements", "medicine_lots",
     "medicine_dispenses", "feed_recipes", "feed_recipe_lines", "feed_runs",

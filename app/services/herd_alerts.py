@@ -44,6 +44,7 @@ DEFAULTS = {
     Setting.KEY_HERD_ALERT_DRY_DAYS: 210,
     Setting.KEY_HERD_ALERT_WAITING_DAYS: 20,
     Setting.KEY_GESTATION_DAYS: 280,
+    Setting.KEY_MILK_AVG_DAYS: 7,
 }
 
 

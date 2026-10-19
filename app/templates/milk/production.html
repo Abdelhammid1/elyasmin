@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 {% block title %}الإنتاج اليومي والفاقد{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1><i class="bi bi-clipboard-data"></i> الإنتاج اليومي والفاقد</h1>
-  <p class="text-muted mb-0">أدخل إجمالي إنتاج المزرعة اليومي — الفاقد بيتحسب: الإنتاج ناقص كل التوريدات لنفس اليوم.</p>
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-clipboard-data"></i> الإنتاج اليومي والفاقد</h1>
+    <p class="text-muted mb-0">أدخل إجمالي إنتاج المزرعة اليومي — الفاقد بيتحسب: الإنتاج ناقص كل التوريدات لنفس اليوم.</p>
+  </div>
+  {% if can_write %}
+  <a href="{{ url_for('herd.milk_import_upload') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-droplet"></i> حليب كل بقرة (إكسيل المحلب)
+  </a>
+  {% endif %}
 </div>
 
 <div class="row g-3 mb-4">

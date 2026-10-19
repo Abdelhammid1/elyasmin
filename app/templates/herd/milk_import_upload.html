@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}استيراد الحليب اليومي{% endblock %}
+{% block content %}
+{# HERD-11 step 1: the parlor's daily milk sheet + the day it is for. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-droplet"></i> استيراد الحليب اليومي</h1>
+    <p class="text-muted mb-0">ملف إكسيل من برنامج المحلب فيه كمية حليب كل بقرة في يوم.</p>
+  </div>
+  <a href="{{ url_for('herd.list_cows') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> رجوع للقطيع
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label" for="record_date">اليوم</label>
+          <input type="date" name="record_date" id="record_date" value="{{ picked }}"
+                 max="{{ today_iso }}" class="form-control" dir="ltr" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="file">ملف الإكسيل (.xlsx)</label>
+          <input type="file" name="file" id="file" accept=".xlsx" class="form-control" required>
+        </div>
+        <ul class="small text-muted">
+          <li>البرنامج بيدوّر على صف العناوين ويخمّن عمود رقم البقرة وعمود الحليب — وتقدر تغيرهم في الخطوة الجاية.</li>
+          <li>الأرقام اللي مش في القطيع (أو مش نشطة) بتتخطى وبتظهر في المعاينة.</li>
+          <li>لو اليوم ده متسجل قبل كده، تختار تكتب فوقه أو تسيبه.</li>
+        </ul>
+        <button class="btn btn-primary"><i class="bi bi-upload"></i> رفع ومعاينة</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

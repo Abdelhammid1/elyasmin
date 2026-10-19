@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}معاينة استيراد الحليب{% endblock %}
+{% block content %}
+{# HERD-11 step 2: pick / confirm the columns, check the rows, save. #}
+
+<div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-droplet-half"></i> معاينة حليب يوم <span dir="ltr">{{ record_date }}</span></h1>
+    <p class="text-muted mb-0">مفيش حاجة اتحفظت لسه — راجع الأعمدة والأرقام وبعدين اضغط حفظ.</p>
+  </div>
+  <a href="{{ url_for('herd.milk_import_upload') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> ملف تاني
+  </a>
+</div>
+
+<form method="get" class="card p-3 mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4 col-6">
+      <label class="form-label small mb-1" for="tag_col">عمود رقم البقرة</label>
+      <select name="tag_col" id="tag_col" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for h in headers %}
+        <option value="{{ loop.index0 }}" {% if loop.index0 == tag_col %}selected{% endif %}>{{ h or ("عمود " ~ loop.index) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 col-6">
+      <label class="form-label small mb-1" for="milk_col">عمود الحليب (كجم)</label>
+      <select name="milk_col" id="milk_col" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% if milk_col is none %}<option value="" selected>— اختار —</option>{% endif %}
+        {% for h in headers %}
+        <option value="{{ loop.index0 }}" {% if loop.index0 == milk_col %}selected{% endif %}>{{ h or ("عمود " ~ loop.index) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 col-12">
+      <noscript><button class="btn btn-sm btn-outline-primary">تحديث المعاينة</button></noscript>
+    </div>
+  </div>
+</form>
+
+{% if preview is none %}
+<div class="alert alert-warning">
+  {% if milk_col is none %}مش لاقي عمود عنوانه زي "Milk" أو "حليب" — اختار عمود الحليب من فوق.
+  {% else %}عمود الحليب لازم يبقى مختلف عن عمود الرقم.{% endif %}
+</div>
+{% else %}
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat-card tone-brand">
+    <div class="stat-label">أبقار اتعرفت</div>
+    <div class="stat-value" dir="ltr">{{ preview.matched|length }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if preview.existing_count %}tone-warning{% endif %}">
+    <div class="stat-label">متسجل ليها اليوم ده</div>
+    <div class="stat-value" dir="ltr">{{ preview.existing_count }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if preview.unknown %}tone-warning{% endif %}">
+    <div class="stat-label">أرقام مش في القطيع</div>
+    <div class="stat-value" dir="ltr">{{ preview.unknown|length }}</div>
+  </div></div>
+  <div class="col-md-3 col-6"><div class="card stat-card {% if preview.bad or preview.duplicates %}tone-warning{% endif %}">
+    <div class="stat-label">غلط / مكرر / فاضي</div>
+    <div class="stat-value" dir="ltr">{{ preview.bad|length }} / {{ preview.duplicates|length }} / {{ preview.blank }}</div>
+  </div></div>
+</div>
+
+{% if preview.unknown %}
+<div class="alert alert-light small">
+  <strong>مش في القطيع:</strong>
+  <span dir="ltr">{{ preview.unknown[:50]|join(", ") }}{% if preview.unknown|length > 50 %} …{% endif %}</span>
+</div>
+{% endif %}
+{% if preview.bad %}
+<div class="alert alert-light small">
+  <strong>رقم الحليب مش مفهوم أو سالب:</strong>
+  <span dir="ltr">{{ preview.bad[:50]|join(", ") }}</span>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>رقم الأذن</th><th class="text-center">الحليب (كجم)</th><th></th></tr></thead>
+      <tbody>
+        {% for m in sample %}
+        <tr>
+          <td class="font-monospace" dir="ltr">{{ m.tag }}</td>
+          <td class="text-center" dir="ltr">{{ m.kg }}</td>
+          <td class="small">
+            {% if m.exists %}<span class="chip chip-cash">متسجل قبل كده</span>{% endif %}
+            {% if m.suspicious %}<span class="chip chip-unpaid">رقم كبير — اتأكد</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if preview.matched|length > sample|length %}
+  <div class="small text-muted p-2">أول {{ sample|length }} من {{ preview.matched|length }}.</div>
+  {% endif %}
+</div>
+
+{% if preview.matched %}
+<form method="post" class="card p-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="tag_col" value="{{ tag_col }}">
+  <input type="hidden" name="milk_col" value="{{ milk_col }}">
+  {% if preview.existing_count %}
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="checkbox" name="overwrite" value="1" id="overwrite">
+    <label class="form-check-label" for="overwrite">
+      اكتب فوق الـ{{ preview.existing_count }} المتسجلين قبل كده (من غير العلامة بيتسابوا زي ما هم)
+    </label>
+  </div>
+  {% endif %}
+  <div><button class="btn btn-primary"><i class="bi bi-check2"></i> حفظ حليب {{ preview.matched|length }} بقرة</button></div>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

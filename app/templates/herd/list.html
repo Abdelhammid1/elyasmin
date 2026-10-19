@@ -60,6 +60,9 @@
     </a>
     {% endif %}
     {% if can_write %}
+    <a href="{{ url_for('herd.milk_import_upload') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-droplet"></i> استيراد الحليب اليومي
+    </a>
     <a href="{{ url_for('herd.create_birth') }}" class="btn btn-outline-primary">
       <i class="bi bi-egg"></i> تسجيل ولادة
     </a>
@@ -131,6 +134,7 @@
           <th class="text-center">{{ sort_link('last_insem', 'آخر تلقيح') }}</th>
           <th class="text-center">{{ sort_link('days_preg', 'أيام العشار') }}</th>
           <th class="text-center">{{ sort_link('expected', 'الولادة المتوقعة') }}</th>
+          <th class="text-center" title="آخر {{ milk_days }} يوم">{{ sort_link('avg_milk', 'متوسط الحليب') }}</th>
           {% if filters.life != 'active' %}<th class="text-center">الوضع</th>{% endif %}
           <th class="text-end no-print">إجراءات</th>
         </tr>
@@ -161,6 +165,7 @@
           <td class="text-center small" dir="ltr">{{ r.last_insem or "—" }}</td>
           <td class="text-center" dir="ltr">{{ r.days_preg if r.days_preg is not none else "—" }}</td>
           <td class="text-center small" dir="ltr">{{ r.expected or "—" }}</td>
+          <td class="text-center" dir="ltr">{{ r.avg_milk if r.avg_milk is not none else "—" }}</td>
           {% if filters.life != 'active' %}
           <td class="text-center">
             {% if cow.status == "active" %}<span class="chip chip-paid">نشطة</span>

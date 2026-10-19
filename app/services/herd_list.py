@@ -14,7 +14,9 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.models.finance import Setting
-from app.models.herd import Birth, BreedingEvent, Cow, breeding_status_label
+from app.models.herd import (
+    Birth, BreedingEvent, Cow, CowMilkRecord, breeding_status_label,
+)
 
 # Statuses where "days pregnant" and the expected calving date mean
 # something.
@@ -22,7 +24,7 @@ PREGNANT_STATUSES = {Cow.BS_PREG, Cow.BS_PREG2, Cow.BS_DRY, Cow.BS_WAITING}
 
 SORT_KEYS = (
     "tag", "group", "age", "status", "season", "last_calving", "dim",
-    "last_insem", "days_preg", "expected",
+    "last_insem", "days_preg", "expected", "avg_milk",
 )
 
 LIFE_CHOICES = [
@@ -35,12 +37,17 @@ LIFE_CHOICES = [
 EXPORT_HEADERS = [
     "رقم الأذن", "المجموعة", "العمر (سنة)", "الحالة", "الموسم",
     "آخر ولادة", "أيام الحليب", "آخر تلقيح", "أيام العشار",
-    "الولادة المتوقعة",
+    "الولادة المتوقعة", "متوسط الحليب (كجم)",
 ]
 
 
 def gestation_days() -> int:
     return int(Setting.get_decimal(Setting.KEY_GESTATION_DAYS, Decimal("280")))
+
+
+def milk_avg_days() -> int:
+    """HERD-11: how many days back the milk average looks."""
+    return max(1, int(Setting.get_decimal(Setting.KEY_MILK_AVG_DAYS, Decimal("7"))))
 
 
 def read_filters(args) -> dict:
@@ -103,7 +110,18 @@ def build_herd_rows(filters: dict, sort: str = "tag", direction: str = "asc",
     births = {}
     insems = {}
     calvings = {}
+    milk = {}
     if ids:
+        # HERD-11: average over the days that have a record in the window.
+        since = today - timedelta(days=milk_avg_days())
+        for cow_id, avg in (
+            db.session.query(CowMilkRecord.cow_id, func.avg(CowMilkRecord.kg))
+            .filter(CowMilkRecord.cow_id.in_(ids),
+                    CowMilkRecord.record_date > since,
+                    CowMilkRecord.record_date <= today)
+            .group_by(CowMilkRecord.cow_id)
+        ):
+            milk[cow_id] = round(float(avg), 1)
         for mother_id, n, last in (
             db.session.query(Birth.mother_id, func.count(Birth.id),
                              func.max(Birth.birth_date))
@@ -152,6 +170,7 @@ def build_herd_rows(filters: dict, sort: str = "tag", direction: str = "asc",
             "last_insem": last_insem,
             "days_preg": days_preg,
             "expected": expected,
+            "avg_milk": milk.get(c.id),
         })
 
     seasons = filters.get("season") or []
@@ -179,4 +198,5 @@ def export_row(r: dict) -> list:
         r["status"], r["season"], d(r["last_calving"]),
         r["dim"] if r["dim"] is not None else "", d(r["last_insem"]),
         r["days_preg"] if r["days_preg"] is not None else "", d(r["expected"]),
+        r["avg_milk"] if r["avg_milk"] is not None else "",
     ]

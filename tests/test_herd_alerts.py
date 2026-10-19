@@ -115,6 +115,7 @@ def test_settings_change_threshold(admin_client, app):
             Setting.KEY_HERD_ALERT_DRY_DAYS: "210",
             Setting.KEY_HERD_ALERT_WAITING_DAYS: "20",
             Setting.KEY_GESTATION_DAYS: "280",
+            Setting.KEY_MILK_AVG_DAYS: "7",
         })
         assert r.status_code in (302, 303)
         assert _tags(app, "check") == [_PREFIX + "S35"]
