@@ -4,7 +4,7 @@ from decimal import Decimal
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileSize
 from wtforms import DateField, DecimalField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, Regexp
 
 from app.models.finance import Expense
 
@@ -158,6 +158,17 @@ class CompanyProfileForm(FlaskForm):
     they have; missing pieces just don't render on the invoice."""
 
     # ---- Public identity ----
+    # LANDING-1: shown on the public landing page (stored in settings).
+    landing_phone = StringField(
+        "تليفون المبيعات (للصفحة الرئيسية)",
+        validators=[Optional(), Length(max=30),
+                    Regexp(r"^[0-9+\s-]+$", message="أرقام بس (ممكن + ومسافات).")],
+    )
+    landing_whatsapp = StringField(
+        "رقم واتساب المبيعات (بكود الدولة، مثال 201001234567)",
+        validators=[Optional(), Length(max=20),
+                    Regexp(r"^\+?[0-9\s]+$", message="أرقام بس، بكود الدولة.")],
+    )
     name = StringField("اسم الشركة (الاسم التجاري)",
                         validators=[DataRequired(), Length(max=150)])
     logo = FileField(

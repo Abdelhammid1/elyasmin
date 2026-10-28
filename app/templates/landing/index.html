@@ -3,11 +3,27 @@
 <html dir="rtl" lang="ar"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>مزرعة الياسمين | لبن خام طبيعي للمصانع ومحلات الألبان</title>
+<meta name="description" content="مزرعة الياسمين: إنتاج وتوريد لبن أبقار خام طبيعي كامل الدسم، بدون إضافات، مبرد فور الحلب، لمصانع الألبان والمحلات بالتانكات أو القساط مع تحليل الدهن والبروتين لكل توريد."/>
+<meta name="theme-color" content="#0284c7"/>
+<link rel="canonical" href="{{ site_url }}/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:locale" content="ar_EG"/>
+<meta property="og:site_name" content="مزرعة الياسمين"/>
+<meta property="og:title" content="مزرعة الياسمين | لبن خام طبيعي للمصانع ومحلات الألبان"/>
+<meta property="og:description" content="لبن أبقار خام طبيعي كامل الدسم، مبرد فور الحلب، توريد بالتانكات أو القساط مع تحليل الدهن والبروتين لكل توريد."/>
+<meta property="og:url" content="{{ site_url }}/"/>
+<meta property="og:image" content="{{ site_url }}/static/img/logo-512.png"/>
+<meta property="og:image:alt" content="شعار مزرعة الياسمين"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="مزرعة الياسمين | لبن خام طبيعي للمصانع ومحلات الألبان"/>
+<meta name="twitter:description" content="لبن أبقار خام طبيعي كامل الدسم، مبرد فور الحلب، للمصانع ومحلات الألبان."/>
+<meta name="twitter:image" content="{{ site_url }}/static/img/logo-512.png"/>
 <link rel="icon" type="image/png" href="/static/img/favicon.png"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet"/>
 <style>
     @layer base {
       html, body { margin: 0; padding: 0; }
@@ -16,6 +32,15 @@
       main > :last-child { margin-bottom: 0 !important; }
     }
     ::-webkit-scrollbar { display: none; }
+    /* LANDING-1: icons are ligature words ("chat", "arrow_back"…). Keep
+       each one in a fixed 1em box and hidden until the icon font has
+       loaded, so the raw English words never show in the Arabic text or
+       push the layout around (slow connection, reload, blocked CDN). */
+    .material-symbols-outlined {
+      display: inline-block; width: 1em; height: 1em; line-height: 1;
+      overflow: hidden; white-space: nowrap; direction: ltr; flex-shrink: 0;
+    }
+    html:not(.icons-ready) .material-symbols-outlined { visibility: hidden; }
   </style>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -106,39 +131,39 @@
     };
   </script>
 </head>
-<body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary-container selection:text-white">
+<body id="top" class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary-container selection:text-white">
 <!-- TOP HEADER -->
 <header class="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-xl border-b border-sky-100 shadow-[0_4px_20px_rgba(2,132,199,0.06)]">
 <div class="h-20 max-w-max-width-content mx-auto px-margin-mobile md:px-margin-tablet lg:px-margin-desktop flex items-center justify-between gap-space-md">
 <!-- Logo & Branding -->
 <div class="flex items-center gap-space-sm">
-<img alt="شعار مزرعة الياسمين" class="h-9 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1VhDgdE47khg7MqT53WMNb2nY0MGrnHmXiUHhJs0af_7UDTL4qNx1VMQW6TdvxRKjFW1tE_2Y3zPfb0iaxMW2Otjv8bcuFwbWYHSCBAWwrF9e56yFWfmeZKFQKtM8aMThHH34PqF4III-FdBx06vpic61h5AuFp0Pj0jmFkxojO961mCMAP0kUgMeCXAOrcF13ccTBnTwzRZZu8DM8p4Bf6k5l5Xz9hDyMId-npuk5uFqV3Ymryvj-ObA"/>
+<img alt="شعار مزرعة الياسمين" class="h-9 w-auto object-contain" src="{{ url_for('static', filename='img/logo-256.png') }}" width="36" height="36"/>
 <div class="flex flex-col">
-<span class="font-headline-sm text-headline-sm text-navy font-bold leading-tight">مزرعة الياسمين</span>
-<span class="font-label-sm text-label-sm text-primary font-bold tracking-wider">إنتاج وتوريد لبن خام طبيعي ١٠٠٪</span>
+<span class="font-headline-sm text-headline-sm text-navy font-bold leading-tight whitespace-nowrap">مزرعة الياسمين</span>
+<span class="hidden sm:inline font-label-sm text-label-sm text-primary font-bold tracking-wider whitespace-nowrap">إنتاج وتوريد لبن خام طبيعي ١٠٠٪</span>
 </div>
 </div>
 <!-- Navigation -->
-<nav class="hidden xl:flex items-center gap-space-lg">
-<a aria-current="page" class="px-space-xs py-space-2xs transition-colors bg-sky-50 text-primary font-bold rounded-lg border border-sky-200" href="#">الرئيسية</a>
-<a class="px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#raw-milk">اللبن الخام</a>
-<a class="px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#supply-options">حلول التوريد والتعبئة</a>
-<a class="px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#specs">المواصفات المخبرية</a>
-<a class="px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#b2b">عقود الشركات والمصانع</a>
-<a class="px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#contact">طلب توريد</a>
+<nav class="hidden xl:flex items-center gap-space-sm">
+<a aria-current="page" class="whitespace-nowrap px-space-xs py-space-2xs transition-colors bg-sky-50 text-primary font-bold rounded-lg border border-sky-200" href="#top">الرئيسية</a>
+<a class="whitespace-nowrap px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#raw-milk">اللبن الخام</a>
+<a class="whitespace-nowrap px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#supply-options">حلول التوريد والتعبئة</a>
+<a class="whitespace-nowrap px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#specs">المواصفات المخبرية</a>
+<a class="whitespace-nowrap px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#b2b">عقود الشركات والمصانع</a>
+<a class="whitespace-nowrap px-space-xs py-space-2xs text-on-surface-variant hover:text-primary transition-colors font-medium" href="#contact">طلب توريد</a>
 </nav>
 <!-- Header CTAs -->
 <div class="flex items-center gap-space-sm">
 <a class="inline-flex items-center gap-space-2xs px-space-md py-space-xs rounded-xl bg-white hover:bg-sky-50 text-primary font-label-md text-label-md transition-colors border border-primary font-semibold" href="/auth/login">
 <span class="material-symbols-outlined text-[18px]">login</span>
-<span>دخول</span>
+<span class="whitespace-nowrap">دخول</span>
 </a>
-<a class="hidden sm:inline-flex items-center gap-space-2xs px-space-md py-space-xs rounded-xl bg-sky-50 hover:bg-sky-100 text-primary font-label-md text-label-md transition-colors border border-sky-200" href="https://wa.me/" rel="noopener noreferrer" target="_blank">
+{% if whatsapp %}<a class="hidden sm:inline-flex items-center gap-space-2xs px-space-md py-space-xs rounded-xl bg-sky-50 hover:bg-sky-100 text-primary font-label-md text-label-md transition-colors border border-sky-200" href="{{ wa_link }}" rel="noopener noreferrer" target="_blank">
 <span class="material-symbols-outlined text-[18px]">chat</span>
-<span>واتساب المبيعات</span>
-</a>
-<a class="inline-flex items-center px-space-md py-space-xs rounded-xl bg-primary text-white font-label-md text-label-md hover:bg-primary-container shadow-md shadow-sky-500/20 transition-colors font-semibold" href="#contact">
-<span>طلب شحنة خام</span>
+<span class="whitespace-nowrap">واتساب المبيعات</span>
+</a>{% endif %}
+<a class="hidden sm:inline-flex items-center px-space-md py-space-xs rounded-xl bg-primary text-white font-label-md text-label-md hover:bg-primary-container shadow-md shadow-sky-500/20 transition-colors font-semibold" href="#contact">
+<span class="whitespace-nowrap">طلب شحنة خام</span>
 </a>
 </div>
 </div>
@@ -164,7 +189,7 @@
           </h1>
 <!-- Supporting Copy -->
 <p class="font-body-lg text-body-md md:text-body-lg text-sky-100/90 max-w-2xl leading-relaxed mb-space-xl">
-            مزرعة الياسمين متخصصة بالكامل في إنتاج وتوريد <strong class="text-sky-300 font-semibold">حليب الأبقار الخام الطبيعي (Raw Farm Milk)</strong> بنقاء ١٠٠٪ دون أي إضافات أو معالجات كيميائية. حلب آلي معقم بالكامل وتبريد فوري فائق لحفظ كامل القيمة الدسمة والبروتين لصالح كبرى المصانع والموزعين.
+            مزرعة الياسمين متخصصة بالكامل في إنتاج وتوريد <strong class="text-sky-300 font-semibold">حليب الأبقار الخام الطبيعي (Raw Farm Milk)</strong> بنقاء ١٠٠٪ دون أي إضافات أو معالجات كيميائية. حلب آلي وتبريد فوري بعد الحلب للحفاظ على الدسم والبروتين، لمصانع الألبان والمحلات والموزعين.
           </p>
 <!-- CTAs -->
 <div class="flex flex-wrap items-center gap-space-md w-full sm:w-auto mb-space-2xl">
@@ -176,10 +201,10 @@
 <span>مواصفات اللبن الخام</span>
 <span class="material-symbols-outlined text-[20px]">expand_more</span>
 </a>
-<a class="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-md rounded-xl bg-[#25D366] text-white font-label-lg text-label-lg shadow-md hover:brightness-105 transition-all font-semibold" href="https://wa.me/" rel="noopener noreferrer" target="_blank">
+{% if whatsapp %}<a class="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-md rounded-xl bg-[#25D366] text-white font-label-lg text-label-lg shadow-md hover:brightness-105 transition-all font-semibold" href="{{ wa_link }}" rel="noopener noreferrer" target="_blank">
 <span class="material-symbols-outlined text-[20px]">chat</span>
 <span>واتساب المبيعات المباشر</span>
-</a>
+</a>{% endif %}
 </div>
 <!-- Trust Badges Bar -->
 <div class="w-full grid grid-cols-1 sm:grid-cols-3 gap-space-md pt-space-lg bg-white/10 backdrop-blur-md rounded-2xl p-space-md border border-sky-400/20 shadow-2xl">
@@ -198,7 +223,7 @@
 </div>
 <div>
 <h4 class="font-headline-sm text-[16px] text-white font-semibold">تبريد صاعق إلى ٣.٨° م فوراً</h4>
-<p class="font-body-sm text-body-sm text-sky-200">خزانات ستانلس ستيل معقمة تحفظ البكتيريا النافعة</p>
+<p class="font-body-sm text-body-sm text-sky-200">خزانات ستانلس ستيل معقمة تحافظ على جودة اللبن</p>
 </div>
 </div>
 <div class="flex items-center gap-space-sm">
@@ -206,8 +231,8 @@
 <span class="material-symbols-outlined text-[24px]">local_shipping</span>
 </div>
 <div>
-<h4 class="font-headline-sm text-[16px] text-white font-semibold">أسطول تانكات مبردة للمصانع</h4>
-<p class="font-body-sm text-body-sm text-sky-200">توريد يومي فجر ومساء مباشرة لمصانع الألبان والمحلات الكبرى</p>
+<h4 class="font-headline-sm text-[16px] text-white font-semibold">توريد مبرد للمصانع والمحلات</h4>
+<p class="font-body-sm text-body-sm text-sky-200">توريد يومي فجر ومساء لمصانع الألبان والمحلات</p>
 </div>
 </div>
 </div>
@@ -221,7 +246,7 @@
 <span class="font-label-sm text-label-sm text-primary tracking-widest block mb-space-2xs font-bold">دقة العمل الميداني للبن الصافي</span>
 <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-navy">رحلة اللبن الخام من الحلب إلى التوريد</h2>
 <p class="font-body-lg text-body-md md:text-body-lg text-on-surface-variant mt-space-xs">
-                تركيزنا الحصري على اللبن الخام يجعلنا الأفضل دقة في إدارة كل ثانية بعد عملية الحلب لضمان أدنى حمل بكتيري وأعلى نقاء كيميائي.
+                تركيزنا على اللبن الخام وحده يسمح لنا بمتابعة كل مرحلة بعد الحلب للحفاظ على أقل حمل بكتيري ممكن.
               </p>
 </div>
 <div class="inline-flex items-center gap-space-xs text-primary font-label-md text-label-md bg-white px-4 py-2 rounded-xl border border-sky-200 shadow-sm">
@@ -300,7 +325,7 @@
                 </p>
 </div>
 <div class="pt-space-md mt-space-md border-t border-sky-100 flex items-center text-primary font-label-sm text-label-sm font-semibold">
-<span>شهادة فحص مع كل شحنة توريد</span>
+<span>تحليل مسجّل لكل توريد</span>
 </div>
 </div>
 </div>
@@ -360,7 +385,7 @@
 </div>
 <div>
 <p class="font-label-md text-label-md text-navy font-bold">خام نقي بدون أي إضافات</p>
-<p class="font-body-sm text-body-sm text-on-surface-variant">فحص مخبري يومي لكل لتر</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">فحص مخبري يومي</p>
 </div>
 </div>
 </div>
@@ -399,7 +424,7 @@
 <ul class="space-y-2 mb-space-lg text-body-sm text-on-surface-variant font-medium">
 <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>سيارات نقل مجهزة ومعتمدة صحياً</li>
 <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>توريد فجري يومي بدون انقطاع</li>
-<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>بوليصة تحليل مخبري فورية لكل شحنة</li>
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>تحليل الدهن والبروتين لكل شحنة</li>
 </ul>
 </div>
 </div>
@@ -445,26 +470,26 @@
 <div class="relative w-full h-64 overflow-hidden bg-sky-100">
 <img alt="مختبر فحص عينات الحليب الخام والتحليل الفوري" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWT2Vwxxwu3niuW7yXUbho3pBBT1mWHORZEm4T6jWzukKhgFF0U3i3KqliOLhKqyVR-cFDVDzkCcbwbWN_KuFR1NB_5xjKU_qOCJ4pF19RgwzVys10sgGpJc5KToamTwrNlWSwp77lXRUE9Tid98x2qsNvn9dDBm4XqnmaPCJggnKEjhyAOAwMfrDytvv3qu2VWqVDotGiSMDLmi0WT57fEHTLkF3BR0crdw0OfAtWLv_5CoGGwJ4"/>
 <span class="absolute top-4 right-4 bg-sky-600 text-white font-label-sm text-label-sm px-space-sm py-1 rounded-md shadow-sm font-bold">
-                    توثيق مخبري معتمد
+                    تحليل لكل دفعة
                   </span>
 </div>
 <div class="p-space-xl">
-<span class="font-label-sm text-label-sm text-primary font-bold block mb-1">الشفافية المطلقة مع العميل</span>
+<span class="font-label-sm text-label-sm text-primary font-bold block mb-1">شفافية مع العميل</span>
 <h3 class="font-headline-sm text-headline-sm text-navy mb-space-xs font-semibold">فحص معملي فوري لكل دفعة</h3>
 <p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed mb-space-md">
-                    كل سيارة أو تانك يخرج من مزرعة الياسمين يرافقه تقرير فحص مخبري يوضح بدقة نسبة الدهن، البروتين، الكثافة، وخلو اللبن تماماً من أي مضادات حيوية أو مياه مضافة.
+                    نسجّل تحليل كل توريد — نسبة الدهن والبروتين والعدد البكتيري — ويظهر في فاتورة العميل.
                   </p>
 <ul class="space-y-2 mb-space-lg text-body-sm text-on-surface-variant font-medium">
-<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>فحص الكثافة والشوائب فورياً</li>
-<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>تأكيد خلو المضادات الحيوية (Antibiotic Free)</li>
-<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>سجل استرجاع وتتبع إلكتروني كامل</li>
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>نسبة الدهن والبروتين في كل فاتورة</li>
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>العدد البكتيري مسجّل لكل توريد</li>
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>سجل إلكتروني لكل توريد</li>
 </ul>
 </div>
 </div>
 <div class="p-space-xl pt-0">
 <a class="w-full inline-flex items-center justify-center gap-space-xs py-space-sm rounded-xl bg-navy text-white font-label-md text-label-md hover:bg-slate-800 transition-colors font-bold shadow-md" href="#contact">
 <span class="material-symbols-outlined text-[18px]">science</span>
-<span>طلب عينة مجانية للاختبار المعملي</span>
+<span>طلب عينة للاختبار المعملي</span>
 </a>
 </div>
 </div>
@@ -477,7 +502,7 @@
 </div>
 <div>
 <h4 class="font-headline-sm text-headline-sm text-white font-bold">هل أنت صاحب مصنع ألبان أو سلسلة محلات كبرى؟</h4>
-<p class="font-body-md text-body-md text-sky-200">نوفر عقود توريد سنوية وشهرية مخصصة للبن الخام مع استقرار وثبات الأسعار طوال العام.</p>
+<p class="font-body-md text-body-md text-sky-200">نوفر عقود توريد سنوية وشهرية للبن الخام بسعر ثابت طوال مدة العقد.</p>
 </div>
 </div>
 <a class="inline-flex items-center gap-space-xs px-space-xl py-space-md rounded-xl bg-primary text-white font-label-lg text-label-lg whitespace-nowrap hover:bg-sky-500 transition-colors shadow-lg shadow-sky-500/30 font-bold" href="#contact">
@@ -502,11 +527,11 @@
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
 <div>
 <h4 class="font-headline-sm text-headline-sm text-navy font-bold">تقرير المواصفات القياسية لحليب مزرعة الياسمين الخام</h4>
-<p class="font-body-sm text-body-sm text-on-surface-variant">يتم القياس بأجهزة التحليل الرقمي فور اكتمال دورة الحلب</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">نتيجة تحليل كل توريد (الدهن والبروتين والعدد البكتيري) تظهر في فاتورته</p>
 </div>
 <div class="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-xl bg-white border border-sky-200 text-primary font-label-sm text-label-sm font-bold shadow-sm">
 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-<span>مطابق لمواصفات الهيئات والاشتراطات القياسية</span>
+<span>القيم المستهدفة لحليب المزرعة</span>
 </div>
 </div>
 <div class="overflow-x-auto">
@@ -514,7 +539,7 @@
 <thead>
 <tr class="bg-white border-b border-sky-100 text-navy font-semibold font-label-md text-label-md">
 <th class="p-space-md rounded-r-xl">المعيار المخبري للبن الخام</th>
-<th class="p-space-md">المعدل المسجل بمزرعة الياسمين</th>
+<th class="p-space-md">المعدل المستهدف بمزرعة الياسمين</th>
 <th class="p-space-md">الحد الأدنى القياسي</th>
 <th class="p-space-md rounded-l-xl">مؤشر الجودة</th>
 </tr>
@@ -540,7 +565,7 @@
 </tr>
 <tr class="hover:bg-white transition-colors">
 <td class="p-space-md font-semibold text-navy">المضادات الحيوية والكيماويات</td>
-<td class="p-space-md font-bold text-navy text-base">صفر٪ غير متواجدة إطلاقاً</td>
+<td class="p-space-md font-bold text-navy text-base">غير مسموح بها</td>
 <td class="p-space-md">غير مقبولة</td>
 <td class="p-space-md"><span class="px-space-xs py-space-2xs bg-emerald-100 text-emerald-800 rounded-md font-label-sm text-label-sm font-bold">خالٍ تماماً من المتبقيات</span></td>
 </tr>
@@ -587,7 +612,7 @@
 </div>
 <h3 class="font-headline-sm text-headline-sm text-navy mb-space-xs font-semibold">فحص الكثافة والحموضة</h3>
 <p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                  اختبار فوري لكل لتر للتأكد من حموضة اللبن الطبيعية وتطابق الوزن النوعي ونسبة المواد الصلبة الكلية.
+                  اختبار فوري لكل دفعة للتأكد من حموضة اللبن الطبيعية وتطابق الوزن النوعي ونسبة المواد الصلبة الكلية.
                 </p>
 </div>
 <span class="font-label-sm text-label-sm text-primary font-bold mt-space-md">Strict Batch Testing</span>
@@ -621,8 +646,8 @@
                   شريك موثوق ومستدام لمصانع الألبان ومحلات الحليب الكبرى
                 </h2>
 <p class="font-body-lg text-body-md md:text-body-lg text-on-surface-variant leading-relaxed mb-space-xl">
-                  يعتمد نجاح خطوط إنتاج المصانع ومحلات الألبان على نقاء وثبات مواصفات اللبن الخام الوارد إليهم يومياً. في مزرعة الياسمين نمنحك استقراراً تاماً في الكميات، ونقاءً معتمداً بشهادات فحص، ومواعيد وصول دقيقة عند الفجر ومساء كل يوم.
-                </p>
+                  يعتمد نجاح خطوط إنتاج المصانع ومحلات الألبان على نقاء وثبات مواصفات اللبن الخام الوارد إليهم يومياً. في مزرعة الياسمين نلتزم بالكميات المتفق عليها، وتحليل مسجّل لكل توريد، ومواعيد وصول ثابتة فجر ومساء كل يوم.
+              </p>
 <!-- Value Props Checklist -->
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md mb-space-xl">
 <div class="flex items-center gap-space-xs">
@@ -656,16 +681,16 @@
 <span>فتح حساب توريد للمصانع والشركات</span>
 <span class="material-symbols-outlined text-[20px]">arrow_back</span>
 </a>
-<a class="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-md rounded-xl bg-sky-50 text-navy font-label-lg text-label-lg border border-sky-200 hover:bg-sky-100 transition-all font-semibold" href="https://wa.me/" rel="noopener noreferrer" target="_blank">
+{% if whatsapp %}<a class="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-md rounded-xl bg-sky-50 text-navy font-label-lg text-label-lg border border-sky-200 hover:bg-sky-100 transition-all font-semibold" href="{{ wa_link }}" rel="noopener noreferrer" target="_blank">
 <span class="material-symbols-outlined text-[20px] text-primary">chat</span>
 <span>واتساب مسؤول التوريدات</span>
-</a>
+</a>{% endif %}
 </div>
 </div>
 <!-- Categories Served Card -->
 <div class="lg:col-span-5">
 <div class="bg-sky-50/80 p-space-xl rounded-3xl border border-sky-100">
-<h4 class="font-headline-sm text-headline-sm text-navy mb-space-md font-bold">منشآت نورد لها اللبن الخام يومياً</h4>
+<h4 class="font-headline-sm text-headline-sm text-navy mb-space-md font-bold">حلول توريد تناسب</h4>
 <div class="space-y-space-sm">
 <div class="p-space-md rounded-2xl bg-white border border-sky-100 flex items-center justify-between shadow-sm">
 <div class="flex items-center gap-space-sm">
@@ -714,67 +739,12 @@
 </div>
 </div>
 </section>
-<!-- SECTION 7: REAL STATS & SCALE (أرقام وحقائق الإنتاج) -->
-<section class="w-full py-space-3xl md:py-space-4xl bg-white">
-<div class="max-w-max-width-content mx-auto px-margin-mobile md:px-margin-tablet lg:px-margin-desktop">
-<div class="text-center max-w-2xl mx-auto mb-space-3xl">
-<span class="font-label-sm text-label-sm text-primary tracking-widest block mb-space-2xs font-bold">طاقتنا الإنتاجية اليومية</span>
-<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-navy">أرقام تتحدث عن جاهزية مزرعة الياسمين</h2>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-lg">
-<!-- Stat 1 -->
-<div class="bg-sky-50/60 p-space-xl rounded-3xl text-center border border-sky-100 hover:-translate-y-1 transition-transform">
-<div class="w-12 h-12 rounded-2xl bg-white border border-sky-200 mx-auto mb-space-md flex items-center justify-center text-primary shadow-sm">
-<span class="material-symbols-outlined text-[28px]">water_drop</span>
-</div>
-<div class="font-display-lg text-display-lg-mobile md:text-display-lg text-navy font-bold mb-space-2xs">
-                +١٥,٠٠٠
-              </div>
-<h4 class="font-headline-sm text-[18px] text-navy font-bold mb-1">لتر لبن خام يومياً</h4>
-<p class="font-body-sm text-body-sm text-on-surface-variant">إنتاج يومي طازج يُفرغ فوراً في تانكات التبريد</p>
-</div>
-<!-- Stat 2 -->
-<div class="bg-sky-50/60 p-space-xl rounded-3xl text-center border border-sky-100 hover:-translate-y-1 transition-transform">
-<div class="w-12 h-12 rounded-2xl bg-white border border-sky-200 mx-auto mb-space-md flex items-center justify-center text-primary shadow-sm">
-<span class="material-symbols-outlined text-[28px]">pets</span>
-</div>
-<div class="font-display-lg text-display-lg-mobile md:text-display-lg text-navy font-bold mb-space-2xs">
-                +٦٠٠
-              </div>
-<h4 class="font-headline-sm text-[18px] text-navy font-bold mb-1">رأس أبقار حلوب منتقاة</h4>
-<p class="font-body-sm text-body-sm text-on-surface-variant">سلالات هولشتاين فريزيان عالية الإنتاجية والنقاء</p>
-</div>
-<!-- Stat 3 -->
-<div class="bg-sky-50/60 p-space-xl rounded-3xl text-center border border-sky-100 hover:-translate-y-1 transition-transform">
-<div class="w-12 h-12 rounded-2xl bg-white border border-sky-200 mx-auto mb-space-md flex items-center justify-center text-primary shadow-sm">
-<span class="material-symbols-outlined text-[28px]">local_shipping</span>
-</div>
-<div class="font-display-lg text-display-lg-mobile md:text-display-lg text-navy font-bold mb-space-2xs">
-                ١٠٠٪
-              </div>
-<h4 class="font-headline-sm text-[18px] text-navy font-bold mb-1">أسطول مبرد معقم</h4>
-<p class="font-body-sm text-body-sm text-on-surface-variant">سيارات وتانكات مجهزة بحساسات قياس الحرارة المستمر</p>
-</div>
-<!-- Stat 4 -->
-<div class="bg-sky-50/60 p-space-xl rounded-3xl text-center border border-sky-100 hover:-translate-y-1 transition-transform">
-<div class="w-12 h-12 rounded-2xl bg-white border border-sky-200 mx-auto mb-space-md flex items-center justify-center text-primary shadow-sm">
-<span class="material-symbols-outlined text-[28px]">verified</span>
-</div>
-<div class="font-display-lg text-display-lg-mobile md:text-display-lg text-navy font-bold mb-space-2xs">
-                ٠٪
-              </div>
-<h4 class="font-headline-sm text-[18px] text-navy font-bold mb-1">إضافات أو ماء</h4>
-<p class="font-body-sm text-body-sm text-on-surface-variant">ضمان نقاء كامل ومطابقة معملية قطعية</p>
-</div>
-</div>
-</div>
-</section>
 <!-- SECTION 8: FARM GALLERY (معرض صور اللبن والمزرعة وتجهيزات التبريد) -->
 <section class="w-full py-space-4xl bg-sky-50/40">
 <div class="max-w-max-width-content mx-auto px-margin-mobile md:px-margin-tablet lg:px-margin-desktop">
 <div class="flex flex-col md:flex-row md:items-end justify-between mb-space-3xl gap-space-md">
 <div>
-<span class="font-label-sm text-label-sm text-primary tracking-widest block mb-space-2xs font-bold">توثيق حي لمنظومة التوريد</span>
+<span class="font-label-sm text-label-sm text-primary tracking-widest block mb-space-2xs font-bold">منظومة الإنتاج والتوريد</span>
 <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-navy">معرض صور المزرعة وتجهيزات التوريد</h2>
 </div>
 <p class="font-body-md text-body-md text-on-surface-variant max-w-md">
@@ -838,27 +808,27 @@
                   جاهز لتأمين احتياجك من اللبن الخام النقي؟
                 </h2>
 <p class="font-body-lg text-body-md md:text-body-lg text-sky-100 max-w-xl leading-relaxed mb-space-xl">
-                  سواء كنت تمثل مصنع ألبان يبحث عن عقود توريد تانكات ثابتة، أو محلات تجارية تبحث عن حليب خام غير مبستر بقشطته الفاخرة؛ فريق مزرعة الياسمين مستعد لتوفير عينات الفحص وتحديد جدول التوريد اليومي فوراً.
+                  سواء كنت تمثل مصنع ألبان يبحث عن توريد ثابت بالتانكات، أو محلاً يبحث عن لبن خام غير مبستر بقشطته؛ فريق مزرعة الياسمين مستعد لترتيب عينة للفحص وتحديد جدول التوريد المناسب لك.
                 </p>
 <!-- Action Buttons -->
 <div class="flex flex-wrap items-center gap-space-md">
-<a class="inline-flex items-center justify-center gap-space-xs px-space-xl py-space-md rounded-xl bg-primary text-white font-label-lg text-label-lg shadow-xl shadow-sky-500/30 hover:bg-sky-500 transition-all font-bold" href="https://wa.me/" rel="noopener noreferrer" target="_blank">
+{% if whatsapp %}<a class="inline-flex items-center justify-center gap-space-xs px-space-xl py-space-md rounded-xl bg-primary text-white font-label-lg text-label-lg shadow-xl shadow-sky-500/30 hover:bg-sky-500 transition-all font-bold" href="{{ wa_link }}" rel="noopener noreferrer" target="_blank">
 <span class="material-symbols-outlined text-[22px]">chat</span>
-<span>محادثة واتساب مبيعات التوريد 💬</span>
-</a>
-<a class="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-md rounded-xl bg-white/10 hover:bg-white/20 border border-sky-300/30 text-white font-label-lg text-label-lg transition-all" href="tel:920000000">
+<span>محادثة واتساب مبيعات التوريد</span>
+</a>{% endif %}
+{% if phone %}<a class="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-md rounded-xl bg-white/10 hover:bg-white/20 border border-sky-300/30 text-white font-label-lg text-label-lg transition-all" href="tel:{{ phone_tel }}">
 <span class="material-symbols-outlined text-[20px]">call</span>
 <span>اتصال بالهاتف المباشر</span>
-</a>
+</a>{% endif %}
 </div>
 <div class="mt-space-xl pt-space-lg border-t border-sky-900 flex flex-col sm:flex-row sm:items-center gap-space-md text-sky-200">
-<div class="flex items-center gap-space-xs">
+{% if phone %}<div class="flex items-center gap-space-xs">
 <span class="material-symbols-outlined text-primary text-[20px]">support_agent</span>
-<span class="font-body-sm text-body-sm">خط عقود التوريد والمصانع: ٩٢٠٠٠٠٠٠٠</span>
-</div>
+<span class="font-body-sm text-body-sm">خط عقود التوريد والمصانع: <a class="hover:text-white" dir="ltr" href="tel:{{ phone_tel }}">{{ phone }}</a></span>
+</div>{% endif %}
 <div class="flex items-center gap-space-xs">
 <span class="material-symbols-outlined text-primary text-[20px]">schedule</span>
-<span class="font-body-sm text-body-sm">مواعيد التوريد والشحن: فجر ومساء ٢٤/٧</span>
+<span class="font-body-sm text-body-sm">مواعيد التوريد: فجر ومساء يومياً</span>
 </div>
 </div>
 </div>
@@ -866,20 +836,21 @@
 <div class="lg:col-span-5">
 <div class="bg-white text-navy p-space-xl rounded-2xl shadow-2xl border border-sky-100">
 <h4 class="font-headline-sm text-headline-sm text-navy mb-space-xs font-bold">طلب تسعيرة أو شحنة تجريبية</h4>
-<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-lg">اترك بيانات المنشأة وسيتواصل معك مدير التوريد خلال ساعتين.</p>
-<form class="space-y-space-md" id="inquiry-form" onsubmit="event.preventDefault(); document.getElementById('form-feedback').classList.remove('hidden');">
+{% if whatsapp %}
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-lg">املأ بيانات المنشأة، وستُفتح محادثة واتساب برسالة جاهزة إلى مسؤول التوريد.</p>
+<form class="space-y-space-md" id="inquiry-form" onsubmit="return sendInquiry(event);">
 <div>
-<label class="block font-label-sm text-label-sm text-navy font-bold mb-1">اسم المصنع / الشركة / المحل</label>
-<input class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200" placeholder="مثال: مصنع الهدى للألبان أو محلات الخير" required="" type="text"/>
+<label class="block font-label-sm text-label-sm text-navy font-bold mb-1" for="inq-company">اسم المصنع / الشركة / المحل</label>
+<input id="inq-company" name="company" maxlength="120" class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200" placeholder="مثال: مصنع الهدى للألبان أو محلات الخير" required="" type="text"/>
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label class="block font-label-sm text-label-sm text-navy font-bold mb-1">رقم الجوال للتواصل</label>
-<input class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200 text-left" dir="ltr" placeholder="05xxxxxxxx" required="" type="tel"/>
+<label class="block font-label-sm text-label-sm text-navy font-bold mb-1" for="inq-phone">رقم الموبايل للتواصل</label>
+<input id="inq-phone" name="phone" inputmode="tel" maxlength="20" class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200 text-left" dir="ltr" placeholder="01xxxxxxxxx" required="" type="tel"/>
 </div>
 <div>
-<label class="block font-label-sm text-label-sm text-navy font-bold mb-1">نوع التوريد المطلوب</label>
-<select class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200">
+<label class="block font-label-sm text-label-sm text-navy font-bold mb-1" for="inq-kind">نوع التوريد المطلوب</label>
+<select id="inq-kind" name="kind" class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200">
 <option>توريد تانكات وسيارات للمصانع</option>
 <option>توريد قساط مبردة للمحلات</option>
 <option>طلب عينة معملية لفحص اللبن</option>
@@ -888,16 +859,19 @@
 </div>
 </div>
 <div>
-<label class="block font-label-sm text-label-sm text-navy font-bold mb-1">الكمية التقديرية اليومية / الأسبوعية</label>
-<input class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200" placeholder="مثال: ٢ طن يومياً أو ٥٠٠ لتر قساط" type="text"/>
+<label class="block font-label-sm text-label-sm text-navy font-bold mb-1" for="inq-qty">الكمية التقديرية اليومية / الأسبوعية</label>
+<input id="inq-qty" name="qty" maxlength="80" class="w-full px-space-md py-space-sm rounded-lg bg-sky-50 text-navy font-body-sm text-body-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary border border-sky-200" placeholder="مثال: ٢ طن يومياً أو ٥٠٠ لتر قساط" type="text"/>
 </div>
 <button class="w-full py-space-md rounded-xl bg-primary text-white font-label-lg text-label-lg hover:bg-primary-container transition-colors shadow-lg shadow-sky-500/20 font-bold" type="submit">
-                      إرسال طلب التوريد الآن
-                    </button>
+إرسال الطلب عبر واتساب
+</button>
 <div class="hidden p-space-sm rounded-lg bg-sky-100 text-primary font-body-sm text-body-sm text-center font-bold" id="form-feedback">
-                      تم استلام طلب التوريد بنجاح! سيتواصل معكم مسؤول المبيعات التجارية فوراً.
-                    </div>
+تم فتح واتساب برسالة جاهزة — اضغط «إرسال» في واتساب لإتمام الطلب.
+</div>
 </form>
+{% else %}
+<p class="font-body-sm text-body-sm text-on-surface-variant">لطلب تسعيرة أو شحنة تجريبية تواصل مع مكتب التوريد{% if phone %} على <a class="text-primary font-bold" dir="ltr" href="tel:{{ phone_tel }}">{{ phone }}</a>{% endif %}.</p>
+{% endif %}
 </div>
 </div>
 </div>
@@ -913,11 +887,11 @@
 <!-- Brand Summary -->
 <div class="flex flex-col gap-space-md">
 <div class="flex items-center gap-space-sm">
-<img alt="شعار مزرعة الياسمين" class="h-8 w-auto object-contain brightness-0 invert" src="https://lh3.googleusercontent.com/aida/AEtjO1VhDgdE47khg7MqT53WMNb2nY0MGrnHmXiUHhJs0af_7UDTL4qNx1VMQW6TdvxRKjFW1tE_2Y3zPfb0iaxMW2Otjv8bcuFwbWYHSCBAWwrF9e56yFWfmeZKFQKtM8aMThHH34PqF4III-FdBx06vpic61h5AuFp0Pj0jmFkxojO961mCMAP0kUgMeCXAOrcF13ccTBnTwzRZZu8DM8p4Bf6k5l5Xz9hDyMId-npuk5uFqV3Ymryvj-ObA"/>
+<img alt="شعار مزرعة الياسمين" class="h-10 w-auto object-contain" src="{{ url_for('static', filename='img/logo-256.png') }}" width="40" height="40"/>
 <span class="font-headline-sm text-headline-sm text-white font-bold">مزرعة الياسمين</span>
 </div>
 <p class="font-body-sm text-body-sm text-sky-200 leading-relaxed">
-            الريادة في إنتاج وتوريد اللبن الخام الطبيعي (Raw Milk) بنقاء ١٠٠٪ دون أي معالجات تصنيعية. شريك التوريد المعتمد لمصانع الألبان وكبار المصنعين.
+            إنتاج وتوريد اللبن الخام الطبيعي (Raw Milk) دون أي معالجات تصنيعية، لمصانع الألبان ومحلات الألبان.
           </p>
 <div class="flex items-center gap-space-sm">
 <span class="w-8 h-8 rounded-full bg-sky-900 flex items-center justify-center text-primary">
@@ -930,7 +904,7 @@
 <div class="flex flex-col gap-space-sm">
 <h4 class="font-headline-sm text-headline-sm text-white pb-space-xs font-semibold">أقسام التوريد</h4>
 <ul class="space-y-space-xs font-body-sm text-body-sm text-sky-200">
-<li><a class="hover:text-white transition-colors" href="#">الرئيسية</a></li>
+<li><a class="hover:text-white transition-colors" href="#top">الرئيسية</a></li>
 <li><a class="hover:text-white transition-colors" href="#raw-milk">مواصفات اللبن الخام الصافي</a></li>
 <li><a class="hover:text-white transition-colors" href="#supply-options">توريد تانكات للمصانع</a></li>
 <li><a class="hover:text-white transition-colors" href="#supply-options">توريد قساط لمحلات الألبان</a></li>
@@ -942,25 +916,25 @@
 <div class="flex flex-col gap-space-sm">
 <h4 class="font-headline-sm text-headline-sm text-white pb-space-xs font-semibold">الموقع وساعات التشغيل</h4>
 <div class="space-y-space-xs font-body-sm text-body-sm text-sky-200">
-<p class="flex items-start gap-space-xs">
+{% if address %}<p class="flex items-start gap-space-xs">
 <span class="material-symbols-outlined text-primary text-[18px]">location_on</span>
-<span>طريق الواحات الزراعية، المملكة العربية السعودية</span>
-</p>
+<span>{{ address }}</span>
+</p>{% endif %}
 <p class="flex items-center gap-space-xs">
 <span class="material-symbols-outlined text-primary text-[18px]">schedule</span>
-<span>مواعيد الحلب والتوريد: حلب الفجر وحلب المساء (٢٤ ساعة)</span>
+<span>مواعيد الحلب والتوريد: الفجر والمساء يومياً</span>
 </p>
-<p class="flex items-center gap-space-xs">
+{% if phone %}<p class="flex items-center gap-space-xs">
 <span class="material-symbols-outlined text-primary text-[18px]">call</span>
-<span>هاتف مبيعات التوريد: ٩٢٠٠٠٠٠٠٠</span>
-</p>
+<span>هاتف مبيعات التوريد: <a class="hover:text-white" dir="ltr" href="tel:{{ phone_tel }}">{{ phone }}</a></span>
+</p>{% endif %}
 </div>
 </div>
 <!-- Rapid B2B Contract CTA -->
 <div class="flex flex-col gap-space-sm">
 <h4 class="font-headline-sm text-headline-sm text-white pb-space-xs font-semibold">عقود التوريد المستمرة</h4>
 <p class="font-body-sm text-body-sm text-sky-200 leading-relaxed">
-            نستقبل طلبات الفحص والتوريد التجاري المبرد لجميع مناطق المملكة بأسعار تنافسية.
+            نستقبل طلبات التوريد التجاري المبرد بعقود شهرية وسنوية.
           </p>
 <a class="inline-flex items-center justify-center px-space-md py-space-sm rounded-xl bg-primary text-white font-label-md text-label-md hover:bg-sky-500 transition-colors font-bold shadow-md shadow-sky-500/20" href="#contact">
 <span>طلب جدول الشحنات الأسبوعي</span>
@@ -969,7 +943,7 @@
 </div>
 <!-- Copyright -->
 <div class="pt-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md font-label-md text-label-md text-sky-300">
-<p>© ٢٠٢٥ مزرعة الياسمين لإنتاج وتوريد اللبن الخام. جميع الحقوق محفوظة.</p>
+<p>© {{ year }} مزرعة الياسمين لإنتاج وتوريد اللبن الخام. جميع الحقوق محفوظة.</p>
 <div class="flex items-center gap-space-lg">
 <a class="hover:text-white transition-colors" href="#specs">معايير فحص اللبن الخام</a>
 <a class="hover:text-white transition-colors" href="#contact">مكتب التوريدات والمبيعات</a>
@@ -978,7 +952,35 @@
 </div>
 </footer>
 <!-- Floating WhatsApp Action -->
-<a aria-label="واتساب مبيعات اللبن الخام" class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-[0_8px_24px_rgba(2,132,199,0.35)] flex items-center justify-center hover:scale-105 transition-transform" href="https://wa.me/" rel="noopener noreferrer" target="_blank">
+{% if whatsapp %}<a aria-label="واتساب مبيعات اللبن الخام" class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-[0_8px_24px_rgba(2,132,199,0.35)] flex items-center justify-center hover:scale-105 transition-transform" href="{{ wa_link }}" rel="noopener noreferrer" target="_blank">
 <span class="material-symbols-outlined text-[28px]">chat</span>
-</a>
+</a>{% endif %}
+<script>
+  // LANDING-1: show the icons only once their font is in (see the CSS).
+  (function () {
+    var d = document.documentElement;
+    function ready() { d.classList.add('icons-ready'); }
+    if (!document.fonts || !document.fonts.load) { ready(); return; }
+    document.fonts.load('24px "Material Symbols Outlined"', 'chat').then(function (f) {
+      if (f && f.length) ready();
+    }).catch(function () {});
+  })();
+</script>
+{% if whatsapp %}<script>
+  // LANDING-1: the inquiry form opens WhatsApp with the request filled in.
+  function sendInquiry(e) {
+    e.preventDefault();
+    var f = e.target;
+    var lines = [
+      'طلب توريد لبن خام — مزرعة الياسمين',
+      'المنشأة: ' + f.company.value.trim(),
+      'رقم التواصل: ' + f.phone.value.trim(),
+      'نوع التوريد: ' + f.kind.value
+    ];
+    if (f.qty.value.trim()) lines.push('الكمية: ' + f.qty.value.trim());
+    window.open({{ wa_base|tojson }} + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
+    document.getElementById('form-feedback').classList.remove('hidden');
+    return false;
+  }
+</script>{% endif %}
 </body></html>

@@ -121,6 +121,26 @@
           </div>
         </div>
 
+        {# ---- LANDING-1: public contact on the landing page ---- #}
+        <hr class="my-4">
+        <h5 class="mb-3"><i class="bi bi-globe"></i> التواصل في الصفحة الرئيسية</h5>
+        <p class="small text-muted">
+          بيظهروا للزوار في الصفحة الرئيسية للموقع (مع العنوان اللي فوق). أي خانة فاضية مش بتظهر،
+          وفورم "طلب تسعيرة" بيشتغل بس لما يكون فيه رقم واتساب.
+        </p>
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ company_form.landing_phone.label(class="form-label fw-bold") }}
+            {{ company_form.landing_phone(class="form-control", dir="ltr", placeholder="01001234567") }}
+            {% for e in company_form.landing_phone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6">
+            {{ company_form.landing_whatsapp.label(class="form-label fw-bold") }}
+            {{ company_form.landing_whatsapp(class="form-control", dir="ltr", placeholder="201001234567") }}
+            {% for e in company_form.landing_whatsapp.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
         {# ---- ترقيم الفواتير + التذكير ---- #}
         <hr class="my-4">
         <h5 class="mb-3"><i class="bi bi-hash"></i> ترقيم الفواتير</h5>

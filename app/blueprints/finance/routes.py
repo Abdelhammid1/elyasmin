@@ -68,6 +68,8 @@ def settings():
         company_form.commercial_register_no.data = profile.commercial_register_no
         company_form.tax_registration_no.data = profile.tax_registration_no
         company_form.address.data = profile.address
+        company_form.landing_phone.data = Setting.get(Setting.KEY_LANDING_PHONE)
+        company_form.landing_whatsapp.data = Setting.get(Setting.KEY_LANDING_WHATSAPP)
         company_form.bank_account_holder.data = profile.bank_account_holder
         company_form.bank_name.data = profile.bank_name
         company_form.bank_account_no.data = profile.bank_account_no
@@ -110,6 +112,9 @@ def settings():
             profile.commercial_register_no = (company_form.commercial_register_no.data or "").strip() or None
             profile.tax_registration_no = (company_form.tax_registration_no.data or "").strip() or None
             profile.address = (company_form.address.data or "").strip() or None
+            Setting.set(Setting.KEY_LANDING_PHONE, (company_form.landing_phone.data or "").strip())
+            Setting.set(Setting.KEY_LANDING_WHATSAPP,
+                        "".join(ch for ch in (company_form.landing_whatsapp.data or "") if ch.isdigit()))
             profile.bank_account_holder = (company_form.bank_account_holder.data or "").strip() or None
             profile.bank_name = (company_form.bank_name.data or "").strip() or None
             profile.bank_account_no = (company_form.bank_account_no.data or "").strip() or None

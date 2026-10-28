@@ -174,7 +174,7 @@ def test_mapping_remembered(admin_client, app):
     keys = [Setting.PREFIX_PARLOR_GROUP + "1", Setting.PREFIX_PARLOR_GROUP + "8",
             Setting.PREFIX_PARLOR_STATUS + "Insem"]
     with app.app_context():
-        before = {k: Setting.get(k, None) for k in keys}
+        before = {k: getattr(db.session.get(Setting, k), "value", None) for k in keys}
     _cleanup(app)
     milk, nursing = _groups(app)
     try:

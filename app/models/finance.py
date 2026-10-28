@@ -102,6 +102,9 @@ class Setting(db.Model):
     # Remembered parlor → app mapping from the last herd import, one row
     # per code: "parlor_group:<n>" → group id, "parlor_status:<code>" →
     # status code ("" = no status).
+    # LANDING-1: public contact numbers on the landing page ("" = hidden).
+    KEY_LANDING_PHONE = "landing_phone"
+    KEY_LANDING_WHATSAPP = "landing_whatsapp"
     PREFIX_PARLOR_GROUP = "parlor_group:"
     PREFIX_PARLOR_STATUS = "parlor_status:"
 

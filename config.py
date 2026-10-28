@@ -35,6 +35,11 @@ class Config:
     # app is reachable locally; the session cookie is sent to this host.
     PDF_RENDER_BASE_URL = os.getenv("PDF_RENDER_BASE_URL", "http://127.0.0.1:5001")
 
+    # Public address of the site (e.g. https://yasmin-farm.com) for the
+    # landing page's canonical / Open Graph links. Empty → the request's
+    # own URL is used (fine for local runs).
+    SITE_URL = os.getenv("SITE_URL", "").rstrip("/")
+
     # ---------- In-app AI assistant (DeepSeek) ----------
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
     # NOTE: "deepseek-chat" was deprecated on 2026-07-24 and is gone from the
