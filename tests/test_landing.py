@@ -54,8 +54,9 @@ def test_metadata_logo_and_no_placeholders(client, landing_settings):
     assert "<title>مزرعة الياسمين |" in body
     assert '<meta name="description"' in body
     assert '<meta property="og:title"' in body
-    assert 'property="og:image" content="http://localhost/static/img/logo-512.png"' in body
-    assert '<link rel="canonical" href="http://localhost/"' in body
+    assert 'property="og:image" content="/static/img/logo-512.png"' in body
+    assert "localhost" not in body                    # nothing taken from Host
+    assert 'rel="canonical"' not in body              # needs SITE_URL
     assert "/static/img/logo-256.png" in body
     assert "googleusercontent.com/aida/" not in body          # dead logo URL
     assert "&amp;display=block" in body                         # icon font
@@ -95,6 +96,10 @@ def test_site_url_config(client, app, landing_settings):
     try:
         body = client.get("/").get_data(as_text=True)
         assert 'content="https://yasmin-farm.example/static/img/logo-512.png"' in body
+        assert '<link rel="canonical" href="https://yasmin-farm.example/"' in body
+        # a spoofed Host header changes nothing
+        evil = client.get("/", headers={"Host": "evil.example"}).get_data(as_text=True)
+        assert "evil.example" not in evil
     finally:
         app.config["SITE_URL"] = ""
 

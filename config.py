@@ -36,8 +36,8 @@ class Config:
     PDF_RENDER_BASE_URL = os.getenv("PDF_RENDER_BASE_URL", "http://127.0.0.1:5001")
 
     # Public address of the site (e.g. https://yasmin-farm.com) for the
-    # landing page's canonical / Open Graph links. Empty → the request's
-    # own URL is used (fine for local runs).
+    # landing page's canonical / Open Graph links. Empty → those links are
+    # left out (never built from the request's Host header).
     SITE_URL = os.getenv("SITE_URL", "").rstrip("/")
 
     # ---------- In-app AI assistant (DeepSeek) ----------

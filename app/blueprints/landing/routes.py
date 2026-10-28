@@ -13,7 +13,7 @@ design, keep the `{{ … }}` / `{% if … %}` bits in the new file.
 from datetime import date
 from urllib.parse import quote
 
-from flask import Blueprint, current_app, render_template, request
+from flask import Blueprint, current_app, render_template
 
 from app.models.finance import CompanyProfile, Setting
 
@@ -33,7 +33,10 @@ def home():
     wa_base = f"https://wa.me/{whatsapp}" if whatsapp else ""
     return render_template(
         "landing/index.html",
-        site_url=current_app.config.get("SITE_URL") or request.url_root.rstrip("/"),
+        # Absolute links only from config, never from the request's Host
+        # header (a spoofed Host would end up in canonical / og tags and
+        # could be cached for everyone). Unset → those tags are left out.
+        site_url=current_app.config.get("SITE_URL") or "",
         phone=phone,
         phone_tel="".join(ch for ch in phone if ch.isdigit() or ch == "+"),
         whatsapp=whatsapp,
