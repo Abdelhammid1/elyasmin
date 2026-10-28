@@ -58,11 +58,15 @@ def test_metadata_logo_and_no_placeholders(client, landing_settings):
     assert "localhost" not in body                    # nothing taken from Host
     assert 'rel="canonical"' not in body              # needs SITE_URL
     assert "/static/img/logo-256.png" in body
+    assert "/static/img/favicon-64.png" in body and "img/favicon.png" not in body
     assert "googleusercontent.com/aida/" not in body          # dead logo URL
     assert "&amp;display=block" in body                         # icon font
     assert "html:not(.icons-ready) .material-symbols-outlined" in body
     for placeholder in ("المملكة", "920000000", "٩٢٠٠٠٠٠٠٠", 'href="https://wa.me/"',
-                        "05xxxxxxxx", "٢٠٢٥", "+١٥,٠٠٠", "+٦٠٠", "خلال ساعتين", "مجانية"):
+                        "05xxxxxxxx", "٢٠٢٥", "+١٥,٠٠٠", "+٦٠٠", "خلال ساعتين", "مجانية",
+                        # absolute claims the farm can't back (audit round)
+                        "صفر تلوث", "الهرمونات", "دون أن يرى النور", "بدون انقطاع",
+                        "المورد الخام المعتمد", "الريادة", "الأفضل", "أجود"):
         assert placeholder not in body, placeholder
     year = str(date.today().year).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
     assert f"© {year} مزرعة الياسمين" in body
